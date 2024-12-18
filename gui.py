@@ -1,4 +1,5 @@
 import sys
+import logging
 
 from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import QDoubleValidator
@@ -25,6 +26,9 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.figure import Figure
+
+
+log = logging.getLogger()
 
 
 class MatplotlibCanvas(FigureCanvasQTAgg):
@@ -115,10 +119,19 @@ class MainWindow(QMainWindow):
 
         self.create_canvases()
 
-        dock_widget_size_policy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        self.toolbar_mpl = QToolBar("matplotlib_default_tools")
+        self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
+        self.toolbar_mpl.addWidget(self.mpl_default_tools)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
+
+    def create_dock_widgets(self) -> None:
+        self.dock_widget_size_policy = QSizePolicy(
+            QSizePolicy.Policy.Minimum,
+            QSizePolicy.Policy.Fixed,
+        )
 
         self.device_calibration_widget = CalibrationFormWidget(parent=self)
-        self.device_calibration_widget.setSizePolicy(dock_widget_size_policy)
+        self.device_calibration_widget.setSizePolicy(self.dock_widget_size_policy)
         # self.device_calibration_widget.setMinimumSize(dock_widget_size)
         self.device_calibration_dock = QDockWidget("calibration_dock", parent=self)
         self.device_calibration_dock.setWidget(self.device_calibration_widget)
@@ -127,18 +140,13 @@ class MainWindow(QMainWindow):
         )
 
         self.fit_calibration_widget = CalibrationFormWidget(parent=self)
-        self.fit_calibration_widget.setSizePolicy(dock_widget_size_policy)
+        self.fit_calibration_widget.setSizePolicy(self.dock_widget_size_policy)
         # self.fit_calibration_widget.setMinimumSize(dock_widget_size)
         self.fit_calibration_dock = QDockWidget("fit_dock", parent=self)
         self.fit_calibration_dock.setWidget(self.fit_calibration_widget)
         self.addDockWidget(
             Qt.DockWidgetArea.LeftDockWidgetArea, self.fit_calibration_dock
         )
-
-        self.toolbar_mpl = QToolBar("matplotlib_default_tools")
-        self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
-        self.toolbar_mpl.addWidget(self.mpl_default_tools)
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
 
     def create_canvases(self) -> None:
         """
@@ -162,7 +170,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(self.primary_canvas)
         splitter.addWidget(self.secondary_canvas)
 
-        size = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        size = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         splitter.setSizePolicy(size)
 
         # Main canvas should get 2/3 of the main window
