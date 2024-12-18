@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSpinBox,
     QSplitter,
+    QTableView,
     QToolBar,
     QDockWidget,
     QVBoxLayout,
@@ -82,56 +84,65 @@ class DeviceWidget(QWidget):
         self.setLayout(layout)
 
 
-class CalibrationFormWidget(QWidget):
+class CalibrationFormWidget(QGroupBox):
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
-        self.xgain = QLineEdit(parent=parent)
-        self.ygain = QLineEdit(parent=parent)
-        self.zgain = QLineEdit(parent=parent)
-
-        self.xoffset = QLineEdit(parent=parent)
-        self.yoffset = QLineEdit(parent=parent)
-        self.zoffset = QLineEdit(parent=parent)
-
         validator = QDoubleValidator(-999, 999, 2, parent=parent)
-        validator.setNotation(QDoubleValidator.StandardNotation)  # pyright: ignore
+        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
-        for widget in [
-            self.xgain,
-            self.ygain,
-            self.zgain,
-            self.xoffset,
-            self.yoffset,
-            self.zoffset,
+        self.offset_label = QLabel(text="Offset", parent=parent)
+        self.gain_label = QLabel(text="Gain", parent=parent)
+        label_alignment = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+        self.offset_label.setAlignment(label_alignment)
+        self.gain_label.setAlignment(label_alignment)
+
+        self.x_gain = QLineEdit(parent=parent)
+        self.y_gain = QLineEdit(parent=parent)
+        self.z_gain = QLineEdit(parent=parent)
+
+        self.x_offset = QLineEdit(parent=parent)
+        self.y_offset = QLineEdit(parent=parent)
+        self.z_offset = QLineEdit(parent=parent)
+
+        for edit in [
+            self.x_gain,
+            self.y_gain,
+            self.z_gain,
+            self.x_offset,
+            self.y_offset,
+            self.z_offset,
         ]:
-            widget.setValidator(validator)
-            widget.setMaxLength(5)
-            widget.setMaximumWidth(40)
+            edit.setValidator(validator)
+            edit.setMaxLength(6)
+            # edit.setMinimumWidth(20)
+            # edit.setMaximumWidth(50)
 
-        gain_box = QGroupBox(parent=parent, title="Gain")
-        gain_layout = QVBoxLayout()
-        gain_layout.addWidget(self.xgain)
-        gain_layout.addWidget(self.ygain)
-        gain_layout.addWidget(self.zgain)
-        gain_box.setLayout(gain_layout)
+        layout = QFormLayout()
+        layout.addRow(self.gain_label, self.offset_label)
+        layout.addRow(self.x_gain, self.x_offset)
+        layout.addRow(self.y_gain, self.y_offset)
+        layout.addRow(self.z_gain, self.z_offset)
+        self.setLayout(layout)
 
-        offset_box = QGroupBox(parent=parent, title="Offset")
-        offset_layout = QVBoxLayout()
-        offset_layout.addWidget(self.xoffset)
-        offset_layout.addWidget(self.yoffset)
-        offset_layout.addWidget(self.zoffset)
-        offset_box.setLayout(offset_layout)
 
-        box_layout = QHBoxLayout()
-        box_layout.addWidget(offset_box)
-        box_layout.addWidget(gain_box)
+class CalibrationWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None, *args, **kwargs):
+        super().__init__(parent=parent, *args, **kwargs)
 
-        self.checkbox = QCheckBox(text="Show in plot", parent=parent)
+        self.device_calibration = CalibrationFormWidget(title="Device", parent=parent)
+        self.fit_calibration = CalibrationFormWidget(title="Fit", parent=parent)
 
-        layout = QVBoxLayout()
-        layout.addLayout(box_layout)
-        layout.addWidget(self.checkbox)
+        self.device_show = QCheckBox(text="Show in plot", parent=parent)
+        self.fit_show = QCheckBox(text="Show in plot", parent=parent)
+
+        self.send_to_device_button = QPushButton(text="Read from device", parent=parent)
+        self.read_from_device_button = QPushButton(text="Send to device", parent=parent)
+
+        layout = QFormLayout()
+        layout.addRow(self.device_calibration, self.fit_calibration)
+        layout.addRow(self.send_to_device_button, self.read_from_device_button)
+        layout.addRow(self.device_show, self.fit_show)
 
         self.setLayout(layout)
 
@@ -154,37 +165,30 @@ class MainWindow(QMainWindow):
         log.debug("Created main window.")
 
     def create_dock_widgets(self) -> None:
-        self.dock_widget_size_policy = QSizePolicy(
+        default_size_policy = QSizePolicy(
             QSizePolicy.Policy.Minimum,
             QSizePolicy.Policy.Fixed,
         )
 
-        self.device_calibration_widget = CalibrationFormWidget(parent=self)
-        self.device_calibration_widget.setSizePolicy(self.dock_widget_size_policy)
-        # self.device_calibration_widget.setMinimumSize(dock_widget_size)
-        self.device_calibration_dock = QDockWidget("calibration_dock", parent=self)
-        self.device_calibration_dock.setWidget(self.device_calibration_widget)
-
-        self.fit_calibration_widget = CalibrationFormWidget(parent=self)
-        self.fit_calibration_widget.setSizePolicy(self.dock_widget_size_policy)
-        # self.fit_calibration_widget.setMinimumSize(dock_widget_size)
-        self.fit_calibration_dock = QDockWidget("fit_dock", parent=self)
-        self.fit_calibration_dock.setWidget(self.fit_calibration_widget)
+        self.calibration_widget = CalibrationWidget(parent=self)
+        self.calibration_widget.setSizePolicy(default_size_policy)
+        self.calibration_dock = QDockWidget("calibration_dock", parent=self)
+        self.calibration_dock.setWidget(self.calibration_widget)
 
         self.device_select_widget = DeviceWidget(parent=self)
-        self.device_select_widget.setSizePolicy(self.dock_widget_size_policy)
+        self.device_select_widget.setSizePolicy(default_size_policy)
         self.device_select_dock = QDockWidget("Device", parent=self)
         self.device_select_dock.setWidget(self.device_select_widget)
+
+        self.data_table_widget = QTableView(parent=self)
+        self.data_table_dock = QDockWidget("Data", parent=self)
+        self.data_table_dock.setWidget(self.data_table_widget)
 
         self.addDockWidget(
             Qt.DockWidgetArea.LeftDockWidgetArea, self.device_select_dock
         )
-        self.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, self.device_calibration_dock
-        )
-        self.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, self.fit_calibration_dock
-        )
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.calibration_dock)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_table_dock)
 
         log.debug("Created dock widgets.")
 
