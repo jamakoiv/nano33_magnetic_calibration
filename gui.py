@@ -93,19 +93,21 @@ class CalibrationFormWidget(QGroupBox):
 
         label_alignment = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
 
-        self.offset_label = QLabel(text="Offset", parent=parent)
-        self.gain_label = QLabel(text="Gain", parent=parent)
+        self.offset_label = QLabel(text="Offset", parent=self)
+        self.gain_label = QLabel(text="Gain", parent=self)
 
         self.offset_label.setAlignment(label_alignment)
         self.gain_label.setAlignment(label_alignment)
 
-        self.x_gain = QLineEdit(parent=parent)
-        self.y_gain = QLineEdit(parent=parent)
-        self.z_gain = QLineEdit(parent=parent)
+        self.x_gain = QLineEdit(parent=self)
+        self.y_gain = QLineEdit(parent=self)
+        self.z_gain = QLineEdit(parent=self)
 
-        self.x_offset = QLineEdit(parent=parent)
-        self.y_offset = QLineEdit(parent=parent)
-        self.z_offset = QLineEdit(parent=parent)
+        self.x_offset = QLineEdit(parent=self)
+        self.y_offset = QLineEdit(parent=self)
+        self.z_offset = QLineEdit(parent=self)
+
+        self.show_check = QCheckBox(text="Show in plot", parent=self)
 
         for edit in [
             self.x_gain,
@@ -117,8 +119,7 @@ class CalibrationFormWidget(QGroupBox):
         ]:
             edit.setValidator(validator)
             edit.setMaxLength(6)
-            # edit.setMinimumWidth(20)
-            # edit.setMaximumWidth(50)
+            edit.setMinimumWidth(40)
 
         layout = QGridLayout()
         layout.addWidget(self.gain_label, 0, 0)
@@ -130,6 +131,11 @@ class CalibrationFormWidget(QGroupBox):
         layout.addWidget(self.z_gain, 3, 0)
         layout.addWidget(self.z_offset, 3, 1)
 
+        # columnSpan can be used only for layouts, not single widgets.
+        check_layout = QHBoxLayout()
+        check_layout.addWidget(self.show_check)
+        layout.addItem(check_layout, 4, 0, columnSpan=2)
+
         self.setLayout(layout)
 
 
@@ -140,16 +146,14 @@ class CalibrationWidget(QWidget):
         self.device_calibration = CalibrationFormWidget(title="Device", parent=parent)
         self.fit_calibration = CalibrationFormWidget(title="Fit", parent=parent)
 
-        self.device_show = QCheckBox(text="Show in plot", parent=parent)
-        self.fit_show = QCheckBox(text="Show in plot", parent=parent)
-
         self.send_to_device_button = QPushButton(text="Read from device", parent=parent)
         self.read_from_device_button = QPushButton(text="Send to device", parent=parent)
 
-        layout = QFormLayout()
-        layout.addRow(self.device_calibration, self.fit_calibration)
-        layout.addRow(self.send_to_device_button, self.read_from_device_button)
-        layout.addRow(self.device_show, self.fit_show)
+        layout = QGridLayout()
+        layout.addWidget(self.device_calibration, 0, 0)
+        layout.addWidget(self.fit_calibration, 0, 1)
+        layout.addWidget(self.read_from_device_button, 1, 0)
+        layout.addWidget(self.send_to_device_button, 1, 1)
 
         self.setLayout(layout)
 
