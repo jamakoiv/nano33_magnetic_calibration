@@ -91,9 +91,11 @@ class CalibrationFormWidget(QGroupBox):
         validator = QDoubleValidator(-999, 999, 2, parent=parent)
         validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
+        label_alignment = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+
         self.offset_label = QLabel(text="Offset", parent=parent)
         self.gain_label = QLabel(text="Gain", parent=parent)
-        label_alignment = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+
         self.offset_label.setAlignment(label_alignment)
         self.gain_label.setAlignment(label_alignment)
 
@@ -118,11 +120,16 @@ class CalibrationFormWidget(QGroupBox):
             # edit.setMinimumWidth(20)
             # edit.setMaximumWidth(50)
 
-        layout = QFormLayout()
-        layout.addRow(self.gain_label, self.offset_label)
-        layout.addRow(self.x_gain, self.x_offset)
-        layout.addRow(self.y_gain, self.y_offset)
-        layout.addRow(self.z_gain, self.z_offset)
+        layout = QGridLayout()
+        layout.addWidget(self.gain_label, 0, 0)
+        layout.addWidget(self.offset_label, 0, 1)
+        layout.addWidget(self.x_gain, 1, 0)
+        layout.addWidget(self.x_offset, 1, 1)
+        layout.addWidget(self.y_gain, 2, 0)
+        layout.addWidget(self.y_offset, 2, 1)
+        layout.addWidget(self.z_gain, 3, 0)
+        layout.addWidget(self.z_offset, 3, 1)
+
         self.setLayout(layout)
 
 
@@ -166,7 +173,7 @@ class MainWindow(QMainWindow):
 
     def create_dock_widgets(self) -> None:
         default_size_policy = QSizePolicy(
-            QSizePolicy.Policy.Minimum,
+            QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Fixed,
         )
 
