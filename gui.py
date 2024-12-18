@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMainWindow,
     QSizePolicy,
+    QSpinBox,
     QSplitter,
     QToolBar,
     QDockWidget,
@@ -28,10 +29,15 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.figure import Figure
 
 
-log = logging.getLogger()
+logging.basicConfig(level=logging.DEBUG)
+log = logging.getLogger(__name__)
 
 
 class MatplotlibCanvas(FigureCanvasQTAgg):
+    """
+    Canvas for drawing matplotlib-plots.
+    """
+
     fig: Figure
     axes: Axes
 
@@ -42,17 +48,37 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
         super().__init__(self.fig)
 
 
-class DeviceSelectWidget(QWidget):
+class DeviceWidget(QWidget):
+    """
+    Widget for selecting device and getting raw data from the device.
+    """
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
-        self.button = QPushButton(parent=parent, text="Scan devices")
-        self.selector = QComboBox(parent=parent)
+        self.button = QPushButton(parent=self, text="Scan devices")
+        self.selector = QComboBox(parent=self)
 
-        layout = QHBoxLayout()
-        layout.addWidget(self.selector)
-        layout.addWidget(self.button)
-        layout.addStretch()
+        self.data_points = QSpinBox(parent=self)
+        self.data_label = QLabel(parent=self, text="Calibration points")
+        self.data_button = QPushButton(parent=self, text="Read data")
+
+        self.device_box = QGroupBox(title="Device select", parent=self)
+        self.device_layout = QHBoxLayout()
+        self.device_layout.addWidget(self.selector)
+        self.device_layout.addWidget(self.button)
+        self.device_box.setLayout(self.device_layout)
+
+        self.data_box = QGroupBox(title="Raw calibration data", parent=self)
+        self.data_layout = QHBoxLayout()
+        self.data_layout.addWidget(self.data_label)
+        self.data_layout.addWidget(self.data_points)
+        self.data_layout.addWidget(self.data_button)
+        self.data_box.setLayout(self.data_layout)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.device_box)
+        layout.addWidget(self.data_box)
         self.setLayout(layout)
 
 
@@ -118,11 +144,14 @@ class MainWindow(QMainWindow):
         super().__init__(parent=parent)
 
         self.create_canvases()
+        self.create_dock_widgets()
 
         self.toolbar_mpl = QToolBar("matplotlib_default_tools")
         self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
         self.toolbar_mpl.addWidget(self.mpl_default_tools)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
+
+        log.debug("Created main window.")
 
     def create_dock_widgets(self) -> None:
         self.dock_widget_size_policy = QSizePolicy(
@@ -135,18 +164,29 @@ class MainWindow(QMainWindow):
         # self.device_calibration_widget.setMinimumSize(dock_widget_size)
         self.device_calibration_dock = QDockWidget("calibration_dock", parent=self)
         self.device_calibration_dock.setWidget(self.device_calibration_widget)
-        self.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, self.device_calibration_dock
-        )
 
         self.fit_calibration_widget = CalibrationFormWidget(parent=self)
         self.fit_calibration_widget.setSizePolicy(self.dock_widget_size_policy)
         # self.fit_calibration_widget.setMinimumSize(dock_widget_size)
         self.fit_calibration_dock = QDockWidget("fit_dock", parent=self)
         self.fit_calibration_dock.setWidget(self.fit_calibration_widget)
+
+        self.device_select_widget = DeviceWidget(parent=self)
+        self.device_select_widget.setSizePolicy(self.dock_widget_size_policy)
+        self.device_select_dock = QDockWidget("Device", parent=self)
+        self.device_select_dock.setWidget(self.device_select_widget)
+
+        self.addDockWidget(
+            Qt.DockWidgetArea.LeftDockWidgetArea, self.device_select_dock
+        )
+        self.addDockWidget(
+            Qt.DockWidgetArea.LeftDockWidgetArea, self.device_calibration_dock
+        )
         self.addDockWidget(
             Qt.DockWidgetArea.LeftDockWidgetArea, self.fit_calibration_dock
         )
+
+        log.debug("Created dock widgets.")
 
     def create_canvases(self) -> None:
         """
@@ -178,6 +218,8 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 1)
 
         self.setCentralWidget(splitter)
+
+        log.debug("Created canvases.")
 
 
 if __name__ == "__main__":
