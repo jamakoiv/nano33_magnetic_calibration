@@ -109,6 +109,16 @@ class CalibrationDataModel(QAbstractTableModel):
             case _:
                 return None
 
+    def get_xyz_data(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        try:
+            x, y, z, _ = self._data.transpose()
+        except AttributeError:
+            x = np.zeros(0)
+            y = np.zeros(0)
+            z = np.zeros(0)
+
+        return x, y, z
+
 
 if __name__ == "__main__":
     model = CalibrationDataModel()
