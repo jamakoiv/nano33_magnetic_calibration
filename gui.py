@@ -1,10 +1,12 @@
 import sys
 import logging
+from typing import Callable
 import numpy as np
 
 from PySide6.QtCore import QSize, Qt, Slot
 from PySide6.QtGui import QAction, QDoubleValidator
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QCheckBox,
     QFormLayout,
@@ -43,14 +45,62 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
     Canvas for drawing matplotlib-plots.
     """
 
+    plot: Callable
+    update_plot: Callable
+
     fig: Figure
-    axes: Axes
+    axes: dict[str, Axes]
+    model: CalibrationDataModel
 
     def __init__(
-        self, parent=None, width=5, height=4, dpi=100, *args, **kwargs
+        self,
+        parent=None,
+        width=5,
+        height=4,
+        dpi=100,
+        projection: str = "3d",
+        *args,
+        **kwargs,
     ) -> None:
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         super().__init__(self.fig)
+
+        self.axes = {}
+        match projection:
+            case "3d":
+                self.plot = self.plot_3d
+                self.update_plot = self.update_3d
+            case "2d":
+                self.plot = self.plot_2d
+                self.update_plot = self.update_2d
+
+    def setModel(self, model: CalibrationDataModel) -> None:
+        self.model = model
+
+        self.model.rowsInserted.connect(self.update_plot)
+        self.model.rowsRemoved.connect(self.update_plot)
+        self.model.modelReset.connect(self.update_plot)
+
+        self.plot()
+
+    def plot_3d(self) -> None:
+        ax = self.fig.add_subplot(111, projection="3d")
+        ax.set_aspect("equal")
+        self.axes["3d"] = ax
+        self.fig.tight_layout()
+
+        x, y, z = self.model.get_xyz_data()
+        self.axes["3d"].plot3D(x, y, z, "rx")
+
+    def update_3d(self): ...
+
+    def plot_2d(self) -> None:
+        for i, axis in enumerate(["x", "y", "z"]):
+            ax = self.fig.add_subplot(1, 3, i + 1)
+            ax.set_aspect("equal")
+            self.axes[axis] = ax
+
+    def update_2d(self): ...
 
 
 class DeviceWidget(QWidget):
@@ -176,6 +226,9 @@ class MainWindow(QMainWindow):
         self.data_model = CalibrationDataModel(parent=self)
         self.data_table_widget.setModel(self.data_model)
 
+        self.primary_canvas.setModel(self.data_model)
+        self.secondary_canvas.setModel(self.data_model)
+
         self.toolbar_main = QToolBar("main_toolbar")
         self.action_quit = QAction(text="Exit")
         self.action_quit.triggered.connect(self.close)
@@ -225,19 +278,8 @@ class MainWindow(QMainWindow):
         """
         Create
         """
-        self.primary_canvas = MatplotlibCanvas(parent=self)
-        self.primary_canvas.ax = self.primary_canvas.fig.add_subplot(
-            111, projection="3d"
-        )
-        self.primary_canvas.ax.set_aspect("equal")
-
-        self.secondary_canvas = MatplotlibCanvas(parent=self)
-        self.secondary_canvas.x_ax = self.secondary_canvas.fig.add_subplot(131)
-        self.secondary_canvas.y_ax = self.secondary_canvas.fig.add_subplot(132)
-        self.secondary_canvas.z_ax = self.secondary_canvas.fig.add_subplot(133)
-        self.secondary_canvas.x_ax.set_aspect("equal")
-        self.secondary_canvas.y_ax.set_aspect("equal")
-        self.secondary_canvas.z_ax.set_aspect("equal")
+        self.primary_canvas = MatplotlibCanvas(parent=self, projection="3d")
+        self.secondary_canvas = MatplotlibCanvas(parent=self, projection="2d")
 
         splitter = QSplitter(Qt.Orientation.Vertical, parent=self)
         splitter.addWidget(self.primary_canvas)
