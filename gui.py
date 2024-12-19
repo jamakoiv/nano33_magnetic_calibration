@@ -33,6 +33,10 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.figure import Figure
 
+from mpl_toolkits.mplot3d.art3d import Line3D
+from mpl_toolkits.mplot3d.axes3d import Axes3D
+from matplotlib.lines import Line2D
+
 from data_table import CalibrationDataModel
 
 
@@ -45,27 +49,33 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
     Canvas for drawing matplotlib-plots.
     """
 
+    # NOTE: We should probably inherit QAbstractItemView as well since we
+    # are basically implementing a Qt view. However both QAbstractItemView
+    # and FigureCanvasQTAgg have paintEvent which conflict when inheriting both.
+
     plot: Callable
     update_plot: Callable
 
     fig: Figure
-    axes: dict[str, Axes]
+    axes: dict[str, Axes | Axes3D]
+    plot_ref: dict[str, Line2D | Line3D]
     model: CalibrationDataModel
 
     def __init__(
         self,
-        parent=None,
-        width=5,
-        height=4,
-        dpi=100,
+        width: int = 5,
+        height: int = 4,
+        dpi: int = 100,
         projection: str = "3d",
         *args,
         **kwargs,
     ) -> None:
         self.fig = Figure(figsize=(width, height), dpi=dpi)
-        super().__init__(self.fig)
+        super().__init__(self.fig, *args, **kwargs)
 
         self.axes = {}
+        self.plot_ref = {}
+
         match projection:
             case "3d":
                 self.plot = self.plot_3d
@@ -86,18 +96,32 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
     def plot_3d(self) -> None:
         ax = self.fig.add_subplot(111, projection="3d")
         ax.set_aspect("equal")
-        self.axes["3d"] = ax
+        ax.set_box_aspect((75, 75, 75))  # pyright: ignore
         self.fig.tight_layout()
 
-        x, y, z = self.model.get_xyz_data()
-        self.axes["3d"].plot3D(x, y, z, "rx")
+        # Draw helper axes at origo.
+        c = 60  # Scale
+        ax.plot3D([-1 * c, 1 * c], [0, 0], [0, 0], "k:")  # pyright: ignore
+        ax.plot3D([0, 0], [-1 * c, 1 * c], [0, 0], "k:")  # pyright: ignore
+        ax.plot3D([0, 0], [0, 0], [-1 * c, 1 * c], "k:")  # pyright: ignore
 
-    def update_3d(self): ...
+        x, y, z = self.model.get_xyz_data()
+        plot_ref_list = self.axes["3d"].plot3D(x, y, z, "rx")  # pyright: ignore
+
+        self.plot_ref["3d"] = plot_ref_list[-1]
+        self.axes["3d"] = ax
+
+    def update_3d(self):
+        x, y, z = self.model.get_xyz_data()
+        self.plot_ref["3d"].set_data_3d(x, y, z)  # pyright: ignore
+
+        self.draw()
 
     def plot_2d(self) -> None:
         for i, axis in enumerate(["x", "y", "z"]):
             ax = self.fig.add_subplot(1, 3, i + 1)
             ax.set_aspect("equal")
+
             self.axes[axis] = ax
 
     def update_2d(self): ...
