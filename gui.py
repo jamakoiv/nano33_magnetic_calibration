@@ -1,8 +1,9 @@
 import sys
 import logging
+import numpy as np
 
-from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QDoubleValidator
+from PySide6.QtCore import QSize, Qt, Slot
+from PySide6.QtGui import QAction, QDoubleValidator
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -29,6 +30,8 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from matplotlib.figure import Figure
+
+from data_table import CalibrationDataModel
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -162,22 +165,37 @@ class MainWindow(QMainWindow):
     primary_canvas: MatplotlibCanvas
     secondary_canvas: MatplotlibCanvas
 
+    data_table_widget: QTableView
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
         self.create_canvases()
         self.create_dock_widgets()
 
+        self.data_model = CalibrationDataModel(parent=self)
+        self.data_table_widget.setModel(self.data_model)
+
+        self.toolbar_main = QToolBar("main_toolbar")
+        self.action_quit = QAction(text="Exit")
+        self.action_quit.triggered.connect(self.close)
+        self.action_random_data = QAction(text="Add random data")
+        self.action_random_data.triggered.connect(self.add_random_data)
+
+        self.toolbar_main.addActions([self.action_random_data, self.action_quit])
+
         self.toolbar_mpl = QToolBar("matplotlib_default_tools")
         self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
         self.toolbar_mpl.addWidget(self.mpl_default_tools)
+
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_main)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
 
         log.debug("Created main window.")
 
     def create_dock_widgets(self) -> None:
         default_size_policy = QSizePolicy(
-            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
             QSizePolicy.Policy.Fixed,
         )
 
@@ -235,6 +253,10 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter)
 
         log.debug("Created canvases.")
+
+    @Slot()
+    def add_random_data(self):
+        self.data_model.append_data(np.random.randint(0, 50, size=(1, 4)))
 
 
 if __name__ == "__main__":
