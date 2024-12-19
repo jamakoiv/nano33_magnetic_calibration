@@ -21,44 +21,43 @@ class CalibrationDataModel(QAbstractTableModel):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent=parent)
 
-        self._data = np.empty(0, dtype=np.float32)
-
     def set_data(self, array: np.ndarray) -> None:
-        # self.beginInsertRows(QModelIndex(), 0, self.rowCount())
+        self.beginResetModel()
 
-        # # NOTE: Maybe create context manager, more pythonic...
-        # try:
-        #     self._data = array
-        # finally:
-        #     self.endInsertRows()
-        #     self.data_changed.emit()
-
-        self._data = array
+        try:
+            self._data = array
+        finally:
+            self.endResetModel()
 
     def append_data(self, row: np.ndarray) -> None:
-        # self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount() + 1)
+        self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 
-        # try:
-        #     self._data = np.append(self._data, row)
-        # finally:
-        #     self.endInsertRows()
-        #     self.data_changed.emit()
-
-        self._data = np.append(self._data, row)
+        try:
+            self._data = np.append(self._data, row, axis=0)
+        except AttributeError:  # if self._data does not exists
+            self.set_data(row)
+        finally:
+            self.endInsertRows()
 
     def rowCount(
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
     ) -> int:
-        assert (
-            len(self._data) == self._data.shape[0]
-        ), "Error with data shape: 'len' and np.ndarray.shape[0] do not match."
+        try:
+            assert (
+                len(self._data) == self._data.shape[0]
+            ), "Error with data shape: 'len' and np.ndarray.shape[0] do not match."
 
-        return len(self._data)
+            return len(self._data)
+        except AttributeError:
+            return 0
 
     def columnCount(
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
     ) -> int:
-        return self._data.shape[1]
+        try:
+            return self._data.shape[1]
+        except AttributeError:
+            return 0
 
     def headerData(
         self,
