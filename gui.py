@@ -3,13 +3,11 @@ import logging
 from typing import Callable
 import numpy as np
 
-from PySide6.QtCore import QSize, Qt, Slot
+from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QAction, QDoubleValidator
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QApplication,
     QCheckBox,
-    QFormLayout,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -26,6 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
     QComboBox,
     QPushButton,
+    QTextEdit,
 )
 
 from matplotlib.axes import Axes
@@ -67,11 +66,9 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
         height: int = 4,
         dpi: int = 100,
         projection: str = "3d",
-        *args,
-        **kwargs,
     ) -> None:
         self.fig = Figure(figsize=(width, height), dpi=dpi)
-        super().__init__(self.fig, *args, **kwargs)
+        super().__init__(self.fig)
 
         self.axes = {}
         self.plot_ref = {}
@@ -94,22 +91,22 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
         self.plot()
 
     def plot_3d(self) -> None:
-        ax = self.fig.add_subplot(111, projection="3d")
-        ax.set_aspect("equal")
-        ax.set_box_aspect((75, 75, 75))  # pyright: ignore
+        self.axes["3d"] = self.fig.add_subplot(111, projection="3d")
+
+        self.axes["3d"].set_aspect("equal")
+        self.axes["3d"].set_box_aspect((75, 75, 75))  # pyright: ignore
         self.fig.tight_layout()
 
         # Draw helper axes at origo.
         c = 60  # Scale
-        ax.plot3D([-1 * c, 1 * c], [0, 0], [0, 0], "k:")  # pyright: ignore
-        ax.plot3D([0, 0], [-1 * c, 1 * c], [0, 0], "k:")  # pyright: ignore
-        ax.plot3D([0, 0], [0, 0], [-1 * c, 1 * c], "k:")  # pyright: ignore
+        self.axes["3d"].plot3D([-1 * c, 1 * c], [0, 0], [0, 0], "k:")  # pyright: ignore
+        self.axes["3d"].plot3D([0, 0], [-1 * c, 1 * c], [0, 0], "k:")  # pyright: ignore
+        self.axes["3d"].plot3D([0, 0], [0, 0], [-1 * c, 1 * c], "k:")  # pyright: ignore
 
         x, y, z = self.model.get_xyz_data()
         plot_ref_list = self.axes["3d"].plot3D(x, y, z, "rx")  # pyright: ignore
 
         self.plot_ref["3d"] = plot_ref_list[-1]
-        self.axes["3d"] = ax
 
     def update_3d(self):
         x, y, z = self.model.get_xyz_data()
@@ -290,11 +287,16 @@ class MainWindow(QMainWindow):
         self.data_table_dock = QDockWidget("Data", parent=self)
         self.data_table_dock.setWidget(self.data_table_widget)
 
+        self.log_widget = QTextEdit(parent=self)
+        self.log_dock = QDockWidget("Log", parent=self)
+        self.log_dock.setWidget(self.log_widget)
+
         self.addDockWidget(
             Qt.DockWidgetArea.LeftDockWidgetArea, self.device_select_dock
         )
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.calibration_dock)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_table_dock)
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.log_dock)
 
         log.debug("Created dock widgets.")
 
@@ -302,8 +304,8 @@ class MainWindow(QMainWindow):
         """
         Create
         """
-        self.primary_canvas = MatplotlibCanvas(parent=self, projection="3d")
-        self.secondary_canvas = MatplotlibCanvas(parent=self, projection="2d")
+        self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
+        self.secondary_canvas = MatplotlibCanvas(5, 5, 96, projection="2d")
 
         splitter = QSplitter(Qt.Orientation.Vertical, parent=self)
         splitter.addWidget(self.primary_canvas)
