@@ -162,6 +162,8 @@ class CalibrationFormWidget(QGroupBox):
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
+        # NOTE: Hard coded, but the raw data is in microteslas
+        # and should be in the range of 20-100 uT.
         validator = QDoubleValidator(-999, 999, 2, parent=parent)
         validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
@@ -290,14 +292,6 @@ class MainWindow(QMainWindow):
         )
 
         log.debug("Created main window.")
-
-    @Slot()  # pyright: ignore
-    def toggle_log_visible(self, checked: bool) -> None:
-        self.log_dock.setVisible(checked)
-
-    @Slot()  # pyright: ignore
-    def toggle_data_table_visible(self, checked: bool) -> None:
-        self.data_table_dock.setVisible(checked)
 
     def create_dock_widgets(self) -> None:
         default_size_policy = QSizePolicy(
