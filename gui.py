@@ -263,7 +263,7 @@ class MainWindow(QMainWindow):
         self.secondary_canvas.setModel(self.data_model)
 
         self.toolbar_main = QToolBar("main_toolbar")
-        self.action_quit = QAction(text="Exit")
+        self.action_quit = QAction(text="&Exit")
         self.action_quit.triggered.connect(self.close)
         self.action_random_data = QAction(text="Add random data")
         self.action_random_data.triggered.connect(self.add_random_data)
@@ -277,10 +277,10 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_main)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
 
-        self.menu_file = self.menuBar().addMenu("File")
+        self.menu_file = self.menuBar().addMenu("&File")
         self.menu_file.addAction(self.action_quit)
 
-        self.menu_view = self.menuBar().addMenu("View")
+        self.menu_view = self.menuBar().addMenu("&View")
 
         self.menu_view.addActions(
             [
@@ -301,21 +301,21 @@ class MainWindow(QMainWindow):
 
         self.calibration_widget = CalibrationWidget(parent=self)
         self.calibration_widget.setSizePolicy(default_size_policy)
-        self.calibration_dock = QDockWidget("calibration_dock", parent=self)
+        self.calibration_dock = QDockWidget("&Calibration", parent=self)
         self.calibration_dock.setWidget(self.calibration_widget)
 
         self.device_select_widget = DeviceWidget(parent=self)
         self.device_select_widget.setSizePolicy(default_size_policy)
-        self.device_select_dock = QDockWidget("Device", parent=self)
+        self.device_select_dock = QDockWidget("&Device select", parent=self)
         self.device_select_dock.setWidget(self.device_select_widget)
 
         self.data_table_widget = QTableView(parent=self)
-        self.data_table_dock = QDockWidget("Data", parent=self)
+        self.data_table_dock = QDockWidget("Data &table", parent=self)
         self.data_table_dock.setWidget(self.data_table_widget)
         self.data_table_widget.horizontalHeader().setDefaultSectionSize(60)
 
         self.log_widget = QTextEdit(parent=self)
-        self.log_dock = QDockWidget("Log", parent=self)
+        self.log_dock = QDockWidget("&Log", parent=self)
         self.log_dock.setWidget(self.log_widget)
 
         self.addDockWidget(
