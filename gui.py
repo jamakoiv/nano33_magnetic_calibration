@@ -266,26 +266,6 @@ class MainWindow(QMainWindow):
         self.action_random_data = QAction(text="Add random data")
         self.action_random_data.triggered.connect(self.add_random_data)
 
-        self.action_toggle_table = QAction(text="Data table")
-        self.action_toggle_table.setCheckable(True)
-        self.action_toggle_table.triggered.connect(self.toggle_data_table_visible)
-        self.data_table_dock.visibilityChanged.connect(
-            lambda visible: self.action_toggle_table.setChecked(visible)
-        )
-
-        self.action_toggle_log = QAction(text="Log")
-        self.action_toggle_log.setCheckable(True)
-        self.action_toggle_log.triggered.connect(self.toggle_log_visible)
-        self.log_dock.visibilityChanged.connect(
-            lambda visible: self.action_toggle_log.setChecked(visible)
-        )
-
-        self.menu_file = self.menuBar().addMenu("File")
-        self.menu_file.addAction(self.action_quit)
-
-        self.menu_view = self.menuBar().addMenu("View")
-        self.menu_view.addActions([self.action_toggle_table, self.action_toggle_log])
-
         self.toolbar_main.addActions([self.action_random_data, self.action_quit])
 
         self.toolbar_mpl = QToolBar("matplotlib_default_tools")
@@ -294,6 +274,20 @@ class MainWindow(QMainWindow):
 
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_main)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
+
+        self.menu_file = self.menuBar().addMenu("File")
+        self.menu_file.addAction(self.action_quit)
+
+        self.menu_view = self.menuBar().addMenu("View")
+
+        self.menu_view.addActions(
+            [
+                self.device_select_dock.toggleViewAction(),
+                self.calibration_dock.toggleViewAction(),
+                self.data_table_dock.toggleViewAction(),
+                self.log_dock.toggleViewAction(),
+            ]
+        )
 
         log.debug("Created main window.")
 
