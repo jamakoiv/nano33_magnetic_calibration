@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 
-class DeviceWidget(QWidget):
+class DeviceSelectWidget(QWidget):
     """
     Widget for selecting device and getting raw data from the device.
     """

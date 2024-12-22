@@ -27,7 +27,7 @@ from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.lines import Line2D
 
 from data_table import CalibrationDataModel
-from widgets import DeviceWidget, CalibrationFormWidget, CalibrationWidget
+from widgets import DeviceSelectWidget, CalibrationFormWidget, CalibrationWidget
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -125,7 +125,7 @@ class MainWindow(QMainWindow):
     data_table_widget: QTableView
     data_table_dock: QDockWidget
 
-    device_select_widget: DeviceWidget
+    device_select_widget: DeviceSelectWidget
     device_select_dock: QDockWidget
 
     calibration_widget: CalibrationWidget
@@ -186,7 +186,7 @@ class MainWindow(QMainWindow):
         self.calibration_dock = QDockWidget("&Calibration", parent=self)
         self.calibration_dock.setWidget(self.calibration_widget)
 
-        self.device_select_widget = DeviceWidget(parent=self)
+        self.device_select_widget = DeviceSelectWidget(parent=self)
         self.device_select_widget.setSizePolicy(default_size_policy)
         self.device_select_dock = QDockWidget("&Device select", parent=self)
         self.device_select_dock.setWidget(self.device_select_widget)
