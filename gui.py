@@ -181,12 +181,10 @@ class MainWindow(QMainWindow):
             QSizePolicy.Policy.Fixed,
         )
 
-        self.uguu = CalibrationFormWidget(parent=self)
         self.calibration_widget = CalibrationWidget(parent=self)
         self.calibration_widget.setSizePolicy(default_size_policy)
         self.calibration_dock = QDockWidget("&Calibration", parent=self)
-        # self.calibration_dock.setWidget(self.calibration_widget)
-        self.calibration_dock.setWidget(self.uguu)
+        self.calibration_dock.setWidget(self.calibration_widget)
 
         self.device_select_widget = DeviceWidget(parent=self)
         self.device_select_widget.setSizePolicy(default_size_policy)
