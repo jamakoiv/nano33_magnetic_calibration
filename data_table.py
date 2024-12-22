@@ -3,11 +3,12 @@ import logging
 import numpy as np
 
 from PySide6.QtCore import (
-    QAbstractTableModel,
-    QObject,
     Signal,
-    QModelIndex,
+    QObject,
+    QAbstractTableModel,
     QPersistentModelIndex,
+    QModelIndex,
+    QSize,
     Qt,
 )
 from PySide6.QtWidgets import QMainWindow, QTableView, QApplication

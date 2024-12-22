@@ -185,6 +185,9 @@ class MainWindow(QMainWindow):
         self.calibration_widget.setSizePolicy(default_size_policy)
         self.calibration_dock = QDockWidget("&Calibration", parent=self)
         self.calibration_dock.setWidget(self.calibration_widget)
+        # self.calibration_dock.setFeatures(
+        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        # )
 
         self.device_select_widget = DeviceSelectWidget(parent=self)
         self.device_select_widget.setSizePolicy(default_size_policy)
