@@ -121,6 +121,22 @@ class CalibrationDataModel(QAbstractTableModel):
         return x, y, z
 
 
+class SerialPortsModel:
+    def data(
+        self,
+        index: QModelIndex | QPersistentModelIndex,
+        role: int = Qt.ItemDataRole.DisplayRole,
+    ): ...
+
+    def rowCount(
+        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+    ) -> int: ...
+
+    def columnCount(
+        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
+    ) -> int: ...
+
+
 if __name__ == "__main__":
     model = CalibrationDataModel()
 

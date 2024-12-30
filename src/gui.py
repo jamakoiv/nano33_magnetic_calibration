@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 
 from canvas import MatplotlibCanvas
-from data_table import CalibrationDataModel
+from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
 from serial_comms import SerialComms
 
