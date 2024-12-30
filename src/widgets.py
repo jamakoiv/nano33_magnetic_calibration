@@ -27,11 +27,20 @@ class DeviceSelectWidget(QWidget):
     Widget for selecting device and getting raw data from the device.
     """
 
+    scan_devices_button: QPushButton
+    device_selector: QComboBox
+
+    data_points: QSpinBox
+    data_label: QLabel
+    data_button: QPushButton
+
+    serial_ports_model: ...
+
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
-        self.button = QPushButton(parent=self, text="Scan devices")
-        self.selector = QComboBox(parent=self)
+        self.scan_devices_button = QPushButton(parent=self, text="Scan devices")
+        self.device_selector = QComboBox(parent=self)
 
         self.data_points = QSpinBox(parent=self)
         self.data_points.setRange(10, 500)
@@ -43,8 +52,8 @@ class DeviceSelectWidget(QWidget):
 
         self.device_box = QGroupBox(title="Device select", parent=self)
         self.device_layout = QHBoxLayout()
-        self.device_layout.addWidget(self.selector)
-        self.device_layout.addWidget(self.button)
+        self.device_layout.addWidget(self.device_selector)
+        self.device_layout.addWidget(self.scan_devices_button)
         self.device_box.setLayout(self.device_layout)
 
         self.data_box = QGroupBox(title="Raw calibration data", parent=self)
@@ -58,6 +67,48 @@ class DeviceSelectWidget(QWidget):
         layout.addWidget(self.device_box)
         layout.addWidget(self.data_box)
         self.setLayout(layout)
+
+    # def refreshSerialPortList(self) -> None:
+    #     """
+    #     Get a list of the serial ports the OS knows about,
+    #     and add them to the selector.
+    #     """
+
+    #     lastSelected = self.device_selector.value()
+    #     self.serial_ports = dict()
+
+    #     for port in serial.tools.list_ports.comports():
+    #         try:
+    #             self.controller.serialPorts[port.device] = (
+    #                 port.device + " - " + port.product
+    #             )
+    #         except TypeError:  # Catch if port.product is None.
+    #             self.controller.serialPorts[port.device] = port.device
+
+    #     self.serialPortSelector.configure(
+    #         values=[x for x in self.controller.serialPorts.values()]
+    #     )
+
+    #     # Create inverse dictionary of the serial ports
+    #     self.controller.serialPortsInverted = {
+    #         value: key for key, value in self.controller.serialPorts.items()
+    #     }
+
+    #     # If the port that was selected when starting
+    #     # the refresh is contained in the new list of ports,
+    #     # keep it selected. Otherwise pick the first one from the new list.
+    #     try:
+    #         self.controller.serialPortsInverted[lastSelected]
+    #     except KeyError:
+    #         self.serialPortSelector.set(list(self.controller.serialPorts.keys())[0])
+
+    #     self.controller.commandDisplayQueue.put(
+    #         "\nFound {} serial devices:\n---------------------------------------\n".format(
+    #             len(self.controller.serialPorts)
+    #         )
+    #     )
+    #     for s in self.controller.serialPorts.values():
+    #         self.controller.commandDisplayQueue.put("" + s + "\n")
 
 
 class CalibrationFormWidget(QGroupBox):
