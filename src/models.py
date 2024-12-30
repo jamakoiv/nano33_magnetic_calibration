@@ -11,7 +11,13 @@ from PySide6.QtCore import (
     QModelIndex,
     Qt,
 )
-from PySide6.QtWidgets import QComboBox, QMainWindow, QTableView, QApplication
+from PySide6.QtWidgets import (
+    QComboBox,
+    QMainWindow,
+    QMessageBox,
+    QTableView,
+    QApplication,
+)
 from PySide6.QtGui import QColor
 
 
@@ -124,7 +130,8 @@ class CalibrationDataModel(QAbstractTableModel):
 class SerialPortsModel(QAbstractListModel):
     data_changed = Signal()
 
-    ports: dict
+    # Ports should dict like {"/dev/ttyACM0": "Board name", "/dev/tty0": ""} etc.
+    ports: dict[str, str]
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent=parent)
@@ -135,10 +142,18 @@ class SerialPortsModel(QAbstractListModel):
         role: int = Qt.ItemDataRole.DisplayRole,
     ):
         coord = index.row()
+        device, name = list(self.ports.items())[coord]
 
         match role:
             case Qt.ItemDataRole.DisplayRole:
-                return list(self.ports.items())[coord]
+                if name in [None, ""]:
+                    res = f"{device}"
+                else:
+                    res = f"{device} - {name}"
+
+                return res
+            case Qt.ItemDataRole.UserRole:
+                return device
             case Qt.ItemDataRole.BackgroundRole:
                 return QColor(Qt.GlobalColor.white)
             case Qt.ItemDataRole.TextAlignmentRole:
@@ -192,8 +207,17 @@ def test_SerialPortsModel():
     main.setCentralWidget(view)
     main.show()
 
+    view.currentIndexChanged.connect(
+        lambda: QMessageBox.information(
+            main,
+            "IndexChanged",
+            f"Selected: {view.currentIndex()}, {view.currentData()}",
+        )
+    )
+
     sys.exit(app.exec())
 
 
 if __name__ == "__main__":
+    # test_calibration_data_model()
     test_SerialPortsModel()

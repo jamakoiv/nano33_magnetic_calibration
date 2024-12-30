@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QPushButton,
 )
 
+from models import SerialPortsModel
+
 
 class DeviceSelectWidget(QWidget):
     """
@@ -41,6 +43,7 @@ class DeviceSelectWidget(QWidget):
 
         self.scan_devices_button = QPushButton(parent=self, text="Scan devices")
         self.device_selector = QComboBox(parent=self)
+        self.device_model = SerialPortsModel()
 
         self.data_points = QSpinBox(parent=self)
         self.data_points.setRange(10, 500)
