@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -114,7 +115,53 @@ class CalibrationFormWidget(QGroupBox):
         layout.addItem(check_layout, 4, 0, columnSpan=2)
         self.setLayout(layout)
 
-    def get_values(self) -> np.ndarray: ...
+    def get_gain(self) -> np.ndarray:
+        try:
+            x = float(self.x_gain.text())
+            y = float(self.y_gain.text())
+            z = float(self.z_gain.text())
+            res = np.array([x, y, z])
+
+        except ValueError as e:
+            QMessageBox.warning(
+                self,
+                "Error converting values",
+                f"{e}",
+                QMessageBox.StandardButton.Ok,
+                QMessageBox.StandardButton.Cancel,
+            )
+            res = np.zeros(3)
+
+        return res
+
+    def set_gain(self, gain: np.ndarray) -> None:
+        self.x_gain.setText(gain[0])
+        self.y_gain.setText(gain[1])
+        self.z_gain.setText(gain[2])
+
+    def get_offset(self) -> np.ndarray:
+        try:
+            x = float(self.x_offset.text())
+            y = float(self.y_offset.text())
+            z = float(self.z_offset.text())
+            res = np.array([x, y, z])
+
+        except ValueError as e:
+            QMessageBox.warning(
+                self,
+                "Error converting values",
+                f"{e}",
+                QMessageBox.StandardButton.Ok,
+                QMessageBox.StandardButton.Cancel,
+            )
+            res = np.zeros(3)
+
+        return res
+
+    def set_offset(self, offset: np.ndarray) -> None:
+        self.x_offset.setText(offset[0])
+        self.y_offset.setText(offset[1])
+        self.z_offset.setText(offset[2])
 
 
 class CalibrationWidget(QWidget):
