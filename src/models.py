@@ -5,13 +5,13 @@ import numpy as np
 from PySide6.QtCore import (
     Signal,
     QObject,
+    QAbstractListModel,
     QAbstractTableModel,
     QPersistentModelIndex,
     QModelIndex,
-    QSize,
     Qt,
 )
-from PySide6.QtWidgets import QMainWindow, QTableView, QApplication
+from PySide6.QtWidgets import QComboBox, QMainWindow, QTableView, QApplication
 from PySide6.QtGui import QColor
 
 
@@ -121,23 +121,46 @@ class CalibrationDataModel(QAbstractTableModel):
         return x, y, z
 
 
-class SerialPortsModel:
+class SerialPortsModel(QAbstractListModel):
+    data_changed = Signal()
+
+    ports: dict
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent=parent)
+
     def data(
         self,
         index: QModelIndex | QPersistentModelIndex,
         role: int = Qt.ItemDataRole.DisplayRole,
-    ): ...
+    ):
+        coord = index.row()
+
+        match role:
+            case Qt.ItemDataRole.DisplayRole:
+                return list(self.ports.items())[coord]
+            case Qt.ItemDataRole.BackgroundRole:
+                return QColor(Qt.GlobalColor.white)
+            case Qt.ItemDataRole.TextAlignmentRole:
+                return Qt.AlignmentFlag.AlignRight
+            case _:
+                return None
+
+    def set_ports(self, ports: dict) -> None:
+        try:
+            self.beginResetModel()
+            self.ports = ports
+
+        finally:
+            self.endResetModel()
 
     def rowCount(
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
-    ) -> int: ...
-
-    def columnCount(
-        self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
-    ) -> int: ...
+    ) -> int:
+        return len(self.ports)
 
 
-if __name__ == "__main__":
+def test_calibration_data_model():
     model = CalibrationDataModel()
 
     d = np.arange(50 * 4).reshape(50, 4)
@@ -153,3 +176,24 @@ if __name__ == "__main__":
     main.show()
 
     sys.exit(app.exec())
+
+
+def test_SerialPortsModel():
+    model = SerialPortsModel()
+
+    d = {"aaa": "Portti numero A", "bbb": "Toinen portti", "ccc": "kolmas portti."}
+    model.set_ports(d)
+
+    app = QApplication()
+    main = QMainWindow()
+
+    view = QComboBox(parent=main)
+    view.setModel(model)
+    main.setCentralWidget(view)
+    main.show()
+
+    sys.exit(app.exec())
+
+
+if __name__ == "__main__":
+    test_SerialPortsModel()
