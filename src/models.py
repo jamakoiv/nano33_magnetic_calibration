@@ -136,6 +136,8 @@ class SerialPortsModel(QAbstractListModel):
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent=parent)
 
+        self.ports = {"no device": ""}
+
     def data(
         self,
         index: QModelIndex | QPersistentModelIndex,
