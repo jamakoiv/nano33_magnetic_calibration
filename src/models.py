@@ -2,6 +2,8 @@ import sys
 import logging
 import numpy as np
 
+from collections import OrderedDict
+
 from PySide6.QtCore import (
     Signal,
     QObject,
@@ -131,12 +133,13 @@ class SerialPortsModel(QAbstractListModel):
     data_changed = Signal()
 
     # Ports should dict like {"/dev/ttyACM0": "Board name", "/dev/tty0": ""} etc.
-    ports: dict[str, str]
+    ports: OrderedDict[str, str]
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent=parent)
 
-        self.ports = {"no device": ""}
+        self.ports = OrderedDict()
+        self.ports["no device"] = ""
 
     def data(
         self,
@@ -163,7 +166,7 @@ class SerialPortsModel(QAbstractListModel):
             case _:
                 return None
 
-    def set_ports(self, ports: dict) -> None:
+    def set_ports(self, ports: OrderedDict) -> None:
         try:
             self.beginResetModel()
             self.ports = ports
@@ -198,7 +201,10 @@ def test_calibration_data_model():
 def test_SerialPortsModel():
     model = SerialPortsModel()
 
-    d = {"aaa": "Portti numero A", "bbb": "Toinen portti", "ccc": "kolmas portti."}
+    d = OrderedDict()
+    d["aaa"] = "Portti numero A"
+    d["bbb"] = "Toinen portti"
+    d["ccc"] = "kolmas portti."
     model.set_ports(d)
 
     app = QApplication()

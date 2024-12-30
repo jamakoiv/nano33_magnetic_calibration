@@ -1,6 +1,7 @@
 import sys
 import logging
 
+from collections import OrderedDict
 import numpy as np
 
 from PySide6.QtCore import Qt
@@ -81,13 +82,22 @@ class DeviceSelectWidget(QWidget):
         and add them to the selector.
         """
 
-        lastSelected = self.device_selector.currentData()
-        ports = dict()
+        last_selected_device = self.device_selector.currentData()
+        ports = OrderedDict()
 
         for port in list_ports.comports():
             ports[port.device] = port.product
 
         self.serial_ports_model.set_ports(ports)
+
+        try:
+            last_selected_index = list(self.serial_ports_model.ports.keys()).index(
+                last_selected_device
+            )
+        except ValueError as e:
+            last_selected_index = 0
+
+        self.device_selector.setCurrentIndex(last_selected_index)
 
 
 class CalibrationFormWidget(QGroupBox):
