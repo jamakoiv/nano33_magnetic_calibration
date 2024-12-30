@@ -96,6 +96,7 @@ class CalibrationFormWidget(QGroupBox):
             self.z_offset,
         ]:
             edit.setValidator(validator)
+            edit.setText("1.0")
             edit.setMaxLength(6)
             edit.setMinimumWidth(40)
 
@@ -123,9 +124,10 @@ class CalibrationFormWidget(QGroupBox):
             res = np.array([x, y, z])
 
         except ValueError as e:
+            # TODO: Create better messagebox.
             QMessageBox.warning(
                 self,
-                "Error converting values",
+                "Error converting gain values",
                 f"{e}",
                 QMessageBox.StandardButton.Ok,
                 QMessageBox.StandardButton.Cancel,
@@ -147,9 +149,10 @@ class CalibrationFormWidget(QGroupBox):
             res = np.array([x, y, z])
 
         except ValueError as e:
+            # TODO: Create better messagebox.
             QMessageBox.warning(
                 self,
-                "Error converting values",
+                "Error converting offset values",
                 f"{e}",
                 QMessageBox.StandardButton.Ok,
                 QMessageBox.StandardButton.Cancel,
@@ -180,6 +183,30 @@ class CalibrationWidget(QWidget):
         layout.addWidget(self.read_from_device_button, 1, 0)
         layout.addWidget(self.send_to_device_button, 1, 1)
         self.setLayout(layout)
+
+        self.send_to_device_button.pressed.connect(self.get_fit_calibration)
+
+    def set_device_calibration(self, calibration: np.ndarray) -> None:
+        self.device_calibration.set_gain(calibration[0:3])
+        self.device_calibration.set_offset(calibration[3:6])
+
+    def get_device_calibration(self) -> np.ndarray:
+        gain = self.device_calibration.get_gain()
+        offset = self.device_calibration.get_offset()
+
+        return np.concat((gain, offset), axis=0)
+
+    def set_fit_calibration(self, calibration: np.ndarray) -> None:
+        self.fit_calibration.set_gain(calibration[0:3])
+        self.fit_calibration.set_offset(calibration[3:6])
+
+    def get_fit_calibration(self) -> np.ndarray:
+        gain = self.device_calibration.get_gain()
+        offset = self.device_calibration.get_offset()
+
+        QMessageBox.information(self, "Jotain", f"{gain}, {offset}")
+
+        return np.concat((gain, offset), axis=0)
 
 
 if __name__ == "__main__":
