@@ -88,10 +88,17 @@ class DeviceSelectWidget(QWidget):
         for port in list_ports.comports():
             ports[port.device] = port.product
 
+            # Try to order the results so that connected devices are at the top of the list.
+            if port.product in [None, ""]:
+                ports.move_to_end(port.device, last=True)
+            else:
+                ports.move_to_end(port.device, last=False)
+
         self.serial_ports_model.set_ports(ports)
 
+        # Try to keep the previous selection, if it still exists.
         try:
-            last_selected_index = list(self.serial_ports_model.ports.keys()).index(
+            last_selected_index = list(self.serial_ports_model.ports).index(
                 last_selected_device
             )
         except ValueError as e:
