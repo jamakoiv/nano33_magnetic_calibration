@@ -2,12 +2,11 @@ import time
 import unicodedata
 import numpy as np
 
+from typing import Tuple, Union
 from serial import Serial, SerialException
-from dataclasses import dataclass
 
-# Event and Queue are imported only for type hinting
-from threading import Event, Lock
-from queue import Queue
+from threading import Lock
+from PySide6.QtCore import QObject, QThread, Signal
 
 """
     Control codes for controlling the serial output
@@ -43,21 +42,34 @@ SERIAL_WAIT = 2.0  # seconds
 SERIAL_NO_OUTPUT = b""  # serial.readline returns b'' if read timeouts.
 
 
-@dataclass
-class SerialComms:
-    serial_port: str = "/dev/ttyACM0"
-    serial_baudrate: int = 57600
-    serial_timeout: float = 2.0
-    command_log: Queue = None
-    output_log: Queue = None
+class SerialComms(QThread):
+    ser: Serial
 
-    handshake_timeout: float = 5.0
+    serial_port: str
+    serial_baudrate: int
+    serial_timeout: float
+    handshake_timeout: float
 
+    log = Signal(str)
+    data_row_received = Signal(object)
     mutex: Lock = Lock()
-    ser: Serial = None
 
     # TODO: Lots of repeating try... with Serial... except SerialException...
     #       Maybe refactor that to it's own function.
+    #
+    def __init__(
+        self,
+        port: str,
+        baudrate: int = 57600,
+        timeout: float = 2.0,
+        handshake_timeout: float = 5.0,
+    ):
+        self.serial_port = port
+        self.serial_baudrate = baudrate
+        self.serial_timeout = timeout
+        self.handshake_timeout = handshake_timeout
+
+    def run(self): ...
 
     def send_command(self, command_id: int) -> None:
         """
@@ -74,24 +86,22 @@ class SerialComms:
                     self.send_command_string(command)
 
             except SerialException as err:
-                self.logStd("Serial error: {}".format(err), self.command_log)
+                ...
 
     def reset_calibration(self) -> None:
         self.send_command(SERIAL_RESET_KVSTORE)
 
-    def wait_for_board_response(self) -> bool:
+    def wait_for_board_response(self) -> Tuple[bool, str]:
         timeout = time.time() + self.handshake_timeout
         while (data := self.ser.readline()) == SERIAL_NO_OUTPUT:
             if time.time() > timeout:
-                self.logStd("Timeout waiting for board response.\n", self.command_log)
-                return False, str()
+                return False, ""
             else:
                 continue
 
-        self.logStd(data.decode("utf8"), self.output_log)
         return True, data.decode("utf8")
 
-    def get_calibration(self, calibration_type: int) -> list[float]:
+    def get_calibration(self, calibration_type: int) -> list[float] | None:
         """
         Get calibration data from the board.
 
@@ -110,9 +120,9 @@ class SerialComms:
                     return self.parse_calibration_from_board(calib_raw)
 
             except SerialException as err:
-                self.logStd("Serial error: {}\n".format(err), self.command_log)
+                ...
             finally:
-                self.logStd("Done.\n", self.command_log)
+                ...
 
     def parse_calibration_from_board(self, input: str) -> list[float]:
         """
@@ -147,26 +157,21 @@ class SerialComms:
                     self.wait_for_board_response()
 
             except SerialException as err:
-                self.logStd("Serial error: {}\n".format(err))
+                ...
             finally:
-                self.logStd("Done.\n", self.command_log)
+                ...
 
-    def read_magnetic_calibration_data(
-        self, sample_size: int, stop_event: Event = None
-    ) -> np.ndarray:
+    def read_magnetic_calibration_data(self, sample_size: int) -> np.ndarray | None:
         """
         Read uncalibrated magnetometer data from the board.
 
         IN: sample_size: How many data points to read.
-            stop_event: threading.Event -object. Set 'stop_event.set()'
-                        to abort the data reading.
 
         OUT: numpy.ndarray of size (3, sample_size) with X, Y, Z values
              in [0], [1], [2] positions respectively.
         """
-        array_shape = (sample_size, 3)
-        data = np.zeros(array_shape, dtype=float)
         command_str = self.parse_command_string(SERIAL_PRINT_MAG_RAW)
+        data = np.zeros(0)
 
         try:
             with Serial(
@@ -176,28 +181,24 @@ class SerialComms:
             ) as self.ser:
                 success = self.send_command_string(command_str)
                 if not success:
-                    return data.transpose()
+                    return
 
                 _ = self.ser.readline()  # Discard first read.
                 for i in range(sample_size):
                     raw = self.ser.readline().decode("utf8")
-                    self.logStd(raw, self.output_log)
 
                     try:
-                        data[i] = [float(d) for d in raw.split(sep=",")]
+                        row = np.array([float(d) for d in raw.split(sep=",")])
                     except ValueError:  # if no data was received.
-                        data[i] = [0, 0, 0]
+                        row = np.array([0.0, 0.0, 0.0])
 
-                    try:
-                        if stop_event.isSet():
-                            self.logStd("Data read aborted.", self.command_log)
-                            break
-                    except AttributeError:  # if stop_event doesn't have 'is_set'.
-                        pass
+                    self.data_row_received.emit(row)
+                    data = np.concat((data, row), axis=0)
+
         except SerialException as err:
-            self.logStd("Serial error: {}".format(err), self.command_log)
+            ...
 
-        return data.transpose()
+        return data.reshape(sample_size, 3).transpose()
 
     def send_command_string(self, command: str) -> bool:
         """
@@ -206,11 +207,11 @@ class SerialComms:
         NOTE: The serial object 'self.ser' has to be opened before using this function.
         """
         if not self.serial_handshake():
-            self.logStd("Handshake with board failed.\n", self.command_log)
+            # self.logStd("Handshake with board failed.\n", self.command_log)
             return False
 
-        self.logStd("Handshake with board successful.\n", self.command_log)
-        self.logStd("Sending command: " + command + "\n", self.command_log)
+        # self.logStd("Handshake with board successful.\n", self.command_log)
+        # self.logStd("Sending command: " + command + "\n", self.command_log)
         self.ser.write(command.encode("utf8"))
         return True
 
@@ -241,12 +242,13 @@ class SerialComms:
         pass
 
     @staticmethod
-    def logStd(line: str, log: Queue) -> None:
+    def logStd(line: str) -> None:
         """
         Send string to log.
         """
         try:
-            log.put(line)
+            ...
+        # log.put(line)
         except AttributeError:
             print(line)
 
@@ -260,7 +262,7 @@ class SerialComms:
             return ""
 
     @staticmethod
-    def parse_command_string(command: int, data: list[int] = []) -> str:
+    def parse_command_string(command: int, data: list[Union[int, float]] = []) -> str:
         command_str = "0x{:02x}; ".format(command)
         for item in data:
             command_str += "{}, ".format(item)

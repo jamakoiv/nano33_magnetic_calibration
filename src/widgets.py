@@ -2,6 +2,7 @@ import sys
 import logging
 
 from collections import OrderedDict
+
 import numpy as np
 
 from PySide6.QtCore import Qt
