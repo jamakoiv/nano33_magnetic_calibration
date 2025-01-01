@@ -92,6 +92,8 @@ class MainWindow(QMainWindow):
             ]
         )
 
+        self.device_select_widget.data_button.pressed.connect(self.get_calibration_data)
+
         log.debug("Created main window.")
 
     def create_dock_widgets(self) -> None:
@@ -156,6 +158,23 @@ class MainWindow(QMainWindow):
     @Slot()
     def add_random_data(self):
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 4)))
+
+    def get_calibration_data(self):
+        print(self.device_select_widget.data_points.value())
+        print(self.device_select_widget.device_selector.currentData())
+
+        self.board = SerialComms(
+            port=self.device_select_widget.device_selector.currentData(),
+        )
+
+        self.board.data_row_received.connect(self.data_model.append_data)
+        # self.board.data_row_received.connect(self.debug)
+        self.board.read_dummy_data(10)
+
+    @Slot(object)  # pyright: ignore
+    def debug(self, row: np.ndarray):
+        print(row)
+        print(row.shape)
 
 
 if __name__ == "__main__":

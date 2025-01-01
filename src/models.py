@@ -5,6 +5,7 @@ import numpy as np
 from collections import OrderedDict
 
 from PySide6.QtCore import (
+    Slot,
     Signal,
     QObject,
     QAbstractListModel,
@@ -38,6 +39,7 @@ class CalibrationDataModel(QAbstractTableModel):
         finally:
             self.endResetModel()
 
+    @Slot(object)  # pyright: ignore
     def append_data(self, row: np.ndarray) -> None:
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 

@@ -45,6 +45,7 @@ SERIAL_NO_OUTPUT = b""  # serial.readline returns b'' if read timeouts.
 class SerialComms(QThread):
     ser: Serial
 
+    calibration_sample_size: int
     serial_port: str
     serial_baudrate: int
     serial_timeout: float
@@ -64,12 +65,17 @@ class SerialComms(QThread):
         timeout: float = 2.0,
         handshake_timeout: float = 5.0,
     ):
+        super().__init__()
+
         self.serial_port = port
         self.serial_baudrate = baudrate
         self.serial_timeout = timeout
         self.handshake_timeout = handshake_timeout
 
-    def run(self): ...
+        self.calibration_sample_size = 50
+
+    def run(self):
+        self.read_magnetic_calibration_data(self.calibration_sample_size)
 
     def send_command(self, command_id: int) -> None:
         """
@@ -160,6 +166,11 @@ class SerialComms(QThread):
                 ...
             finally:
                 ...
+
+    def read_dummy_data(self, sample_size: int):
+        for _ in range(sample_size):
+            row = np.random.random(4).reshape(1, 4)
+            self.data_row_received.emit(row)
 
     def read_magnetic_calibration_data(self, sample_size: int) -> np.ndarray | None:
         """
