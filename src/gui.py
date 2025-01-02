@@ -181,7 +181,11 @@ class MainWindow(QMainWindow):
             self.stop_reading.emit()
 
         else:
-            print("start reading data")
+            print(
+                "start reading data from device {}".format(
+                    self.device_select_widget.device_selector.currentData()
+                )
+            )
 
             self.device_select_widget.data_button.setText("Stop")
             self.board.data_row_received.connect(

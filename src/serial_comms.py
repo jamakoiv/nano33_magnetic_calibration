@@ -77,8 +77,8 @@ class SerialComms(QThread):
         self.calibration_sample_size = 50
 
     def run(self):
-        # self.read_magnetic_calibration_data(self.calibration_sample_size)
-        self.read_dummy_data(self.calibration_sample_size)
+        self.read_magnetic_calibration_data(self.calibration_sample_size)
+        # self.read_dummy_data(self.calibration_sample_size)
 
     def send_command(self, command_id: int) -> None:
         """
@@ -177,7 +177,7 @@ class SerialComms(QThread):
             i = 0
             while i < sample_size and not self.stop_reading:
                 time.sleep(0.5)
-                row = np.random.random_integers(0, 60, size=(1, 4))
+                row = np.random.random_integers(0, 60, size=(1, 3))
                 self.data_row_received.emit(row)
                 self.debug_signal.emit(f"Read row {i}")
                 i += 1
@@ -219,16 +219,13 @@ class SerialComms(QThread):
                     except ValueError:  # if no data was received.
                         row = np.array([0.0, 0.0, 0.0])
 
-                    self.data_row_received.emit(row)
+                    self.data_row_received.emit(row.reshape(1, 3))
                     self.debug_signal.emit("Read row")
                     i += 1
-
-                    self.data_read_done.emit()
 
         # except SerialException as err:
         #     ...
         finally:
-            print("Done")
             self.debug_signal.emit("Done")
             self.data_read_done.emit()
 
