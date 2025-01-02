@@ -5,7 +5,7 @@ from typing import Callable
 
 import numpy as np
 
-from PySide6.QtCore import Qt, Slot
+from PySide6.QtCore import Qt, Slot, Signal
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
+from numpy.random import sample
 
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel
@@ -46,6 +47,8 @@ class MainWindow(QMainWindow):
 
     device_select_widget: DeviceSelectWidget
     device_select_dock: QDockWidget
+
+    stop_reading = Signal()
 
     calibration_widget: CalibrationWidget
     calibration_dock: QDockWidget
@@ -92,7 +95,9 @@ class MainWindow(QMainWindow):
             ]
         )
 
-        self.device_select_widget.data_button.pressed.connect(self.get_calibration_data)
+        self.device_select_widget.data_button.pressed.connect(
+            self.read_calibration_data
+        )
 
         log.debug("Created main window.")
 
@@ -159,22 +164,55 @@ class MainWindow(QMainWindow):
     def add_random_data(self):
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 4)))
 
-    def get_calibration_data(self):
-        print(self.device_select_widget.data_points.value())
-        print(self.device_select_widget.device_selector.currentData())
+    @Slot()
+    def read_calibration_data(self):
+        try:
+            if self.board:
+                print("Board exists")
+                pass
+        except AttributeError:
+            print("Creating new board")
+            self.board = SerialComms(
+                port=self.device_select_widget.device_selector.currentData()
+            )
 
-        self.board = SerialComms(
-            port=self.device_select_widget.device_selector.currentData(),
-        )
+        if self.board.isRunning():
+            print("stopping read thread")
+            self.stop_reading.emit()
 
-        self.board.data_row_received.connect(self.data_model.append_data)
-        # self.board.data_row_received.connect(self.debug)
-        self.board.read_dummy_data(10)
+        else:
+            print("start reading data")
 
-    @Slot(object)  # pyright: ignore
-    def debug(self, row: np.ndarray):
-        print(row)
-        print(row.shape)
+            self.device_select_widget.data_button.setText("Stop")
+            self.board.data_row_received.connect(
+                self.data_model.append_data, Qt.ConnectionType.QueuedConnection
+            )
+            self.board.debug_signal.connect(
+                self.debug_printer, Qt.ConnectionType.QueuedConnection
+            )
+            self.board.data_read_done.connect(
+                self.calibration_data_cleanup, Qt.ConnectionType.QueuedConnection
+            )
+            self.stop_reading.connect(
+                self.board.set_stop_reading_flag, Qt.ConnectionType.QueuedConnection
+            )
+
+            self.board.calibration_sample_size = (
+                self.device_select_widget.data_points.value()
+            )
+            self.board.start()
+
+    @Slot()
+    def calibration_data_cleanup(self):
+        print("data read cleanup function")
+        self.board.data_row_received.disconnect(self.data_model.append_data)
+        self.device_select_widget.data_button.setText("Start")
+
+        del self.board
+
+    @Slot(str)  # pyright: ignore
+    def debug_printer(self, d):
+        print(d)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ from typing import Tuple, Union
 from serial import Serial, SerialException
 
 from threading import Lock
-from PySide6.QtCore import QObject, QThread, Signal
+from PySide6.QtCore import QThread, Signal, Slot
 
 """
     Control codes for controlling the serial output
@@ -53,6 +53,8 @@ class SerialComms(QThread):
 
     log = Signal(str)
     data_row_received = Signal(object)
+    data_read_done = Signal()
+    debug_signal = Signal(str)
     mutex: Lock = Lock()
 
     # TODO: Lots of repeating try... with Serial... except SerialException...
@@ -75,7 +77,8 @@ class SerialComms(QThread):
         self.calibration_sample_size = 50
 
     def run(self):
-        self.read_magnetic_calibration_data(self.calibration_sample_size)
+        # self.read_magnetic_calibration_data(self.calibration_sample_size)
+        self.read_dummy_data(self.calibration_sample_size)
 
     def send_command(self, command_id: int) -> None:
         """
@@ -169,10 +172,11 @@ class SerialComms(QThread):
 
     def read_dummy_data(self, sample_size: int):
         for _ in range(sample_size):
-            row = np.random.random(4).reshape(1, 4)
+            time.sleep(0.5)
+            row = np.random.random_integers(0, 60, size=(1, 4))
             self.data_row_received.emit(row)
 
-    def read_magnetic_calibration_data(self, sample_size: int) -> np.ndarray | None:
+    def read_magnetic_calibration_data(self, sample_size: int) -> None:
         """
         Read uncalibrated magnetometer data from the board.
 
@@ -182,7 +186,7 @@ class SerialComms(QThread):
              in [0], [1], [2] positions respectively.
         """
         command_str = self.parse_command_string(SERIAL_PRINT_MAG_RAW)
-        data = np.zeros(0)
+        self.stop_reading = False
 
         try:
             with Serial(
@@ -195,7 +199,9 @@ class SerialComms(QThread):
                     return
 
                 _ = self.ser.readline()  # Discard first read.
-                for i in range(sample_size):
+
+                i = 0
+                while i < sample_size and not self.stop_reading:
                     raw = self.ser.readline().decode("utf8")
 
                     try:
@@ -204,12 +210,21 @@ class SerialComms(QThread):
                         row = np.array([0.0, 0.0, 0.0])
 
                     self.data_row_received.emit(row)
-                    data = np.concat((data, row), axis=0)
+                    self.debug_signal.emit("Read row")
+                    i += 1
 
-        except SerialException as err:
-            ...
+                    self.data_read_done.emit()
 
-        return data.reshape(sample_size, 3).transpose()
+        # except SerialException as err:
+        #     ...
+        finally:
+            print("Done")
+            self.debug_signal.emit("Done")
+            self.data_read_done.emit()
+
+    @Slot()
+    def set_stop_reading_flag(self):
+        self.stop_reading = True
 
     def send_command_string(self, command: str) -> bool:
         """
