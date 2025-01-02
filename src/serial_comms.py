@@ -42,6 +42,9 @@ SERIAL_WAIT = 2.0  # seconds
 SERIAL_NO_OUTPUT = b""  # serial.readline returns b'' if read timeouts.
 
 
+class SerialCommsError(Exception): ...
+
+
 class SerialComms(QThread):
     ser: Serial
 
@@ -204,27 +207,32 @@ class SerialComms(QThread):
                 timeout=self.serial_timeout,
                 baudrate=self.serial_baudrate,
             ) as self.ser:
+                self.debug_signal.emit(f"Sending command: {command_str}")
                 success = self.send_command_string(command_str)
                 if not success:
+                    self.debug_signal.emit("Sending command failed")
                     return
 
                 _ = self.ser.readline()  # Discard first read.
 
                 i = 0
                 while i < sample_size and not self.stop_reading:
+                    self.debug_signal.emit(f"Loop i = {i}")
                     raw = self.ser.readline().decode("utf8")
+                    self.debug_signal.emit(f"Read raw data: {raw}")
 
                     try:
                         row = np.array([float(d) for d in raw.split(sep=",")])
                     except ValueError:  # if no data was received.
+                        self.debug_signal.emit("No data received.")
                         row = np.array([0.0, 0.0, 0.0])
 
                     self.data_row_received.emit(row.reshape(1, 3))
                     self.debug_signal.emit("Read row")
                     i += 1
 
-        # except SerialException as err:
-        #     ...
+        except SerialException as err:
+            self.debug_signal.emit(f"Error creating Serial-object: {err}")
         finally:
             self.debug_signal.emit("Done")
             self.data_read_done.emit()
