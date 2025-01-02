@@ -210,8 +210,8 @@ class MainWindow(QMainWindow):
 
         del self.board
 
-    @Slot(str)  # pyright: ignore
-    def debug_printer(self, d):
+    @Slot(str)
+    def debug_printer(self, d: str):
         print(d)
 
 

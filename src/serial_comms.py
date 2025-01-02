@@ -171,10 +171,20 @@ class SerialComms(QThread):
                 ...
 
     def read_dummy_data(self, sample_size: int):
-        for _ in range(sample_size):
-            time.sleep(0.5)
-            row = np.random.random_integers(0, 60, size=(1, 4))
-            self.data_row_received.emit(row)
+        self.stop_reading = False
+
+        try:
+            i = 0
+            while i < sample_size and not self.stop_reading:
+                time.sleep(0.5)
+                row = np.random.random_integers(0, 60, size=(1, 4))
+                self.data_row_received.emit(row)
+                self.debug_signal.emit(f"Read row {i}")
+                i += 1
+
+        finally:
+            self.debug_signal.emit("Done")
+            self.data_read_done.emit()
 
     def read_magnetic_calibration_data(self, sample_size: int) -> None:
         """
