@@ -8,6 +8,13 @@ from serial import Serial, SerialException
 from threading import Lock
 from PySide6.QtCore import QThread, Signal, Slot
 
+# TODO: Too much stuff in single class/file.
+# Separate board serial comms, comms with Qt Gui (signals & slots), and threading
+# related functions.
+#
+# TODO: Do not subclass QThread. Create thread somewhere else and move QObject to it.
+
+
 """
     Control codes for controlling the serial output
     and the magnetic calibration values of the Arduino NANO33.
