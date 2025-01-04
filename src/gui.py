@@ -5,7 +5,7 @@ from typing import Callable
 
 import numpy as np
 
-from PySide6.QtCore import Qt, Slot, Signal
+from PySide6.QtCore import Qt, Slot, Signal, QThread
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
     data_model: CalibrationDataModel
 
     board: SerialComms
+    stop_board_thread = Signal()
 
     log_widget: QTextEdit
     log_dock: QDockWidget
@@ -48,7 +49,6 @@ class MainWindow(QMainWindow):
     device_select_widget: DeviceSelectWidget
     device_select_dock: QDockWidget
 
-    stop_reading = Signal()
 
     calibration_widget: CalibrationWidget
     calibration_dock: QDockWidget
@@ -96,7 +96,7 @@ class MainWindow(QMainWindow):
         )
 
         self.device_select_widget.data_button.pressed.connect(
-            self.read_calibration_data
+            self.data_read_callback
         )
 
         log.debug("Created main window.")
@@ -165,54 +165,51 @@ class MainWindow(QMainWindow):
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 4)))
 
     @Slot()
-    def read_calibration_data(self):
+    def data_read_callback(self):
         try:
-            if self.board:
-                print("Board exists")
-                pass
-        except AttributeError:
-            print("Creating new board")
-            self.board = SerialComms(
-                port=self.device_select_widget.device_selector.currentData()
-            )
+            if self.board_thread.isRunning():
+                print("Sending stop signal.")
+                self.stop_board_thread.emit()
+            else:
+                self.start_board_thread()
 
-        if self.board.isRunning():
-            print("stopping read thread")
-            self.stop_reading.emit()
+        except AttributeError: # if self.board_thread does not exist.
+            self.start_board_thread()
+    
+    def start_board_thread(self):
+        self.board = SerialComms(self.device_select_widget.device_selector.currentData())
 
-        else:
-            print(
-                "start reading data from device {}".format(
-                    self.device_select_widget.device_selector.currentData()
-                )
-            )
+        self.board_thread = QThread()
+        self.board.moveToThread(self.board_thread)
 
-            self.device_select_widget.data_button.setText("Stop")
-            self.board.data_row_received.connect(
-                self.data_model.append_data, Qt.ConnectionType.QueuedConnection
-            )
-            self.board.debug_signal.connect(
-                self.debug_printer, Qt.ConnectionType.QueuedConnection
-            )
-            self.board.data_read_done.connect(
-                self.calibration_data_cleanup, Qt.ConnectionType.QueuedConnection
-            )
-            self.stop_reading.connect(
-                self.board.set_stop_reading_flag, Qt.ConnectionType.QueuedConnection
-            )
+        self.device_select_widget.data_button.setText("Stop")
 
-            self.board.calibration_sample_size = (
-                self.device_select_widget.data_points.value()
-            )
-            self.board.start()
+        self.board.data_row_received.connect(self.data_model.append_data)
+        self.board.debug_signal.connect(self.debug_printer)
+        self.board.data_read_done.connect(self.data_read_cleanup)
+
+        # NOTE: Needs to have DirectConnection since the while-loop keeps the thread busy
+        # and the control is not returned to the event-loop until the loop is done.
+        # DirectConnection results in the main-thread modifying the board-thread's data.
+        # Will this cause problems in the future... 
+        # NOTE: could probably just replace the thread with a QTimer since the
+        # data acquisition is pretty fast and light.
+        self.stop_board_thread.connect(self.board.set_stop_reading_flag, Qt.ConnectionType.DirectConnection)
+
+        self.board.calibration_sample_size = (
+            self.device_select_widget.data_points.value()
+        )
+        self.board_thread.run = self.board.read_dummy_data
+        self.board_thread.start()
 
     @Slot()
-    def calibration_data_cleanup(self):
+    def data_read_cleanup(self):
         print("data read cleanup function")
         self.board.data_row_received.disconnect(self.data_model.append_data)
         self.device_select_widget.data_button.setText("Start")
 
-        del self.board
+        # del self.board
+        # del self.board_thread
 
     @Slot(str)
     def debug_printer(self, d: str):

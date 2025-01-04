@@ -6,7 +6,7 @@ from typing import Tuple, Union
 from serial import Serial, SerialException
 
 from threading import Lock
-from PySide6.QtCore import QThread, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot
 
 """
     Control codes for controlling the serial output
@@ -45,7 +45,7 @@ SERIAL_NO_OUTPUT = b""  # serial.readline returns b'' if read timeouts.
 class SerialCommsError(Exception): ...
 
 
-class SerialComms(QThread):
+class SerialComms(QObject):
     ser: Serial
 
     calibration_sample_size: int
@@ -78,10 +78,6 @@ class SerialComms(QThread):
         self.handshake_timeout = handshake_timeout
 
         self.calibration_sample_size = 50
-
-    def run(self):
-        self.read_magnetic_calibration_data(self.calibration_sample_size)
-        # self.read_dummy_data(self.calibration_sample_size)
 
     def send_command(self, command_id: int) -> None:
         """
@@ -173,13 +169,13 @@ class SerialComms(QThread):
             finally:
                 ...
 
-    def read_dummy_data(self, sample_size: int):
+    def read_dummy_data(self):
         self.stop_reading = False
 
         try:
             i = 0
-            while i < sample_size and not self.stop_reading:
-                time.sleep(0.5)
+            while i < self.calibration_sample_size and not self.stop_reading:
+                time.sleep(0.2)
                 row = np.random.random_integers(0, 60, size=(1, 3))
                 self.data_row_received.emit(row)
                 self.debug_signal.emit(f"Read row {i}")
@@ -187,16 +183,12 @@ class SerialComms(QThread):
 
         finally:
             self.debug_signal.emit("Done")
+            self.debug_signal.emit(f"stop-flag: {self.stop_reading}")
             self.data_read_done.emit()
 
-    def read_magnetic_calibration_data(self, sample_size: int) -> None:
+    def read_magnetic_calibration_data(self) -> None:
         """
         Read uncalibrated magnetometer data from the board.
-
-        IN: sample_size: How many data points to read.
-
-        OUT: numpy.ndarray of size (3, sample_size) with X, Y, Z values
-             in [0], [1], [2] positions respectively.
         """
         command_str = self.parse_command_string(SERIAL_PRINT_MAG_RAW)
         self.stop_reading = False
@@ -216,7 +208,7 @@ class SerialComms(QThread):
                 _ = self.ser.readline()  # Discard first read.
 
                 i = 0
-                while i < sample_size and not self.stop_reading:
+                while i < self.calibration_sample_size and not self.stop_reading:
                     self.debug_signal.emit(f"Loop i = {i}")
                     raw = self.ser.readline().decode("utf8")
                     self.debug_signal.emit(f"Read raw data: {raw}")
@@ -239,6 +231,7 @@ class SerialComms(QThread):
 
     @Slot()
     def set_stop_reading_flag(self):
+        self.debug_signal.emit("Set 'stop reading'-flag")
         self.stop_reading = True
 
     def send_command_string(self, command: str) -> bool:
