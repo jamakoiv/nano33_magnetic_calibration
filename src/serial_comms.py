@@ -6,7 +6,7 @@ from typing import Tuple, Union
 from serial import Serial, SerialException
 
 from threading import Lock
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import QCoreApplication, QObject, Signal, Slot
 
 """
     Control codes for controlling the serial output
@@ -180,6 +180,9 @@ class SerialComms(QObject):
                 self.data_row_received.emit(row)
                 self.debug_signal.emit(f"Read row {i}")
                 i += 1
+
+                # NOTE: Calling event-loop manually is frowned upon.
+                QCoreApplication.processEvents()
 
         finally:
             self.debug_signal.emit("Done")

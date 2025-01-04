@@ -177,6 +177,8 @@ class MainWindow(QMainWindow):
             self.start_board_thread()
     
     def start_board_thread(self):
+        # NOTE: could probably just replace the thread with a QTimer since the
+        # data acquisition is pretty fast and light.
         self.board = SerialComms(self.device_select_widget.device_selector.currentData())
 
         self.board_thread = QThread()
@@ -188,13 +190,7 @@ class MainWindow(QMainWindow):
         self.board.debug_signal.connect(self.debug_printer)
         self.board.data_read_done.connect(self.data_read_cleanup)
 
-        # NOTE: Needs to have DirectConnection since the while-loop keeps the thread busy
-        # and the control is not returned to the event-loop until the loop is done.
-        # DirectConnection results in the main-thread modifying the board-thread's data.
-        # Will this cause problems in the future... 
-        # NOTE: could probably just replace the thread with a QTimer since the
-        # data acquisition is pretty fast and light.
-        self.stop_board_thread.connect(self.board.set_stop_reading_flag, Qt.ConnectionType.DirectConnection)
+        self.stop_board_thread.connect(self.board.set_stop_reading_flag)
 
         self.board.calibration_sample_size = (
             self.device_select_widget.data_points.value()
