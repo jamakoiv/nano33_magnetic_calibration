@@ -25,7 +25,7 @@ from numpy.random import sample
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
-from serial_comms import SerialComms
+from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
     secondary_canvas: MatplotlibCanvas
     data_model: CalibrationDataModel
 
-    board: SerialComms
+    board_comms: Board2GUI 
     stop_board_thread = Signal()
 
     log_widget: QTextEdit
@@ -179,22 +179,26 @@ class MainWindow(QMainWindow):
     def start_board_thread(self):
         # NOTE: could probably just replace the thread with a QTimer since the
         # data acquisition is pretty fast and light.
-        self.board = SerialComms(self.device_select_widget.device_selector.currentData())
+        # board = SerialComms(self.device_select_widget.device_selector.currentData())
+        board = TestSerialComms()
+        self.board_comms = Board2GUI()
+        self.board_comms.data_row_received.connect(self.data_model.append_data)
+        self.board_comms.debug_signal.connect(self.debug_printer)
+        self.board_comms.data_read_done.connect(self.data_read_cleanup)
+        self.board_comms.set_board(board)
 
         self.board_thread = QThread()
-        self.board.moveToThread(self.board_thread)
+        board.moveToThread(self.board_thread)
+        self.board_comms.moveToThread(self.board_thread)
 
         self.device_select_widget.data_button.setText("Stop")
 
-        self.board.data_row_received.connect(self.data_model.append_data)
-        self.board.debug_signal.connect(self.debug_printer)
-        self.board.data_read_done.connect(self.data_read_cleanup)
-        self.stop_board_thread.connect(self.board.set_stop_reading_flag)
+        self.stop_board_thread.connect(self.board_comms.stop_reading_data)
 
-        self.board.calibration_sample_size = (
+        self.board_comms.read_sample_size = (
             self.device_select_widget.data_points.value()
         )
-        self.board_thread.run = self.board.read_dummy_data
+        self.board_thread.run = self.board_comms.read_magnetic_calibration_data
         self.board_thread.start()
 
     @Slot()

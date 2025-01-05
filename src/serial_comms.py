@@ -85,9 +85,10 @@ class Board2GUI(QObject):
     data_read_done = Signal()
     debug_signal = Signal(str)
 
-    def __init__(self, board: BoardCommunications): 
+    def __init__(self) -> None: 
         super().__init__()
 
+    def set_board(self, board: BoardCommunications) -> None:
         self.board = board
 
     @Slot()
@@ -102,6 +103,10 @@ class Board2GUI(QObject):
                 row = self.board.read_row()
                 self.data_row_received.emit(row)
                 self.debug_signal.emit(f"Read row {i}: {row}")
+                i += 1
+
+        except AttributeError as e:
+            self.debug_signal.emit(e)
 
         finally:
             self.data_read_done.emit()
@@ -112,6 +117,30 @@ class Board2GUI(QObject):
     @Slot()
     def stop_reading_data(self):
         self.stop_reading = True
+
+
+class TestSerialComms(QObject):
+    def reset_calibration(self) -> None: ...
+
+    def set_output_mode(self, mode: int) -> None: 
+        pass
+
+    def get_magnetometer_calibration(self) -> np.ndarray: ...
+
+    def set_magnetometer_calibration(self, data: np.ndarray) -> None: ...
+
+    def get_accelerometer_calibration(self) -> np.ndarray: ...
+
+    def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
+    
+    def get_gyroscope_calibration(self) -> np.ndarray: ...
+
+    def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
+
+    def read_row(self) -> np.ndarray:
+        time.sleep(0.25)
+        row = np.random.randint(0, 60, size=(1,3))
+        return row
 
 class Nano33SerialComms(QObject):
     ser: Serial
