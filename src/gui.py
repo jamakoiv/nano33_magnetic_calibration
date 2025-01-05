@@ -189,7 +189,6 @@ class MainWindow(QMainWindow):
         self.board.data_row_received.connect(self.data_model.append_data)
         self.board.debug_signal.connect(self.debug_printer)
         self.board.data_read_done.connect(self.data_read_cleanup)
-
         self.stop_board_thread.connect(self.board.set_stop_reading_flag)
 
         self.board.calibration_sample_size = (
