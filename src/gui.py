@@ -139,9 +139,6 @@ class MainWindow(QMainWindow):
         log.debug("Created dock widgets.")
 
     def create_canvases(self) -> None:
-        """
-        Create
-        """
         self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
         self.secondary_canvas = MatplotlibCanvas(5, 5, 96, projection="2d")
 
@@ -162,7 +159,7 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def add_random_data(self):
-        self.data_model.append_data(np.random.randint(0, 50, size=(1, 4)))
+        self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))
 
     @Slot()
     def data_read_callback(self):
@@ -184,7 +181,7 @@ class MainWindow(QMainWindow):
         self.board_comms = Board2GUI()
         self.board_comms.data_row_received.connect(self.data_model.append_data)
         self.board_comms.debug_signal.connect(self.debug_printer)
-        self.board_comms.data_read_done.connect(self.data_read_cleanup)
+        self.board_comms.data_read_done.connect(self.board_thread_cleanup)
         self.board_comms.set_board(board)
 
         self.board_thread = QThread()
@@ -202,13 +199,11 @@ class MainWindow(QMainWindow):
         self.board_thread.start()
 
     @Slot()
-    def data_read_cleanup(self):
+    def board_thread_cleanup(self):
         print("data read cleanup function")
-        self.board.data_row_received.disconnect(self.data_model.append_data)
+        # self.board_comms.data_row_received.disconnect(self.data_model.append_data)
         self.device_select_widget.data_button.setText("Start")
 
-        # del self.board
-        # del self.board_thread
 
     @Slot(str)
     def debug_printer(self, d: str):
