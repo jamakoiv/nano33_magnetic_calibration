@@ -5,7 +5,7 @@ from typing import Callable
 
 import numpy as np
 
-from PySide6.QtCore import Qt, Slot, Signal, QThread
+from PySide6.QtCore import Qt, Slot, Signal, QThread, QTimer
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
     data_model: CalibrationDataModel
 
     board_comms: Board2GUI 
+    board_comms_timer: QTimer
     stop_board_thread = Signal()
 
     log_widget: QTextEdit
@@ -178,11 +179,15 @@ class MainWindow(QMainWindow):
         # data acquisition is pretty fast and light.
         # board = SerialComms(self.device_select_widget.device_selector.currentData())
         board = TestSerialComms()
-        self.board_comms = Board2GUI()
+        self.board_comms = Board2GUI(board=board,
+                                    read_sample_size=self.device_select_widget.data_points.value())
         self.board_comms.data_row_received.connect(self.data_model.append_data)
         self.board_comms.debug_signal.connect(self.debug_printer)
         self.board_comms.data_read_done.connect(self.board_thread_cleanup)
-        self.board_comms.set_board(board)
+
+        self.board_comms_timer = QTimer()
+        self.board_comms_timer.setInterval(500)
+        self.board_comms_timer.timeout.connect(self.board_comms.read_magnetic_calibration_data)
 
         self.board_thread = QThread()
         board.moveToThread(self.board_thread)
@@ -192,17 +197,26 @@ class MainWindow(QMainWindow):
 
         self.stop_board_thread.connect(self.board_comms.stop_reading_data)
 
-        self.board_comms.read_sample_size = (
-            self.device_select_widget.data_points.value()
-        )
-        self.board_thread.run = self.board_comms.read_magnetic_calibration_data
         self.board_thread.start()
+        self.board_comms_timer.start()
 
     @Slot()
     def board_thread_cleanup(self):
         print("data read cleanup function")
+
+        self.board_comms_timer.stop()
+        self.board_thread.quit()
         # self.board_comms.data_row_received.disconnect(self.data_model.append_data)
         self.device_select_widget.data_button.setText("Start")
+
+    def closeEvent(self, event):
+        try:
+            if self.board_thread.isRunning():
+                self.board_thread.quit()
+        except AttributeError:
+            pass
+
+        return super().closeEvent(event)
 
 
     @Slot(str)

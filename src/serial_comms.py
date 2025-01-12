@@ -85,38 +85,33 @@ class Board2GUI(QObject):
     data_read_done = Signal()
     debug_signal = Signal(str)
 
-    def __init__(self) -> None: 
+    def __init__(self, board: BoardCommunications, read_sample_size: int = 50) -> None: 
         super().__init__()
 
-    def set_board(self, board: BoardCommunications) -> None:
         self.board = board
+        self.read_sample_size = read_sample_size
+        self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
+        self.i = 0
 
     @Slot()
     def read_magnetic_calibration_data(self):
-        self.stop_reading = False
 
-        self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
+        if self.i >= self.read_sample_size-1:
+            self.data_read_done.emit()
 
-        try: 
-            i = 0
-            while i < self.read_sample_size and not self.stop_reading:
-                row = self.board.read_row()
-                self.data_row_received.emit(row)
-                self.debug_signal.emit(f"Read row {i}: {row}")
-                i += 1
+        try:
+            row = self.board.read_row()
+            self.data_row_received.emit(row)
+            self.debug_signal.emit(f"Read row {self.i}: {row}")
+            self.i += 1
 
         except AttributeError as e:
             self.debug_signal.emit(e)
 
-        finally:
-            self.data_read_done.emit()
-            self.debug_signal.emit("Done")
-            self.debug_signal.emit(f"stop-flag: {self.stop_reading}")
-            self.data_read_done.emit()
 
     @Slot()
     def stop_reading_data(self):
-        self.stop_reading = True
+        self.data_read_done.emit()
 
 
 class TestSerialComms(QObject):
