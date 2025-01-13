@@ -10,6 +10,7 @@ from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
+    QMessageBox,
     QSizePolicy,
     QSplitter,
     QTableView,
@@ -25,7 +26,7 @@ from numpy.random import sample
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
-from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
+from serial_comms import Board2GUI, Nano33SerialComms, SerialCommsError, TestSerialComms
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -171,11 +172,16 @@ class MainWindow(QMainWindow):
         except AttributeError:  # if self.board_thread does not exist.
             self.start_board_thread()
 
-    def start_board_thread(self):
+    def start_board_thread(self) -> None:
         # NOTE: could probably just replace the thread with a QTimer since the
         # data acquisition is pretty fast and light.
-        # board = SerialComms(self.device_select_widget.device_selector.currentData())
-        board = TestSerialComms()
+        #
+
+        board = Nano33SerialComms(
+            self.device_select_widget.device_selector.currentData()
+        )
+
+        # board = TestSerialComms()
         self.board_comms = Board2GUI(
             board=board, read_sample_size=self.device_select_widget.data_points.value()
         )
@@ -183,36 +189,38 @@ class MainWindow(QMainWindow):
         self.board_comms.debug_signal.connect(self.debug_printer)
         self.board_comms.data_read_done.connect(self.board_thread_cleanup)
 
-        self.board_comms_timer = QTimer()
-        self.board_comms_timer.setInterval(500)
-        self.board_comms_timer.timeout.connect(
-            self.board_comms.read_magnetic_calibration_data
-        )
-
         self.board_thread = QThread()
         board.moveToThread(self.board_thread)
         self.board_comms.moveToThread(self.board_thread)
 
         self.device_select_widget.data_button.setText("Stop")
 
-        self.stop_board_thread.connect(self.board_comms.stop_reading_data)
+        # DirectConnection causes the target function to execute in current thread,
+        # so we are modifying the data owned by object in another thread.
+        # In this case it is safe since the target function only toggle a boolean flag
+        self.stop_board_thread.connect(
+            self.board_comms.stop_reading_data, Qt.ConnectionType.DirectConnection
+        )
 
+        self.board_thread.run = self.board_comms.read_magnetic_calibration_data
         self.board_thread.start()
-        self.board_comms_timer.start()
 
     @Slot()
     def board_thread_cleanup(self):
         print("data read cleanup function")
 
-        self.board_comms_timer.stop()
         self.board_thread.quit()
-        # self.board_comms.data_row_received.disconnect(self.data_model.append_data)
         self.device_select_widget.data_button.setText("Start")
 
     def closeEvent(self, event):
         try:
             if self.board_thread.isRunning():
+                self.stop_board_thread.emit()
                 self.board_thread.quit()
+
+                while self.board_thread.isRunning():
+                    print("Thread still running...")
+
         except AttributeError:
             pass
 
@@ -221,6 +229,7 @@ class MainWindow(QMainWindow):
     @Slot(str)  # pyright: ignore
     def debug_printer(self, d: str):
         print(d)
+        QMessageBox.information(self, "Debug message", f"{d}")
 
 
 if __name__ == "__main__":

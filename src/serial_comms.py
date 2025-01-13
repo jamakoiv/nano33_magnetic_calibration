@@ -1,12 +1,13 @@
 import time
 import unicodedata
+from PySide6.QtWidgets import QMessageBox
 import numpy as np
 
 from typing import Protocol, Tuple, Union
 from serial import Serial, SerialException
 
 from threading import Lock
-from PySide6.QtCore import QCoreApplication, QObject, Signal, Slot
+from PySide6.QtCore import QObject, Signal, Slot, Qt
 
 # TODO: Too much stuff in single class/file.
 # Separate board serial comms, comms with Qt Gui (signals & slots), and threading
@@ -53,7 +54,15 @@ class SerialCommsError(Exception):
     pass
 
 
+class NoDataReceived(Exception):
+    pass
+
+
 class BoardCommunications(Protocol):
+    def open(self) -> None: ...
+
+    def close(self) -> None: ...
+
     def reset_calibration(self) -> None: ...
 
     def set_output_mode(self, mode: int) -> None: ...
@@ -83,7 +92,9 @@ class Board2GUI(QObject):
     board: BoardCommunications
 
     read_sample_size: int
+    sleep_time: float
     stop_reading: bool
+    mutex: Lock
 
     data_row_received = Signal(object)
     data_read_done = Signal()
@@ -94,26 +105,47 @@ class Board2GUI(QObject):
 
         self.board = board
         self.read_sample_size = read_sample_size
-        self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
-        self.i = 0
+        self.mutex = Lock()
+        self.sleep_time = 0.50
 
     @Slot()
-    def read_magnetic_calibration_data(self):
-        if self.i >= self.read_sample_size - 1:
-            self.data_read_done.emit()
+    def read_magnetic_calibration_data(self) -> None:
+        self.stop_reading = False
+        i = 0
 
         try:
-            row = self.board.read_row()
-            self.data_row_received.emit(row)
-            self.debug_signal.emit(f"Read row {self.i}: {row}")
-            self.i += 1
+            self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
+            self.board.open()
+
+            while i < self.read_sample_size and not self.stop_reading:
+                for attempt in range(3):
+                    try:
+                        row = self.board.read_row()
+                        self.data_row_received.emit(row)
+                        i += 1
+                        time.sleep(self.sleep_time)
+                    except NoDataReceived:
+                        self.debug_signal.emit("no data")
+                        continue
+                    else:
+                        break
+                else:
+                    self.debug_signal.emit("All read-tries failed.")
 
         except AttributeError as e:
-            self.debug_signal.emit(e)
+            self.debug_signal.emit(f"{e}")
+
+        except SerialCommsError as e:
+            self.debug_signal.emit(f"{e}")
+
+        finally:
+            self.board.close()
+            self.data_read_done.emit()
 
     @Slot()
-    def stop_reading_data(self):
-        self.data_read_done.emit()
+    def stop_reading_data(self) -> None:
+        with self.mutex:
+            self.stop_reading = True
 
 
 class TestSerialComms(QObject):
@@ -168,42 +200,71 @@ class Nano33SerialComms(QObject):
         self.serial_timeout = timeout
         self.handshake_timeout = handshake_timeout
 
-        self.calibration_sample_size = 50
-
     def reset_calibration(self) -> None:
         self.send_command(SERIAL_RESET_KVSTORE)
 
     def set_output_mode(self, mode: int) -> None:
         command_str = self.parse_command_string(mode)
 
-        with Serial(
-            self.serial_port,
-            timeout=self.serial_timeout,
-            baudrate=self.serial_baudrate,
-        ) as self.ser:
-            success = self.send_command_string(command_str)
-            if not success:
-                return
+        try:
+            with Serial(
+                self.serial_port,
+                timeout=self.serial_timeout,
+                baudrate=self.serial_baudrate,
+            ) as self.ser:
+                success = self.send_command_string(command_str)
+                if not success:
+                    return
+        except SerialException as e:
+            raise SerialCommsError(e)
 
     def get_magnetometer_calibration(self) -> np.ndarray:
-        self.get_calibration(SERIAL_MAG_GET_CALIB)
+        return np.array(self.get_calibration(SERIAL_MAG_GET_CALIB))
 
     def set_magnetometer_calibration(self, data: np.ndarray) -> None:
         self.set_calibration(SERIAL_MAG_SET_CALIB, data)
 
     def get_accelerometer_calibration(self) -> np.ndarray:
-        self.get_calibration(SERIAL_ACC_GET_CALIB)
+        return np.array(self.get_calibration(SERIAL_ACC_GET_CALIB))
 
     def set_accelerometer_calibration(self, data: np.ndarray) -> None:
         self.set_calibration(SERIAL_ACC_SET_CALIB, data)
 
     def get_gyroscope_calibration(self) -> np.ndarray:
-        self.get_calibration(SERIAL_GYRO_GET_CALIB)
+        return np.array(self.get_calibration(SERIAL_GYRO_GET_CALIB))
 
     def set_gyroscope_calibration(self, data: np.ndarray) -> None:
         self.set_calibration(SERIAL_GYRO_SET_CALIB, data)
 
-    def read_row(self) -> np.ndarray: ...
+    def open(self) -> None:
+        try:
+            self.ser = Serial(
+                self.serial_port,
+                timeout=self.serial_timeout,
+                baudrate=self.serial_baudrate,
+            )
+        except SerialException as e:
+            raise SerialCommsError(e)
+
+    def close(self) -> None:
+        try:
+            self.ser.close()
+        except AttributeError:
+            pass
+
+    def read_row(self) -> np.ndarray:
+        # Flush everything so we get the newest measurement value.
+        self.ser.reset_input_buffer()
+
+        stop_byte = "\n".encode("ASCII")
+        raw = self.ser.read_until(stop_byte).decode("utf8")
+
+        try:
+            row = np.array([float(d) for d in raw.split(sep=",")])
+        except ValueError as e:  # if no data was received.
+            raise NoDataReceived(e)
+
+        return row.reshape(1, 3)
 
     def send_command(self, command_id: int) -> None:
         with self.mutex:
@@ -311,20 +372,6 @@ class Nano33SerialComms(QObject):
         s = input.replace(":", ";").split(sep=";")
         vals_str = s[1] + "," + s[3]
         return [float(x) for x in vals_str.split(",")]
-
-    def read_row(self) -> np.ndarray:
-        _ = self.ser.readline()  # Discard first read.
-
-        raw = self.ser.readline().decode("utf8")
-
-        try:
-            row = np.array([float(d) for d in raw.split(sep=",")])
-        except ValueError:  # if no data was received.
-            self.debug_signal.emit("No data received.")
-            row = np.array([0.0, 0.0, 0.0])
-
-        row.reshape(1, 3)
-        i += 1
 
     def send_command_string(self, command: str) -> bool:
         """
