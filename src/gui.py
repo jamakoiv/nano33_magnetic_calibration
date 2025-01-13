@@ -219,7 +219,8 @@ class MainWindow(QMainWindow):
                 self.board_thread.quit()
 
                 while self.board_thread.isRunning():
-                    print("Thread still running...")
+                    # Wait for thread to stop.
+                    pass
 
         except AttributeError:
             pass

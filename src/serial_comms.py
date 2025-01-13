@@ -92,6 +92,7 @@ class Board2GUI(QObject):
     board: BoardCommunications
 
     read_sample_size: int
+    read_retries: int
     sleep_time: float
     stop_reading: bool
     mutex: Lock
@@ -107,6 +108,7 @@ class Board2GUI(QObject):
         self.read_sample_size = read_sample_size
         self.mutex = Lock()
         self.sleep_time = 0.50
+        self.read_retries = 3
 
     @Slot()
     def read_magnetic_calibration_data(self) -> None:
@@ -114,23 +116,24 @@ class Board2GUI(QObject):
         i = 0
 
         try:
-            self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
             self.board.open()
+            self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
 
             while i < self.read_sample_size and not self.stop_reading:
-                for attempt in range(3):
+                for attempt in range(self.read_retries):
                     try:
                         row = self.board.read_row()
                         self.data_row_received.emit(row)
                         i += 1
                         time.sleep(self.sleep_time)
                     except NoDataReceived:
-                        self.debug_signal.emit("no data")
                         continue
                     else:
                         break
                 else:
-                    self.debug_signal.emit("All read-tries failed.")
+                    self.debug_signal.emit(
+                        f"Reading data failed after {self.read_retries} retries."
+                    )
 
         except AttributeError as e:
             self.debug_signal.emit(f"{e}")
@@ -207,14 +210,7 @@ class Nano33SerialComms(QObject):
         command_str = self.parse_command_string(mode)
 
         try:
-            with Serial(
-                self.serial_port,
-                timeout=self.serial_timeout,
-                baudrate=self.serial_baudrate,
-            ) as self.ser:
-                success = self.send_command_string(command_str)
-                if not success:
-                    return
+            self.send_command_string(command_str)
         except SerialException as e:
             raise SerialCommsError(e)
 
