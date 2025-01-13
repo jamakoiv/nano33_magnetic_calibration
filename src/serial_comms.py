@@ -59,6 +59,12 @@ class NoDataReceived(Exception):
 
 
 class BoardCommunications(Protocol):
+    def __enter__(self) -> None:
+        self.open()
+
+    def __exit__(self, *args) -> None:
+        self.close()
+
     def open(self) -> None: ...
 
     def close(self) -> None: ...
@@ -93,7 +99,7 @@ class Board2GUI(QObject):
 
     read_sample_size: int
     read_retries: int
-    sleep_time: float
+    read_wait: float
     stop_reading: bool
     mutex: Lock
 
@@ -107,7 +113,7 @@ class Board2GUI(QObject):
         self.board = board
         self.read_sample_size = read_sample_size
         self.mutex = Lock()
-        self.sleep_time = 0.50
+        self.read_wait = 0.25
         self.read_retries = 3
 
     @Slot()
@@ -120,17 +126,18 @@ class Board2GUI(QObject):
             self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
 
             while i < self.read_sample_size and not self.stop_reading:
+                # TODO: Retry code looks ugly and hard to read.
                 for attempt in range(self.read_retries):
                     try:
                         row = self.board.read_row()
                         self.data_row_received.emit(row)
                         i += 1
-                        time.sleep(self.sleep_time)
+                        time.sleep(self.read_wait)
                     except NoDataReceived:
-                        continue
+                        continue  # Runs the retry-loop again.
                     else:
-                        break
-                else:
+                        break  # Stop the retry-loop if no error occured.
+                else:  # This gets executed only if the for loop is NOT stopped with break.
                     self.debug_signal.emit(
                         f"Reading data failed after {self.read_retries} retries."
                     )
