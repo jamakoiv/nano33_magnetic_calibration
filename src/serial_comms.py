@@ -65,16 +65,12 @@ class BoardCommunications(Protocol):
     def get_accelerometer_calibration(self) -> np.ndarray: ...
 
     def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
-    
+
     def get_gyroscope_calibration(self) -> np.ndarray: ...
 
     def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
 
     def read_row(self) -> np.ndarray: ...
-
-    def read_dummy_row(self) -> np.ndarray: ...
-
-    def read_magnetic_calibration_row(self) -> np.ndarray: ...
 
 
 class Board2GUI(QObject):
@@ -83,6 +79,7 @@ class Board2GUI(QObject):
 
     Low-level comms should be handled by the 'board'-object.
     """
+
     board: BoardCommunications
 
     read_sample_size: int
@@ -92,7 +89,7 @@ class Board2GUI(QObject):
     data_read_done = Signal()
     debug_signal = Signal(str)
 
-    def __init__(self, board: BoardCommunications, read_sample_size: int = 50) -> None: 
+    def __init__(self, board: BoardCommunications, read_sample_size: int = 50) -> None:
         super().__init__()
 
         self.board = board
@@ -102,8 +99,7 @@ class Board2GUI(QObject):
 
     @Slot()
     def read_magnetic_calibration_data(self):
-
-        if self.i >= self.read_sample_size-1:
+        if self.i >= self.read_sample_size - 1:
             self.data_read_done.emit()
 
         try:
@@ -115,7 +111,6 @@ class Board2GUI(QObject):
         except AttributeError as e:
             self.debug_signal.emit(e)
 
-
     @Slot()
     def stop_reading_data(self):
         self.data_read_done.emit()
@@ -124,7 +119,7 @@ class Board2GUI(QObject):
 class TestSerialComms(QObject):
     def reset_calibration(self) -> None: ...
 
-    def set_output_mode(self, mode: int) -> None: 
+    def set_output_mode(self, mode: int) -> None:
         pass
 
     def get_magnetometer_calibration(self) -> np.ndarray: ...
@@ -134,15 +129,16 @@ class TestSerialComms(QObject):
     def get_accelerometer_calibration(self) -> np.ndarray: ...
 
     def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
-    
+
     def get_gyroscope_calibration(self) -> np.ndarray: ...
 
     def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
 
     def read_row(self) -> np.ndarray:
         time.sleep(0.25)
-        row = np.random.randint(0, 60, size=(1,3))
+        row = np.random.randint(0, 60, size=(1, 3))
         return row
+
 
 class Nano33SerialComms(QObject):
     ser: Serial
@@ -180,8 +176,10 @@ class Nano33SerialComms(QObject):
     def set_output_mode(self, mode: int) -> None:
         command_str = self.parse_command_string(mode)
 
-        with Serial(self.serial_port, timeout=self.serial_timeout,
-                    baudrate=self.serial_baudrate,
+        with Serial(
+            self.serial_port,
+            timeout=self.serial_timeout,
+            baudrate=self.serial_baudrate,
         ) as self.ser:
             success = self.send_command_string(command_str)
             if not success:
@@ -198,7 +196,7 @@ class Nano33SerialComms(QObject):
 
     def set_accelerometer_calibration(self, data: np.ndarray) -> None:
         self.set_calibration(SERIAL_ACC_SET_CALIB, data)
-    
+
     def get_gyroscope_calibration(self) -> np.ndarray:
         self.get_calibration(SERIAL_GYRO_GET_CALIB)
 
@@ -223,7 +221,7 @@ class Nano33SerialComms(QObject):
 
     def wait_for_board_response(self) -> Tuple[bool, str]:
         # TODO: Raise error instead of returning success-state.
-        
+
         timeout = time.time() + self.handshake_timeout
         while (data := self.ser.readline()) == SERIAL_NO_OUTPUT:
             if time.time() > timeout:
@@ -232,7 +230,7 @@ class Nano33SerialComms(QObject):
                 continue
 
         return True, data.decode("utf8")
-    
+
     def get_calibration(self, calibration_type: int) -> list[float] | None:
         """
         Get calibration data from the board.
@@ -328,7 +326,6 @@ class Nano33SerialComms(QObject):
         row.reshape(1, 3)
         i += 1
 
-
     def send_command_string(self, command: str) -> bool:
         """
         Send a command to the board.
@@ -363,7 +360,6 @@ class Nano33SerialComms(QObject):
                 time.sleep(0.50)
 
         return False
-
 
     @staticmethod
     def remove_control_characters(input: str) -> str:

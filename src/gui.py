@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
     secondary_canvas: MatplotlibCanvas
     data_model: CalibrationDataModel
 
-    board_comms: Board2GUI 
+    board_comms: Board2GUI
     board_comms_timer: QTimer
     stop_board_thread = Signal()
 
@@ -49,7 +49,6 @@ class MainWindow(QMainWindow):
 
     device_select_widget: DeviceSelectWidget
     device_select_dock: QDockWidget
-
 
     calibration_widget: CalibrationWidget
     calibration_dock: QDockWidget
@@ -96,9 +95,7 @@ class MainWindow(QMainWindow):
             ]
         )
 
-        self.device_select_widget.data_button.pressed.connect(
-            self.data_read_callback
-        )
+        self.device_select_widget.data_button.pressed.connect(self.data_read_callback)
 
         log.debug("Created main window.")
 
@@ -171,23 +168,26 @@ class MainWindow(QMainWindow):
             else:
                 self.start_board_thread()
 
-        except AttributeError: # if self.board_thread does not exist.
+        except AttributeError:  # if self.board_thread does not exist.
             self.start_board_thread()
-    
+
     def start_board_thread(self):
         # NOTE: could probably just replace the thread with a QTimer since the
         # data acquisition is pretty fast and light.
         # board = SerialComms(self.device_select_widget.device_selector.currentData())
         board = TestSerialComms()
-        self.board_comms = Board2GUI(board=board,
-                                    read_sample_size=self.device_select_widget.data_points.value())
+        self.board_comms = Board2GUI(
+            board=board, read_sample_size=self.device_select_widget.data_points.value()
+        )
         self.board_comms.data_row_received.connect(self.data_model.append_data)
         self.board_comms.debug_signal.connect(self.debug_printer)
         self.board_comms.data_read_done.connect(self.board_thread_cleanup)
 
         self.board_comms_timer = QTimer()
         self.board_comms_timer.setInterval(500)
-        self.board_comms_timer.timeout.connect(self.board_comms.read_magnetic_calibration_data)
+        self.board_comms_timer.timeout.connect(
+            self.board_comms.read_magnetic_calibration_data
+        )
 
         self.board_thread = QThread()
         board.moveToThread(self.board_thread)
@@ -218,8 +218,7 @@ class MainWindow(QMainWindow):
 
         return super().closeEvent(event)
 
-
-    @Slot(str)
+    @Slot(str)  # pyright: ignore
     def debug_printer(self, d: str):
         print(d)
 
