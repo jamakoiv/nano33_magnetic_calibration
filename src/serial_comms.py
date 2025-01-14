@@ -113,7 +113,7 @@ class Board2GUI(QObject):
         self.board = board
         self.read_sample_size = read_sample_size
         self.mutex = Lock()
-        self.read_wait = 0.25
+        self.read_wait = 0.10
         self.read_retries = 3
 
     @Slot()
@@ -193,9 +193,6 @@ class Nano33SerialComms(QObject):
 
     mutex: Lock = Lock()
 
-    # TODO: Lots of repeating try... with Serial... except SerialException...
-    #       Maybe refactor that to it's own function.
-    #
     def __init__(
         self,
         port: str,
