@@ -54,7 +54,7 @@ class DeviceSelectWidget(QWidget):
         self.data_points = QSpinBox(parent=self)
         self.data_points.setRange(10, 500)
         self.data_points.setSingleStep(10)
-        self.data_points.setValue(50)
+        self.data_points.setValue(20)
 
         self.data_label = QLabel(parent=self, text="Calibration points")
         self.data_button = QPushButton(parent=self, text="Read data")
