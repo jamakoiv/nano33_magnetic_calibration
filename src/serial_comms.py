@@ -52,6 +52,10 @@ class NoDataReceived(Exception):
     pass
 
 
+class RetryLimitReached(Exception):
+    pass
+
+
 class BoardCommunications(Protocol):
     def open(self) -> None: ...
 
@@ -131,6 +135,12 @@ class Board2GUI(QObject):
                     self.debug_signal.emit(
                         f"Reading data failed after {self.read_retries} retries."
                     )
+                    self.error_signal.emit(
+                        RetryLimitReached(
+                            f"Reading data failed after {self.read_retries} tries."
+                        )
+                    )
+                    break
 
         except AttributeError as e:
             self.debug_signal.emit(f"{e}")
