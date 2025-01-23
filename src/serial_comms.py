@@ -222,19 +222,19 @@ class Nano33SerialComms(QObject):
         return np.array(self.get_calibration(SERIAL_MAG_GET_CALIB))
 
     def set_magnetometer_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_MAG_SET_CALIB, data)
+        self.set_calibration(SERIAL_MAG_SET_CALIB, data.astype("float").tolist())
 
     def get_accelerometer_calibration(self) -> np.ndarray:
         return np.array(self.get_calibration(SERIAL_ACC_GET_CALIB))
 
     def set_accelerometer_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_ACC_SET_CALIB, data)
+        self.set_calibration(SERIAL_ACC_SET_CALIB, data.astype("float").tolist())
 
     def get_gyroscope_calibration(self) -> np.ndarray:
         return np.array(self.get_calibration(SERIAL_GYRO_GET_CALIB))
 
     def set_gyroscope_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_GYRO_SET_CALIB, data)
+        self.set_calibration(SERIAL_GYRO_SET_CALIB, data.astype("float").tolist())
 
     def open(self) -> None:
         try:
