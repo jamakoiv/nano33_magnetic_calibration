@@ -59,12 +59,6 @@ class NoDataReceived(Exception):
 
 
 class BoardCommunications(Protocol):
-    def __enter__(self) -> None:
-        self.open()
-
-    def __exit__(self, *args) -> None:
-        self.close()
-
     def open(self) -> None: ...
 
     def close(self) -> None: ...
