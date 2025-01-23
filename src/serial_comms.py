@@ -106,6 +106,7 @@ class Board2GUI(QObject):
     data_row_received = Signal(object)
     data_read_done = Signal()
     debug_signal = Signal(str)
+    error_signal = Signal(object)
 
     def __init__(self, board: BoardCommunications, read_sample_size: int = 50) -> None:
         super().__init__()
@@ -118,8 +119,9 @@ class Board2GUI(QObject):
 
     @Slot()
     def read_magnetic_calibration_data(self) -> None:
-        self.stop_reading = False
-        i = 0
+        with self.mutex:
+            self.stop_reading = False
+            i = 0
 
         try:
             self.board.open()
@@ -144,9 +146,11 @@ class Board2GUI(QObject):
 
         except AttributeError as e:
             self.debug_signal.emit(f"{e}")
+            self.error_signal.emit(e)
 
         except BoardCommsError as e:
             self.debug_signal.emit(f"{e}")
+            self.error_signal.emit(e)
 
         finally:
             self.board.close()
