@@ -9,6 +9,8 @@ from serial import Serial, SerialException
 from threading import Lock
 from PySide6.QtCore import QObject, Signal, Slot, Qt
 
+from FitEllipsoid import makeEllipsoidXYZ
+
 
 """
     Control codes for controlling the serial output
@@ -169,35 +171,7 @@ class TestSerialComms(QObject):
     def __init__(self):
         super().__init__()
 
-        self.makeEllipsoidXYZ(20, 15, -12, 40, 35, 50)
-
-    def makeEllipsoidXYZ(
-        self,
-        x0: float = 0,
-        y0: float = 0,
-        z0: float = 0,
-        a: float = 1,
-        b: float = 1,
-        c: float = 1,
-    ) -> None:
-        n_one = 100
-        noise = np.random.normal(size=(n_one * n_one), loc=0, scale=1e-2)
-
-        theta = np.linspace(0.0, np.pi, n_one)
-        phi = np.linspace(0.0, np.pi * 2.0, n_one)
-        theta, phi = np.meshgrid(theta, phi)
-
-        x = a * np.sin(theta) * np.cos(phi)
-        y = b * np.sin(theta) * np.sin(phi)
-        z = c * np.cos(theta)
-
-        self.data = np.array(
-            [
-                x.flatten() + noise + x0,
-                y.flatten() + noise + y0,
-                z.flatten() + noise + z0,
-            ]
-        ).transpose()
+        self.data = makeEllipsoidXYZ(20, 15, -12, 40, 35, 50)
 
     def open(self) -> None: ...
 
