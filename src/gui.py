@@ -26,7 +26,7 @@ from numpy.random import sample
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
-from serial_comms import Board2GUI, Nano33SerialComms, SerialCommsError, TestSerialComms
+from serial_comms import Board2GUI, Nano33SerialComms, BoardCommsError, TestSerialComms
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -57,8 +57,8 @@ class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
-        self.create_canvases()
-        self.create_dock_widgets()
+        self.build_canvases()
+        self.build_dock_widgets()
 
         self.data_model = CalibrationDataModel(parent=self)
         self.data_table_widget.setModel(self.data_model)
@@ -100,7 +100,7 @@ class MainWindow(QMainWindow):
 
         log.debug("Created main window.")
 
-    def create_dock_widgets(self) -> None:
+    def build_dock_widgets(self) -> None:
         default_size_policy = QSizePolicy(
             QSizePolicy.Policy.Preferred,
             QSizePolicy.Policy.Fixed,
@@ -137,7 +137,7 @@ class MainWindow(QMainWindow):
 
         log.debug("Created dock widgets.")
 
-    def create_canvases(self) -> None:
+    def build_canvases(self) -> None:
         self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
         self.secondary_canvas = MatplotlibCanvas(5, 5, 96, projection="2d")
 
