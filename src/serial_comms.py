@@ -108,7 +108,7 @@ class Board2GUI(QObject):
         self.read_sample_size = read_sample_size
         self.mutex = Lock()
         self.read_wait = 0.10
-        self.read_retries = 3
+        self.read_retries = 5
 
     @Slot()
     def read_magnetic_calibration_data(self) -> None:
@@ -130,7 +130,9 @@ class Board2GUI(QObject):
                         i += 1
                         time.sleep(self.read_wait)
                     except NoDataReceived:
-                        self.log_signal.emit(f"Reading data attempt {attempt} failed.")
+                        self.debug_signal.emit(
+                            f"Reading data failed, attempt {attempt}."
+                        )
                         continue  # Runs the retry-loop again.
                     else:
                         break  # Stop the retry-loop if no error occured.
@@ -164,6 +166,40 @@ class Board2GUI(QObject):
 
 
 class TestSerialComms(QObject):
+    def __init__(self):
+        super().__init__()
+
+        self.makeEllipsoidXYZ(20, 15, -12, 40, 35, 50)
+
+    def makeEllipsoidXYZ(
+        self,
+        x0: float = 0,
+        y0: float = 0,
+        z0: float = 0,
+        a: float = 1,
+        b: float = 1,
+        c: float = 1,
+    ) -> None:
+        n_one = 20
+        np.random.seed(123)
+        noise = np.random.normal(size=(n_one * n_one), loc=0, scale=1e-2)
+
+        theta = np.linspace(0.0, np.pi, n_one)
+        phi = np.linspace(0.0, np.pi * 2.0, n_one)
+        theta, phi = np.meshgrid(theta, phi)
+
+        x = a * np.sin(theta) * np.cos(phi)
+        y = b * np.sin(theta) * np.sin(phi)
+        z = c * np.cos(theta)
+
+        self.data = np.array(
+            [
+                x.flatten() + noise + x0,
+                y.flatten() + noise + y0,
+                z.flatten() + noise + z0,
+            ]
+        ).transpose()
+
     def open(self) -> None: ...
 
     def close(self) -> None: ...
@@ -188,8 +224,8 @@ class TestSerialComms(QObject):
 
     def read_row(self) -> np.ndarray:
         time.sleep(0.25)
-        row = np.random.randint(0, 60, size=(1, 3))
-        return row
+        row = np.random.randint(0, len(self.data))
+        return self.data[row].reshape(1, 3)
 
 
 class Nano33SerialComms(QObject):
