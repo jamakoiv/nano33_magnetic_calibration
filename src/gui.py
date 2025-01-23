@@ -6,7 +6,7 @@ from typing import Callable
 import numpy as np
 
 from PySide6.QtCore import Qt, Slot, Signal, QThread, QTimer
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -57,8 +57,7 @@ class MainWindow(QMainWindow):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
-        self.build_canvases()
-        self.build_dock_widgets()
+        self.build_ui()
 
         self.data_model = CalibrationDataModel(parent=self)
         self.data_table_widget.setModel(self.data_model)
@@ -66,39 +65,16 @@ class MainWindow(QMainWindow):
         self.primary_canvas.setModel(self.data_model)
         self.secondary_canvas.setModel(self.data_model)
 
-        self.toolbar_main = QToolBar("main_toolbar")
-        self.action_quit = QAction(text="&Exit")
-        self.action_quit.triggered.connect(self.close)
-        self.action_random_data = QAction(text="Add random data")
-        self.action_random_data.triggered.connect(self.add_random_data)
-
-        self.toolbar_main.addActions([self.action_random_data, self.action_quit])
-
-        self.toolbar_mpl = QToolBar("matplotlib_default_tools")
-        self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
-        self.toolbar_mpl.addWidget(self.mpl_default_tools)
-
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_main)
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
-
-        self.menu_file = self.menuBar().addMenu("&File")
-        self.menu_file.addAction(self.action_quit)
-
-        self.menu_view = self.menuBar().addMenu("&View")
-
-        self.menu_view.addActions(
-            [
-                self.device_select_dock.toggleViewAction(),
-                self.calibration_dock.toggleViewAction(),
-                self.menu_view.addSeparator(),
-                self.data_table_dock.toggleViewAction(),
-                self.log_dock.toggleViewAction(),
-            ]
-        )
-
         self.device_select_widget.data_button.pressed.connect(self.data_read_callback)
 
         log.debug("Created main window.")
+
+    def build_ui(self) -> None:
+        self.build_canvases()
+        self.build_dock_widgets()
+        self.build_actions()
+        self.build_toolbars()
+        self.build_menus()
 
     def build_dock_widgets(self) -> None:
         default_size_policy = QSizePolicy(
@@ -156,6 +132,41 @@ class MainWindow(QMainWindow):
 
         log.debug("Created canvases.")
 
+    def build_actions(self) -> None:
+        self.action_quit = QAction(text="&Exit")
+        self.action_quit.setShortcut(QKeySequence("Ctrl+Q"))
+        self.action_quit.triggered.connect(self.close)
+        self.action_random_data = QAction(text="Add random data")
+        self.action_random_data.setShortcut(QKeySequence("Ctrl+D"))
+        self.action_random_data.triggered.connect(self.add_random_data)
+
+    def build_toolbars(self) -> None:
+        self.toolbar_main = QToolBar("main_toolbar")
+        self.toolbar_main.addActions([self.action_random_data, self.action_quit])
+
+        self.toolbar_mpl = QToolBar("matplotlib_default_tools")
+        self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
+        self.toolbar_mpl.addWidget(self.mpl_default_tools)
+
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_main)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
+
+    def build_menus(self) -> None:
+        self.menu_file = self.menuBar().addMenu("&File")
+        self.menu_file.addAction(self.action_quit)
+
+        self.menu_view = self.menuBar().addMenu("&View")
+
+        self.menu_view.addActions(
+            [
+                self.device_select_dock.toggleViewAction(),
+                self.calibration_dock.toggleViewAction(),
+                self.menu_view.addSeparator(),
+                self.data_table_dock.toggleViewAction(),
+                self.log_dock.toggleViewAction(),
+            ]
+        )
+
     @Slot()
     def add_random_data(self):
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))
@@ -175,7 +186,6 @@ class MainWindow(QMainWindow):
     def start_board_thread(self) -> None:
         # NOTE: could probably just replace the thread with a QTimer since the
         # data acquisition is pretty fast and light.
-        #
 
         board = Nano33SerialComms(
             self.device_select_widget.device_selector.currentData()
