@@ -6,7 +6,7 @@ from typing import Callable
 import numpy as np
 
 from PySide6.QtCore import Qt, Slot, Signal, QThread, QTimer
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QKeySequence, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -84,21 +84,27 @@ class MainWindow(QMainWindow):
 
         self.calibration_widget = CalibrationWidget(parent=self)
         self.calibration_widget.setSizePolicy(default_size_policy)
-        self.calibration_dock = QDockWidget("&Calibration", parent=self)
+        self.calibration_dock = QDockWidget("&Calibration values", parent=self)
         self.calibration_dock.setWidget(self.calibration_widget)
-        # self.calibration_dock.setFeatures(
-        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
-        # )
+        self.calibration_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        )
 
         self.device_select_widget = DeviceSelectWidget(parent=self)
         self.device_select_widget.setSizePolicy(default_size_policy)
         self.device_select_dock = QDockWidget("&Device select", parent=self)
         self.device_select_dock.setWidget(self.device_select_widget)
+        self.device_select_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        )
 
         self.data_table_widget = QTableView(parent=self)
         self.data_table_dock = QDockWidget("Data &table", parent=self)
         self.data_table_dock.setWidget(self.data_table_widget)
         self.data_table_widget.horizontalHeader().setDefaultSectionSize(60)
+        self.data_table_dock.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        )
 
         self.log_widget = QTextEdit(parent=self)
         self.log_dock = QDockWidget("&Log", parent=self)
@@ -109,7 +115,7 @@ class MainWindow(QMainWindow):
         )
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.calibration_dock)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_table_dock)
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.log_dock)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_dock)
 
         log.debug("Created dock widgets.")
 
@@ -133,16 +139,36 @@ class MainWindow(QMainWindow):
         log.debug("Created canvases.")
 
     def build_actions(self) -> None:
-        self.action_quit = QAction(text="&Exit")
+        self.action_quit = QAction(QIcon.fromTheme("application-exit"), "&Exit", self)
         self.action_quit.setShortcut(QKeySequence("Ctrl+Q"))
         self.action_quit.triggered.connect(self.close)
+
+        self.action_get_calibration = QAction(
+            QIcon.fromTheme("go-first"),
+            "Get calibration from currently selected device.",
+            self,
+        )
+        self.action_set_calibration = QAction(
+            QIcon.fromTheme("go-last"),
+            "Send calibration to currently selected device.",
+            self,
+        )
+
         self.action_random_data = QAction(text="Add random data")
         self.action_random_data.setShortcut(QKeySequence("Ctrl+D"))
         self.action_random_data.triggered.connect(self.add_random_data)
 
     def build_toolbars(self) -> None:
         self.toolbar_main = QToolBar("main_toolbar")
-        self.toolbar_main.addActions([self.action_random_data, self.action_quit])
+
+        self.toolbar_main.addActions(
+            [
+                self.action_random_data,
+                self.action_get_calibration,
+                self.action_set_calibration,
+                self.action_quit,
+            ]
+        )
 
         self.toolbar_mpl = QToolBar("matplotlib_default_tools")
         self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)

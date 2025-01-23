@@ -57,16 +57,16 @@ class DeviceSelectWidget(QWidget):
         self.data_points.setSingleStep(10)
         self.data_points.setValue(20)
 
-        self.data_label = QLabel(parent=self, text="Calibration points")
+        self.data_label = QLabel(parent=self, text="Calibration points: ")
         self.data_button = QPushButton(parent=self, text="Read data")
 
-        self.device_box = QGroupBox(title="Device select", parent=self)
+        self.device_box = QGroupBox(title="", parent=self)
         self.device_layout = QHBoxLayout()
         self.device_layout.addWidget(self.device_selector)
         self.device_layout.addWidget(self.scan_devices_button)
         self.device_box.setLayout(self.device_layout)
 
-        self.data_box = QGroupBox(title="Raw calibration data", parent=self)
+        self.data_box = QGroupBox(title="", parent=self)
         self.data_layout = QHBoxLayout()
         self.data_layout.addWidget(self.data_label)
         self.data_layout.addWidget(self.data_points)
