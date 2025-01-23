@@ -187,11 +187,12 @@ class MainWindow(QMainWindow):
         # NOTE: could probably just replace the thread with a QTimer since the
         # data acquisition is pretty fast and light.
 
-        board = Nano33SerialComms(
-            self.device_select_widget.device_selector.currentData()
-        )
+        device = self.device_select_widget.device_selector.currentData()
+        if device == "debug":
+            board = TestSerialComms()
+        else:
+            board = Nano33SerialComms(device)
 
-        # board = TestSerialComms()
         self.board_comms = Board2GUI(
             board=board, read_sample_size=self.device_select_widget.data_points.value()
         )

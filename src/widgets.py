@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 from serial.tools import list_ports
 
 from models import SerialPortsModel
+from serial_comms import TestSerialComms, Nano33SerialComms
 
 
 class DeviceSelectWidget(QWidget):
@@ -85,6 +86,8 @@ class DeviceSelectWidget(QWidget):
 
         last_selected_device = self.device_selector.currentData()
         ports = OrderedDict()
+
+        ports["debug"] = "Dummy data source"
 
         for port in list_ports.comports():
             ports[port.device] = port.product

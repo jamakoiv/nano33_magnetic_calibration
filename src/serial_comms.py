@@ -9,12 +9,6 @@ from serial import Serial, SerialException
 from threading import Lock
 from PySide6.QtCore import QObject, Signal, Slot, Qt
 
-# TODO: Too much stuff in single class/file.
-# Separate board serial comms, comms with Qt Gui (signals & slots), and threading
-# related functions.
-#
-# TODO: Do not subclass QThread. Create thread somewhere else and move QObject to it.
-
 
 """
     Control codes for controlling the serial output
@@ -157,6 +151,10 @@ class Board2GUI(QObject):
 
 
 class TestSerialComms(QObject):
+    def open(self) -> None: ...
+
+    def close(self) -> None: ...
+
     def reset_calibration(self) -> None: ...
 
     def set_output_mode(self, mode: int) -> None:
