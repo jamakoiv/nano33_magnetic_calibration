@@ -50,7 +50,7 @@ SERIAL_WAIT = 2.0  # seconds
 SERIAL_NO_OUTPUT = b""  # serial.readline returns b'' if read timeouts.
 
 
-class SerialCommsError(Exception):
+class BoardCommsError(Exception):
     pass
 
 
@@ -145,7 +145,7 @@ class Board2GUI(QObject):
         except AttributeError as e:
             self.debug_signal.emit(f"{e}")
 
-        except SerialCommsError as e:
+        except BoardCommsError as e:
             self.debug_signal.emit(f"{e}")
 
         finally:
@@ -216,7 +216,7 @@ class Nano33SerialComms(QObject):
         try:
             self.send_command_string(command_str)
         except SerialException as e:
-            raise SerialCommsError(e)
+            raise BoardCommsError(e)
 
     def get_magnetometer_calibration(self) -> np.ndarray:
         return np.array(self.get_calibration(SERIAL_MAG_GET_CALIB))
@@ -244,7 +244,7 @@ class Nano33SerialComms(QObject):
                 baudrate=self.serial_baudrate,
             )
         except SerialException as e:
-            raise SerialCommsError(e)
+            raise BoardCommsError(e)
 
     def close(self) -> None:
         try:
@@ -332,27 +332,6 @@ class Nano33SerialComms(QObject):
                     command = self.parse_command_string(calibration_type, data)
                     self.send_command_string(command)
                     self.wait_for_board_response()
-
-            except SerialException as err:
-                ...
-            finally:
-                ...
-        """
-        Get calibration data from the board.
-
-        IN: calibration_type: One of the 'SERIAL_GET_...' constants.
-        """
-        with self.mutex:
-            try:
-                with Serial(
-                    self.serial_port,
-                    timeout=self.serial_timeout,
-                    baudrate=self.serial_baudrate,
-                ) as self.ser:
-                    command = self.parse_command_string(calibration_type)
-                    self.send_command_string(command)
-                    _, calib_raw = self.wait_for_board_response()
-                    return self.parse_calibration_from_board(calib_raw)
 
             except SerialException as err:
                 ...
