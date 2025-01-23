@@ -180,8 +180,7 @@ class TestSerialComms(QObject):
         b: float = 1,
         c: float = 1,
     ) -> None:
-        n_one = 20
-        np.random.seed(123)
+        n_one = 100
         noise = np.random.normal(size=(n_one * n_one), loc=0, scale=1e-2)
 
         theta = np.linspace(0.0, np.pi, n_one)
@@ -223,7 +222,7 @@ class TestSerialComms(QObject):
     def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
 
     def read_row(self) -> np.ndarray:
-        time.sleep(0.25)
+        time.sleep(0.05)
         row = np.random.randint(0, len(self.data))
         return self.data[row].reshape(1, 3)
 
