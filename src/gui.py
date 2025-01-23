@@ -26,6 +26,8 @@ from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
 from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 
+from FitEllipsoid import fitEllipsoidNonRotated
+
 
 logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
@@ -159,6 +161,9 @@ class MainWindow(QMainWindow):
             self,
         )
 
+        self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "Fit ellipsoid.", self)
+        self.action_fit_ellipsoid.triggered.connect(self.action_fit_ellipsoid_callback)
+
         self.action_random_data = QAction(text="Add random data")
         self.action_random_data.setShortcut(QKeySequence("Ctrl+D"))
         self.action_random_data.triggered.connect(self.add_random_data)
@@ -171,6 +176,7 @@ class MainWindow(QMainWindow):
                 self.action_random_data,
                 self.action_get_calibration,
                 self.action_set_calibration,
+                self.action_fit_ellipsoid,
                 self.action_quit,
             ]
         )
@@ -217,6 +223,13 @@ class MainWindow(QMainWindow):
         self.gui_logger(
             f" <-- Received magnetic calibration. Offset: {offset}, Gain: {gain}"
         )
+
+    def action_fit_ellipsoid_callback(self):
+        self.gui_logger("Fit ellipsoid")
+
+        data = self.data_model.get_xyz_data()
+        params = fitEllipsoidNonRotated(*data)
+        self.gui_logger(str(params))
 
     def add_random_data(self):
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))

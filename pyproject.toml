@@ -9,4 +9,5 @@ dependencies = [
     "pyserial>=3.5",
     "pyside6==6.8.1",
     "ruff>=0.8.4",
+    "scipy>=1.15.1",
 ]
