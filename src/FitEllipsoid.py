@@ -5,13 +5,12 @@ from scipy import optimize
 
 
 def makeEllipsoidXYZ(
-    self,
-    x0: float = 0,
-    y0: float = 0,
-    z0: float = 0,
-    a: float = 1,
-    b: float = 1,
-    c: float = 1,
+    x0: float,
+    y0: float,
+    z0: float,
+    a: float,
+    b: float,
+    c: float,
 ) -> np.ndarray:
     n_one = 100
     noise = np.random.normal(size=(n_one * n_one), loc=0, scale=1e-2)
