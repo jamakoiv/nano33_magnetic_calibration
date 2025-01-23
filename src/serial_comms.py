@@ -99,6 +99,7 @@ class Board2GUI(QObject):
     data_read_done = Signal()
     debug_signal = Signal(str)
     error_signal = Signal(object)
+    log_signal = Signal(str)
 
     def __init__(self, board: BoardCommunications, read_sample_size: int = 50) -> None:
         super().__init__()
@@ -125,6 +126,7 @@ class Board2GUI(QObject):
                     try:
                         row = self.board.read_row()
                         self.data_row_received.emit(row)
+                        self.log_signal.emit("Received data: {}".format(row))
                         i += 1
                         time.sleep(self.read_wait)
                     except NoDataReceived:

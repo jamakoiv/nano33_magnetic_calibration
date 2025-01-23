@@ -1,7 +1,6 @@
 import sys
 import logging
-import queue
-from typing import Callable
+import datetime
 
 import numpy as np
 
@@ -21,12 +20,11 @@ from PySide6.QtWidgets import (
 )
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
-from numpy.random import sample
 
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
-from serial_comms import Board2GUI, Nano33SerialComms, BoardCommsError, TestSerialComms
+from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -221,6 +219,7 @@ class MainWindow(QMainWindow):
             board=board, read_sample_size=self.device_select_widget.data_points.value()
         )
         self.board_comms.data_row_received.connect(self.data_model.append_data)
+        self.board_comms.log_signal.connect(self.logger)
         self.board_comms.debug_signal.connect(self.debug_printer)
         self.board_comms.error_signal.connect(self.exception2MessageBox)
         self.board_comms.data_read_done.connect(self.board_thread_cleanup)
@@ -275,6 +274,11 @@ class MainWindow(QMainWindow):
             QMessageBox.StandardButton.Ok,
             QMessageBox.StandardButton.NoButton,
         )
+
+    @Slot(str)  # pyright: ignore
+    def logger(self, msg: str):
+        time = datetime.datetime.now().time()
+        self.log_widget.append(f"{time}: {msg}")
 
 
 if __name__ == "__main__":
