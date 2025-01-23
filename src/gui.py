@@ -214,7 +214,7 @@ class MainWindow(QMainWindow):
 
         self.calibration_widget.set_device_calibration(calib)
 
-        self.logger(
+        self.gui_logger(
             f" <-- Received magnetic calibration. Offset: {offset}, Gain: {gain}"
         )
 
@@ -246,7 +246,7 @@ class MainWindow(QMainWindow):
             board=board, read_sample_size=self.device_select_widget.data_points.value()
         )
         self.board_comms.data_row_received.connect(self.data_model.append_data)
-        self.board_comms.log_signal.connect(self.logger)
+        self.board_comms.log_signal.connect(self.gui_logger)
         self.board_comms.debug_signal.connect(self.debug_printer)
         self.board_comms.error_signal.connect(self.exception2MessageBox)
         self.board_comms.data_read_done.connect(self.board_thread_cleanup)
@@ -303,7 +303,7 @@ class MainWindow(QMainWindow):
         )
 
     @Slot(str)  # pyright: ignore
-    def logger(self, msg: str):
+    def gui_logger(self, msg: str):
         time = datetime.datetime.now().time()
         self.log_widget.append(f"{time}: {msg}")
 
