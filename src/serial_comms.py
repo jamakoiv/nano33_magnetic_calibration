@@ -130,6 +130,7 @@ class Board2GUI(QObject):
                         i += 1
                         time.sleep(self.read_wait)
                     except NoDataReceived:
+                        self.log_signal.emit(f"Reading data attempt {attempt} failed.")
                         continue  # Runs the retry-loop again.
                     else:
                         break  # Stop the retry-loop if no error occured.
