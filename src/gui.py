@@ -67,7 +67,11 @@ class MainWindow(QMainWindow):
 
         log.debug("Created main window.")
 
+        self.device_select_widget.refresh_serial_ports()
+
     def build_ui(self) -> None:
+        # NOTE: These must be called in this order.
+        # E.g. Actions must be created before they can be added to toolbar.
         self.build_canvases()
         self.build_dock_widgets()
         self.build_actions()
@@ -205,8 +209,10 @@ class MainWindow(QMainWindow):
             board=board, read_sample_size=self.device_select_widget.data_points.value()
         )
 
-        data = self.board_comms.board.get_magnetometer_calibration()
-        offset, gain = data[:3], data[3:]
+        calib = self.board_comms.board.get_magnetometer_calibration()
+        offset, gain = calib[:3], calib[3:]
+
+        self.calibration_widget.set_device_calibration(calib)
 
         self.logger(
             f" <-- Received magnetic calibration. Offset: {offset}, Gain: {gain}"
