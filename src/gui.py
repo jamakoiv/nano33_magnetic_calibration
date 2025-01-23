@@ -167,11 +167,9 @@ class MainWindow(QMainWindow):
             ]
         )
 
-    @Slot()
     def add_random_data(self):
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))
 
-    @Slot()
     def data_read_callback(self):
         try:
             if self.board_thread.isRunning():
@@ -198,6 +196,7 @@ class MainWindow(QMainWindow):
         )
         self.board_comms.data_row_received.connect(self.data_model.append_data)
         self.board_comms.debug_signal.connect(self.debug_printer)
+        self.board_comms.error_signal.connect(self.exception2MessageBox)
         self.board_comms.data_read_done.connect(self.board_thread_cleanup)
 
         self.board_thread = QThread()
@@ -230,10 +229,9 @@ class MainWindow(QMainWindow):
                 self.board_thread.quit()
 
                 while self.board_thread.isRunning():
-                    # Wait for thread to stop.
                     pass
 
-        except AttributeError:
+        except AttributeError:  # If board_thread does not exist.
             pass
 
         return super().closeEvent(event)
@@ -241,7 +239,16 @@ class MainWindow(QMainWindow):
     @Slot(str)  # pyright: ignore
     def debug_printer(self, d: str):
         print(d)
-        QMessageBox.information(self, "Debug message", f"{d}")
+
+    @Slot(object)  # pyright: ignore
+    def exception2MessageBox(self, e: Exception):
+        QMessageBox.warning(
+            self,
+            "Error",
+            str(e),
+            QMessageBox.StandardButton.Ok,
+            QMessageBox.StandardButton.NoButton,
+        )
 
 
 if __name__ == "__main__":
