@@ -146,6 +146,9 @@ class MainWindow(QMainWindow):
             "Get calibration from currently selected device.",
             self,
         )
+        self.action_get_calibration.triggered.connect(
+            self.action_get_calibration_callback
+        )
         self.action_set_calibration = QAction(
             QIcon.fromTheme("go-last"),
             "Send calibration to currently selected device.",
@@ -189,6 +192,24 @@ class MainWindow(QMainWindow):
                 self.data_table_dock.toggleViewAction(),
                 self.log_dock.toggleViewAction(),
             ]
+        )
+
+    def action_get_calibration_callback(self):
+        device = self.device_select_widget.device_selector.currentData()
+        if device == "debug":
+            board = TestSerialComms()
+        else:
+            board = Nano33SerialComms(device)
+
+        self.board_comms = Board2GUI(
+            board=board, read_sample_size=self.device_select_widget.data_points.value()
+        )
+
+        data = self.board_comms.board.get_magnetometer_calibration()
+        offset, gain = data[:3], data[3:]
+
+        self.logger(
+            f" <-- Received magnetic calibration. Offset: {offset}, Gain: {gain}"
         )
 
     def add_random_data(self):

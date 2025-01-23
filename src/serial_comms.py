@@ -172,7 +172,8 @@ class TestSerialComms(QObject):
     def set_output_mode(self, mode: int) -> None:
         pass
 
-    def get_magnetometer_calibration(self) -> np.ndarray: ...
+    def get_magnetometer_calibration(self) -> np.ndarray:
+        return np.random.random(size=6)
 
     def set_magnetometer_calibration(self, data: np.ndarray) -> None: ...
 
