@@ -1,6 +1,7 @@
 import sys
 import logging
 import datetime
+from typing import Tuple
 
 import numpy as np
 
@@ -24,7 +25,7 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
-from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
+from serial_comms import Board2GUI, CalibrationType, Nano33SerialComms, TestSerialComms
 
 from FitEllipsoid import fitEllipsoidNonRotated
 
@@ -40,7 +41,10 @@ class MainWindow(QMainWindow):
 
     board_comms: Board2GUI
     comms_thread: QThread
-    stop_comms_thread = Signal()
+    start_data_read = Signal()
+    start_calibration_get = Signal(str)
+    start_calibration_set = Signal(str)
+    stop_comms_task = Signal()
 
     log_widget: QTextEdit
     log_dock: QDockWidget
@@ -69,6 +73,7 @@ class MainWindow(QMainWindow):
 
         log.debug("Created main window.")
 
+        self.start_comms_thread()
         self.device_select_widget.refresh_serial_ports()
 
     def build_ui(self) -> None:
@@ -204,25 +209,60 @@ class MainWindow(QMainWindow):
             ]
         )
 
+    def start_comms_thread(self) -> None:
+        self.comms_thread = QThread()
+        self.board_comms = Board2GUI()
+        self.board_comms.moveToThread(self.comms_thread)
+
+        self.board_comms.data_row_received.connect(self.data_model.append_data)
+        self.board_comms.log_signal.connect(self.gui_logger)
+        self.board_comms.debug_signal.connect(self.debug_printer)
+        self.board_comms.error_signal.connect(self.exception2MessageBox)
+        self.board_comms.task_done.connect(self.restore_comms_buttons)
+
+        self.start_data_read.connect(self.board_comms.read_magnetic_calibration_data)
+        self.start_calibration_get.connect(self.board_comms.get_calibration)
+        self.stop_comms_task.connect(
+            self.board_comms.set_stop_flag, Qt.ConnectionType.DirectConnection
+        )
+
+        self.comms_thread.start()
+
     def action_get_calibration_callback(self):
-        device = self.device_select_widget.device_selector.currentData()
-        if device == "debug":
-            board = TestSerialComms()
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+
+            self.action_get_calibration.setEnabled(False)
+            self.update_current_board()
+            self.start_calibration_get.emit("magnetic")
+
+    @Slot(object)  # pyright: ignore
+    def get_calibration_handler(self, return_tuple: Tuple) -> None:
+        id, values = return_tuple
+
+        match id.lower():
+            case "magnetometer" | "magnetic":
+                self.calibration_widget.set_device_calibration(values)
+
+            case "gyroscope":
+                print("Not implemented...")
+
+            case "accelerometer":
+                print("Not implemented...")
+
+            case _:
+                raise ValueError(f"Wrong calibration id supplied: {id}")
+
+    def data_read_callback(self) -> None:
+        self.update_current_board()
+
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+
+            self.start_data_read.emit()
         else:
-            board = Nano33SerialComms(device)
-
-        self.board_comms = Board2GUI(
-            board=board, read_sample_size=self.device_select_widget.data_points.value()
-        )
-
-        calib = self.board_comms.board.get_magnetometer_calibration()
-        offset, gain = calib[:3], calib[3:]
-
-        self.calibration_widget.set_device_calibration(calib)
-
-        self.gui_logger(
-            f" <-- Received magnetic calibration. Offset: {offset}, Gain: {gain}"
-        )
+            print("Sending stop signal.")
+            self.stop_comms_task.emit()
 
     def action_fit_ellipsoid_callback(self):
         self.gui_logger("Fit ellipsoid")
@@ -231,71 +271,40 @@ class MainWindow(QMainWindow):
         params = fitEllipsoidNonRotated(*data)
         self.gui_logger(str(params))
 
-    def add_random_data(self):
+    def add_random_data(self) -> None:
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))
 
-    def data_read_callback(self):
-        try:
-            if self.board_thread.isRunning():
-                print("Sending stop signal.")
-                self.stop_comms_thread.emit()
-            else:
-                self.start_board_thread()
+    def restore_comms_buttons(self) -> None:
+        self.device_select_widget.data_button.setText("Start")
+        self.action_get_calibration.setEnabled(True)
 
-        except AttributeError:  # if self.board_thread does not exist.
-            self.start_board_thread()
-
-    def start_comms_thread(self) -> None: ...
-
-    def start_board_thread(self) -> None:
-        # NOTE: could probably just replace the thread with a QTimer since the
-        # data acquisition is pretty fast and light.
-
-        device = self.device_select_widget.device_selector.currentData()
-        if device == "debug":
-            board = TestSerialComms()
-        else:
-            board = Nano33SerialComms(device)
-
-        self.board_comms = Board2GUI(
-            board=board, read_sample_size=self.device_select_widget.data_points.value()
-        )
-        self.board_comms.data_row_received.connect(self.data_model.append_data)
-        self.board_comms.log_signal.connect(self.gui_logger)
-        self.board_comms.debug_signal.connect(self.debug_printer)
-        self.board_comms.error_signal.connect(self.exception2MessageBox)
-        self.board_comms.data_read_done.connect(self.board_thread_cleanup)
-
-        self.board_thread = QThread()
-        board.moveToThread(self.board_thread)
-        self.board_comms.moveToThread(self.board_thread)
-
+    def disable_comms_buttons(self) -> None:
         self.device_select_widget.data_button.setText("Stop")
-
-        # DirectConnection causes the target function to execute in current thread,
-        # so we are modifying the data owned by object in another thread.
-        # In this case it is safe since the target function only toggle a boolean flag
-        self.stop_comms_thread.connect(
-            self.board_comms.stop_reading_data, Qt.ConnectionType.DirectConnection
-        )
-
-        self.board_thread.run = self.board_comms.read_magnetic_calibration_data
-        self.board_thread.start()
+        self.action_get_calibration.setDisabled(True)
 
     @Slot()
-    def board_thread_cleanup(self):
-        print("data read cleanup function")
+    def comms_task_done(self) -> None:
+        self.restore_comms_buttons()
 
-        self.board_thread.quit()
-        self.device_select_widget.data_button.setText("Start")
+    def update_current_board(self) -> None:
+        device = self.device_select_widget.device_selector.currentData()
+
+        if device == "debug":
+            self.board = TestSerialComms()
+        else:
+            self.board = Nano33SerialComms(device)
+
+        self.board.moveToThread(self.comms_thread)
+        self.board_comms.set_board(self.board)
+        self.board_comms.set_sample_size(self.device_select_widget.data_points.value())
 
     def closeEvent(self, event):
         try:
-            if self.board_thread.isRunning():
-                self.stop_comms_thread.emit()
-                self.board_thread.quit()
+            if self.comms_thread.isRunning():
+                self.stop_comms_task.emit()
+                self.comms_thread.quit()
 
-                while self.board_thread.isRunning():
+                while self.comms_thread.isRunning():
                     pass
 
         except AttributeError:  # If board_thread does not exist.

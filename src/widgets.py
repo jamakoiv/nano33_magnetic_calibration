@@ -5,7 +5,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Slot, Signal
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
     QApplication,
@@ -237,6 +237,7 @@ class CalibrationWidget(QWidget):
 
         self.send_to_device_button.pressed.connect(self.get_fit_calibration)
 
+    @Slot(object)  # pyright: ignore
     def set_device_calibration(self, calibration: np.ndarray) -> None:
         self.device_calibration.set_gain(calibration[0:3])
         self.device_calibration.set_offset(calibration[3:6])

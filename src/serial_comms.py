@@ -101,36 +101,44 @@ class Board2GUI(QObject):
     read_sample_size: int
     read_retries: int
     read_wait: float
-    stop_reading: bool
+    stop: bool
     mutex: Lock
+
+    task_running: bool
+    task_done = Signal()
 
     data_row_received = Signal(object)
     calibration_received = Signal(object)
-    data_read_done = Signal()
     debug_signal = Signal(str)
     error_signal = Signal(object)
     log_signal = Signal(str)
 
-    def __init__(self, board: BoardCommunications, read_sample_size: int = 50) -> None:
+    def __init__(self) -> None:
         super().__init__()
 
-        self.board = board
-        self.read_sample_size = read_sample_size
         self.mutex = Lock()
+        self.task_running = False
         self.read_wait = 0.10
         self.read_retries = 5
+
+    def set_board(self, board: BoardCommunications) -> None:
+        self.board = board
+
+    def set_sample_size(self, N: int) -> None:
+        self.read_sample_size = int(N)
 
     @Slot()
     def read_magnetic_calibration_data(self) -> None:
         with self.mutex:
-            self.stop_reading = False
+            self.task_running = True
+            self.stop = False
             i = 0
 
         try:
             self.board.open()
             self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
 
-            while i < self.read_sample_size and not self.stop_reading:
+            while i < self.read_sample_size and not self.stop:
                 # TODO: Retry code looks ugly and hard to read.
                 for attempt in range(self.read_retries):
                     try:
@@ -166,30 +174,46 @@ class Board2GUI(QObject):
             self.error_signal.emit(e)
 
         finally:
+            with self.mutex:
+                self.task_running = False
+
             self.board.close()
-            self.data_read_done.emit()
+            self.task_done.emit()
 
-    @Slot()  # pyright: ignore
-    def get_calibration(self, calibration_type: CalibrationType) -> None:
-        match calibration_type:
-            case CalibrationType.magnetometer:
-                res = self.board.get_magnetometer_calibration()
+    @Slot(str)  # pyright: ignore
+    def get_calibration(self, calibration_type: str) -> None:
+        try:
+            with self.mutex:
+                self.task_running = True
 
-            case CalibrationType.gyroscope:
-                res = self.board.get_gyroscope_calibration()
+            match calibration_type.lower():
+                case "magnetometer" | "magnetic":
+                    id = "magnetometer"
+                    res = self.board.get_magnetometer_calibration()
 
-            case CalibrationType.accelerometer:
-                res = self.board.get_accelerometer_calibration()
+                case "gyroscope":
+                    id = "gyroscope"
+                    res = self.board.get_gyroscope_calibration()
 
-            case _:
-                raise ValueError("Wrong calibration type supplied")
+                case "accelerometer":
+                    id = "accelerometer"
+                    res = self.board.get_accelerometer_calibration()
 
-        self.calibration_received.emit(res)
+                case _:
+                    raise ValueError("Wrong calibration type supplied")
+
+            self.calibration_received.emit((id, res))
+
+        finally:
+            with self.mutex:
+                self.task_running = False
+
+            self.task_done.emit()
 
     @Slot()
-    def stop_reading_data(self) -> None:
+    def set_stop_flag(self) -> None:
         with self.mutex:
-            self.stop_reading = True
+            self.stop = True
 
 
 class TestSerialComms(QObject):
