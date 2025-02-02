@@ -39,8 +39,8 @@ class MainWindow(QMainWindow):
     data_model: CalibrationDataModel
 
     board_comms: Board2GUI
-    board_comms_timer: QTimer
-    stop_board_thread = Signal()
+    comms_thread: QThread
+    stop_comms_thread = Signal()
 
     log_widget: QTextEdit
     log_dock: QDockWidget
@@ -238,12 +238,14 @@ class MainWindow(QMainWindow):
         try:
             if self.board_thread.isRunning():
                 print("Sending stop signal.")
-                self.stop_board_thread.emit()
+                self.stop_comms_thread.emit()
             else:
                 self.start_board_thread()
 
         except AttributeError:  # if self.board_thread does not exist.
             self.start_board_thread()
+
+    def start_comms_thread(self) -> None: ...
 
     def start_board_thread(self) -> None:
         # NOTE: could probably just replace the thread with a QTimer since the
@@ -273,7 +275,7 @@ class MainWindow(QMainWindow):
         # DirectConnection causes the target function to execute in current thread,
         # so we are modifying the data owned by object in another thread.
         # In this case it is safe since the target function only toggle a boolean flag
-        self.stop_board_thread.connect(
+        self.stop_comms_thread.connect(
             self.board_comms.stop_reading_data, Qt.ConnectionType.DirectConnection
         )
 
@@ -290,7 +292,7 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         try:
             if self.board_thread.isRunning():
-                self.stop_board_thread.emit()
+                self.stop_comms_thread.emit()
                 self.board_thread.quit()
 
                 while self.board_thread.isRunning():

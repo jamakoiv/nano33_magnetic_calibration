@@ -1,3 +1,4 @@
+from enum import Enum
 import time
 import unicodedata
 from PySide6.QtWidgets import QMessageBox
@@ -82,6 +83,12 @@ class BoardCommunications(Protocol):
     def read_row(self) -> np.ndarray: ...
 
 
+class CalibrationType(Enum):
+    magnetometer = 0
+    gyroscope = 1
+    accelerometer = 2
+
+
 class Board2GUI(QObject):
     """
     Wrapper for passing data from the board to the GUI.
@@ -98,6 +105,7 @@ class Board2GUI(QObject):
     mutex: Lock
 
     data_row_received = Signal(object)
+    calibration_received = Signal(object)
     data_read_done = Signal()
     debug_signal = Signal(str)
     error_signal = Signal(object)
@@ -160,6 +168,23 @@ class Board2GUI(QObject):
         finally:
             self.board.close()
             self.data_read_done.emit()
+
+    @Slot()  # pyright: ignore
+    def get_calibration(self, calibration_type: CalibrationType) -> None:
+        match calibration_type:
+            case CalibrationType.magnetometer:
+                res = self.board.get_magnetometer_calibration()
+
+            case CalibrationType.gyroscope:
+                res = self.board.get_gyroscope_calibration()
+
+            case CalibrationType.accelerometer:
+                res = self.board.get_accelerometer_calibration()
+
+            case _:
+                raise ValueError("Wrong calibration type supplied")
+
+        self.calibration_received.emit(res)
 
     @Slot()
     def stop_reading_data(self) -> None:
