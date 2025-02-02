@@ -5,18 +5,12 @@ from scipy import optimize
 
 
 def makeEllipsoidXYZ(
-    x0: float,
-    y0: float,
-    z0: float,
-    a: float,
-    b: float,
-    c: float,
+    x0: float, y0: float, z0: float, a: float, b: float, c: float, N: int = 20
 ) -> np.ndarray:
-    n_one = 100
-    noise = np.random.normal(size=(n_one * n_one), loc=0, scale=1e-2)
+    noise = np.random.normal(size=(N * N), loc=0, scale=1e-2)
 
-    theta = np.linspace(0.0, np.pi, n_one)
-    phi = np.linspace(0.0, np.pi * 2.0, n_one)
+    theta = np.linspace(0.0, np.pi, N)
+    phi = np.linspace(0.0, np.pi * 2.0, N)
     theta, phi = np.meshgrid(theta, phi)
 
     x = a * np.sin(theta) * np.cos(phi)
