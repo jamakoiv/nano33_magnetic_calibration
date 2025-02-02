@@ -111,7 +111,7 @@ class Board2GUI(QObject):
     calibration_received = Signal(object)
     debug_signal = Signal(str)
     error_signal = Signal(object)
-    log_signal = Signal(str)
+    to_log = Signal(str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -122,10 +122,12 @@ class Board2GUI(QObject):
         self.read_retries = 5
 
     def set_board(self, board: BoardCommunications) -> None:
-        self.board = board
+        with self.mutex:
+            self.board = board
 
     def set_sample_size(self, N: int) -> None:
-        self.read_sample_size = int(N)
+        with self.mutex:
+            self.read_sample_size = int(N)
 
     @Slot()
     def read_magnetic_calibration_data(self) -> None:
@@ -135,6 +137,8 @@ class Board2GUI(QObject):
             i = 0
 
         try:
+            self.to_log.emit("Start reading raw magnetometer data from board.")
+
             self.board.open()
             self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
 
@@ -144,7 +148,7 @@ class Board2GUI(QObject):
                     try:
                         row = self.board.read_row()
                         self.data_row_received.emit(row)
-                        self.log_signal.emit("Received data: {}".format(row))
+                        self.to_log.emit("Received data: {}".format(row))
                         i += 1
                         time.sleep(self.read_wait)
                     except NoDataReceived:
@@ -183,6 +187,8 @@ class Board2GUI(QObject):
     @Slot(str)  # pyright: ignore
     def get_calibration(self, calibration_type: str) -> None:
         try:
+            self.to_log.emit("Start reading calibration from board.")
+
             with self.mutex:
                 self.task_running = True
 
@@ -212,6 +218,7 @@ class Board2GUI(QObject):
 
     @Slot()
     def set_stop_flag(self) -> None:
+        self.to_log.emit("Stopping comms operation.")
         with self.mutex:
             self.stop = True
 

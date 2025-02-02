@@ -216,10 +216,10 @@ class MainWindow(QMainWindow):
 
         self.board_comms.data_row_received.connect(self.data_model.append_data)
         self.board_comms.calibration_received.connect(self.calibration_received_handler)
-        self.board_comms.log_signal.connect(self.gui_logger)
+        self.board_comms.to_log.connect(self.gui_logger)
         self.board_comms.debug_signal.connect(self.debug_printer)
         self.board_comms.error_signal.connect(self.exception2MessageBox)
-        self.board_comms.task_done.connect(self.restore_comms_buttons)
+        self.board_comms.task_done.connect(self.comms_task_done)
 
         self.start_data_read.connect(self.board_comms.read_magnetic_calibration_data)
         self.start_calibration_get.connect(self.board_comms.get_calibration)
@@ -275,17 +275,18 @@ class MainWindow(QMainWindow):
     def add_random_data(self) -> None:
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))
 
-    def restore_comms_buttons(self) -> None:
-        self.device_select_widget.data_button.setText("Start")
-        self.action_get_calibration.setEnabled(True)
-
     def disable_comms_buttons(self) -> None:
         self.device_select_widget.data_button.setText("Stop")
         self.action_get_calibration.setDisabled(True)
 
+    def restore_comms_buttons(self) -> None:
+        self.device_select_widget.data_button.setText("Start")
+        self.action_get_calibration.setEnabled(True)
+
     @Slot()
     def comms_task_done(self) -> None:
         self.restore_comms_buttons()
+        self.gui_logger("Board communication done.")
 
     def update_current_board(self) -> None:
         device = self.device_select_widget.device_selector.currentData()
@@ -300,6 +301,8 @@ class MainWindow(QMainWindow):
         self.board_comms.set_sample_size(self.device_select_widget.data_points.value())
 
     def closeEvent(self, event):
+        # NOTE: We must stop all running threads we have created before closing the main application.
+        # Not doing this gives the occasional segfault.
         try:
             if self.comms_thread.isRunning():
                 self.stop_comms_task.emit()
