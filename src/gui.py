@@ -215,6 +215,7 @@ class MainWindow(QMainWindow):
         self.board_comms.moveToThread(self.comms_thread)
 
         self.board_comms.data_row_received.connect(self.data_model.append_data)
+        self.board_comms.calibration_received.connect(self.calibration_received_handler)
         self.board_comms.log_signal.connect(self.gui_logger)
         self.board_comms.debug_signal.connect(self.debug_printer)
         self.board_comms.error_signal.connect(self.exception2MessageBox)
@@ -237,7 +238,7 @@ class MainWindow(QMainWindow):
             self.start_calibration_get.emit("magnetic")
 
     @Slot(object)  # pyright: ignore
-    def get_calibration_handler(self, return_tuple: Tuple) -> None:
+    def calibration_received_handler(self, return_tuple: Tuple) -> None:
         id, values = return_tuple
 
         match id.lower():
