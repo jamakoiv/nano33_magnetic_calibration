@@ -299,10 +299,12 @@ class MainWindow(QMainWindow):
     def disable_comms_buttons(self) -> None:
         self.device_select_widget.data_button.setText("Stop")
         self.action_get_calibration.setDisabled(True)
+        self.action_set_calibration.setDisabled(True)
 
     def restore_comms_buttons(self) -> None:
         self.device_select_widget.data_button.setText("Start")
         self.action_get_calibration.setEnabled(True)
+        self.action_set_calibration.setEnabled(True)
 
     @Slot()
     def comms_task_done(self) -> None:
