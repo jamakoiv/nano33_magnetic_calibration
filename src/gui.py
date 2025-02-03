@@ -266,10 +266,7 @@ class MainWindow(QMainWindow):
             self.stop_comms_task.emit()
 
     def action_fit_ellipsoid_callback(self):
-        self.gui_logger("Fit ellipsoid")
-
         data = self.data_model.get_xyz_data()
-        breakpoint()
 
         (
             params,
@@ -280,6 +277,8 @@ class MainWindow(QMainWindow):
             grad_calls,
             warnflag,
         ) = fitEllipsoidNonRotated(*data)
+
+        self.calibration_widget.set_fit_calibration(params)
 
         s_params = (
             "Fit parameters",
