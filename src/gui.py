@@ -269,8 +269,30 @@ class MainWindow(QMainWindow):
         self.gui_logger("Fit ellipsoid")
 
         data = self.data_model.get_xyz_data()
-        params = fitEllipsoidNonRotated(*data)
-        self.gui_logger(str(params))
+        breakpoint()
+
+        (
+            params,
+            fopt,
+            gopt,
+            bopt,
+            func_calls,
+            grad_calls,
+            warnflag,
+        ) = fitEllipsoidNonRotated(*data)
+
+        s_params = (
+            "Fit parameters",
+            f"x0={params[0]:.4f}, y0={params[1]:.4f}, z0={params[2]:.4f}, a={params[3]:.4f}, b={params[4]:.4f}, c={params[5]:.4f}",
+        )
+        s_fopt = ("Residual", f"{fopt:.4e}")
+        s_func = ("Function calls", f"{func_calls}")
+        s_grad = ("Gradient calls", f"{grad_calls}")
+
+        self.gui_logger(f"Fit parameters:\t{s_params[1]}")
+        self.gui_logger(f"Residual: \t{s_fopt[1]}")
+        self.gui_logger(f"Function calls: \t{s_func[1]}")
+        self.gui_logger(f"Gradient calls: \t{s_grad[1]}")
 
     def add_random_data(self) -> None:
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))

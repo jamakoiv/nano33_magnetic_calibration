@@ -3,6 +3,8 @@
 import numpy as np
 from scipy import optimize
 
+from typing import Tuple
+
 
 def makeEllipsoidXYZ(
     x0: float, y0: float, z0: float, a: float, b: float, c: float, N: int = 20
@@ -26,7 +28,7 @@ def makeEllipsoidXYZ(
     ).transpose()
 
 
-def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.ndarray:
+def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple:
     gamma_guess = np.zeros(6)
     # Center offset values can be estimated from the mean of the axes.
     gamma_guess[0] = x.mean()  # X-offset x0
@@ -57,13 +59,13 @@ def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.nd
         args=(x, y, z),  # Extra arguments for the error-function.
         gtol=1e-17,  # Gradient norm must be less than gtol
         maxiter=300,  # Maximum number of iterations.
-        full_output=False,
+        full_output=True,
         disp=1,
         retall=0,
         callback=None,
     )
 
-    return np.array(res)
+    return res
 
 
 # Error function to be minimized.
