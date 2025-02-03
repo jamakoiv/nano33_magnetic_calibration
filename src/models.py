@@ -43,12 +43,19 @@ class CalibrationDataModel(QAbstractTableModel):
     def append_data(self, row: np.ndarray) -> None:
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 
+        # TODO: Too much babysitting the input shape.
+        row = np.append(row, self.calculate_magnitude(row))
+        row.reshape(1, len(row))
+
         try:
             self._data = np.append(self._data, row, axis=0)
         except AttributeError:  # if self._data does not exists
             self.set_data(row)
         finally:
             self.endInsertRows()
+
+    def calculate_magnitude(self, row: np.ndarray) -> float:
+        return np.sqrt((row**2).sum())
 
     def rowCount(
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
@@ -77,11 +84,11 @@ class CalibrationDataModel(QAbstractTableModel):
         role: int = Qt.ItemDataRole.DisplayRole,
     ):
         columns = {
-            0: "X [mT]",
-            1: "Y [mT]",
-            2: "Z [mT]",
-            3: "total [mT]",
-            4: "uguu [mT]",
+            0: "X [μT]",
+            1: "Y [μT]",
+            2: "Z [μT]",
+            3: "total [μT]",
+            4: "uguu [μT]",
         }
 
         match role:
