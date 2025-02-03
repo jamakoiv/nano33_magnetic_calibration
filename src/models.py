@@ -45,7 +45,7 @@ class CalibrationDataModel(QAbstractTableModel):
 
         # TODO: Too much babysitting the input shape.
         row = np.append(row, self.calculate_magnitude(row))
-        row.reshape(1, len(row))
+        row = row.reshape(1, len(row))
 
         try:
             self._data = np.append(self._data, row, axis=0)
@@ -129,7 +129,7 @@ class CalibrationDataModel(QAbstractTableModel):
 
     def get_xyz_data(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         try:
-            x, y, z = self._data.transpose()
+            x, y, z, _ = self._data.transpose()
         except AttributeError:
             x = np.zeros(0)
             y = np.zeros(0)
