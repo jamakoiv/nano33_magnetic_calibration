@@ -5,7 +5,7 @@ from typing import Tuple
 
 import numpy as np
 
-from PySide6.QtCore import Qt, Slot, Signal, QThread, QTimer
+from PySide6.QtCore import Qt, Slot, Signal, QThread
 from PySide6.QtGui import QAction, QKeySequence, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -25,9 +25,9 @@ from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
-from serial_comms import Board2GUI, CalibrationType, Nano33SerialComms, TestSerialComms
+from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 
-from FitEllipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ, makeSphericalMesh
+from FitEllipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -97,6 +97,12 @@ class MainWindow(QMainWindow):
         self.calibration_dock.setWidget(self.calibration_widget)
         self.calibration_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        )
+        self.calibration_widget.fit_calibration.editingFinished.connect(
+            self.action_plot_ellipsoid_wireframe_callback
+        )
+        self.calibration_widget.fit_calibration.checkStateChange.connect(
+            self.action_plot_ellipsoid_wireframe_callback
         )
 
         self.device_select_widget = DeviceSelectWidget(parent=self)
@@ -247,9 +253,13 @@ class MainWindow(QMainWindow):
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
         print("wireframe_callback")
-        offset, gain = self.calibration_widget.get_fit_calibration()
-        x, y, z = makeEllipsoidXYZ(*offset, *gain, as_mesh=True)
-        self.primary_canvas.update_wireframe(x, y, z)
+        if (
+            self.calibration_widget.fit_calibration.checkState()
+            == Qt.CheckState.Checked
+        ):
+            offset, gain = self.calibration_widget.get_fit_calibration()
+            x, y, z = makeEllipsoidXYZ(*offset, *gain, as_mesh=True)
+            self.primary_canvas.update_wireframe(x, y, z)
 
     @Slot(object)  # pyright: ignore
     def calibration_received_handler(self, return_tuple: Tuple) -> None:

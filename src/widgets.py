@@ -25,9 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from serial.tools import list_ports
-
 from models import SerialPortsModel
-from serial_comms import TestSerialComms, Nano33SerialComms
 
 
 class DeviceSelectWidget(QWidget):
@@ -106,13 +104,18 @@ class DeviceSelectWidget(QWidget):
             last_selected_index = list(self.serial_ports_model.ports).index(
                 last_selected_device
             )
-        except ValueError as e:
+        except ValueError:
             last_selected_index = 0
 
         self.device_selector.setCurrentIndex(last_selected_index)
 
 
 class CalibrationFormWidget(QGroupBox):
+    editingFinished = Signal()
+    textEdited = Signal(str)
+    textChanged = Signal(str)
+    checkStateChange = Signal(object)
+
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
@@ -138,6 +141,7 @@ class CalibrationFormWidget(QGroupBox):
         self.z_offset = QLineEdit(parent=self)
 
         self.show_check = QCheckBox("Show in plot", parent=self)
+        self.show_check.checkStateChanged.connect(self.checkStateChange.emit)
 
         for edit in [
             self.x_gain,
@@ -151,6 +155,10 @@ class CalibrationFormWidget(QGroupBox):
             edit.setText("1.0")
             edit.setMaxLength(6)
             edit.setMinimumWidth(40)
+
+            edit.editingFinished.connect(self.editingFinished.emit)
+            edit.textChanged.connect(self.textChanged.emit)
+            edit.textEdited.connect(self.textEdited.emit)
 
         layout = QGridLayout()
         layout.addWidget(self.gain_label, 0, 0)
@@ -219,6 +227,9 @@ class CalibrationFormWidget(QGroupBox):
         self.x_offset.setText(str(offset[0]))
         self.y_offset.setText(str(offset[1]))
         self.z_offset.setText(str(offset[2]))
+
+    def checkState(self) -> Qt.CheckState:
+        return self.show_check.checkState()
 
 
 class CalibrationWidget(QWidget):
