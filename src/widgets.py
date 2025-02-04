@@ -1,6 +1,7 @@
 import sys
 import logging
 
+from typing import Tuple
 from collections import OrderedDict
 
 import numpy as np
@@ -185,6 +186,7 @@ class CalibrationFormWidget(QGroupBox):
             )
             res = np.zeros(3)
 
+        print("gain", res)
         return res
 
     def set_gain(self, gain: np.ndarray) -> None:
@@ -210,6 +212,7 @@ class CalibrationFormWidget(QGroupBox):
             )
             res = np.zeros(3)
 
+        print("offset", res)
         return res
 
     def set_offset(self, offset: np.ndarray) -> None:
@@ -235,28 +238,28 @@ class CalibrationWidget(QWidget):
         layout.addWidget(self.send_to_device_button, 1, 1)
         self.setLayout(layout)
 
-        self.send_to_device_button.pressed.connect(self.get_fit_calibration)
-
     @Slot(object)  # pyright: ignore
-    def set_device_calibration(self, calibration: np.ndarray) -> None:
-        self.device_calibration.set_gain(calibration[0:3])
-        self.device_calibration.set_offset(calibration[3:6])
+    def set_device_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
+        self.device_calibration.set_offset(offset)
+        self.device_calibration.set_gain(gain)
 
-    def get_device_calibration(self) -> np.ndarray:
+    def get_device_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
         gain = self.device_calibration.get_gain()
         offset = self.device_calibration.get_offset()
 
-        return np.concat((gain, offset), axis=0)
+        print("get_device_calibration", gain, offset)
+        return offset, gain
 
-    def set_fit_calibration(self, calibration: np.ndarray) -> None:
-        self.fit_calibration.set_gain(calibration[0:3])
-        self.fit_calibration.set_offset(calibration[3:6])
+    def set_fit_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
+        self.fit_calibration.set_offset(offset)
+        self.fit_calibration.set_gain(gain)
 
-    def get_fit_calibration(self) -> np.ndarray:
+    def get_fit_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
         gain = self.fit_calibration.get_gain()
         offset = self.fit_calibration.get_offset()
 
-        return np.concat((gain, offset), axis=0)
+        print("get_fit_calibration", gain, offset)
+        return offset, gain
 
 
 if __name__ == "__main__":

@@ -247,8 +247,8 @@ class MainWindow(QMainWindow):
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
         print("wireframe_callback")
-        params = self.calibration_widget.get_fit_calibration()
-        x, y, z = makeEllipsoidXYZ(*params, as_mesh=True)
+        offset, gain = self.calibration_widget.get_fit_calibration()
+        x, y, z = makeEllipsoidXYZ(*offset, *gain, as_mesh=True)
         self.primary_canvas.update_wireframe(x, y, z)
 
     @Slot(object)  # pyright: ignore
@@ -292,7 +292,10 @@ class MainWindow(QMainWindow):
             warnflag,
         ) = fitEllipsoidNonRotated(*data)
 
-        self.calibration_widget.set_fit_calibration(params)
+        offset = params[:3]
+        gain = params[3:]
+
+        self.calibration_widget.set_fit_calibration(offset, gain)
 
         s_params = (
             "Fit parameters",
