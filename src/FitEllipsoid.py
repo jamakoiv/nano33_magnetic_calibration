@@ -6,14 +6,20 @@ from scipy import optimize
 from typing import Tuple
 
 
+def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
+    theta = np.linspace(0.0, np.pi, N)
+    phi = np.linspace(0.0, np.pi * 2.0, N)
+    theta, phi = np.meshgrid(theta, phi)
+
+    return theta, phi
+
+
 def makeEllipsoidXYZ(
     x0: float, y0: float, z0: float, a: float, b: float, c: float, N: int = 20
 ) -> np.ndarray:
     noise = np.random.normal(size=(N * N), loc=0, scale=1e-2)
 
-    theta = np.linspace(0.0, np.pi, N)
-    phi = np.linspace(0.0, np.pi * 2.0, N)
-    theta, phi = np.meshgrid(theta, phi)
+    theta, phi = makeSphericalMesh(N)
 
     x = a * np.sin(theta) * np.cos(phi)
     y = b * np.sin(theta) * np.sin(phi)

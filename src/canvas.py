@@ -81,6 +81,8 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
 
         self.draw()
 
+    def plot_wireframe(self) -> None: ...
+
     def plot_2d(self) -> None:
         for i, axis in enumerate(["x", "y", "z"]):
             ax = self.fig.add_subplot(1, 3, i + 1)
