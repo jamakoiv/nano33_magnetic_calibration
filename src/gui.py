@@ -27,7 +27,7 @@ from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
 from serial_comms import Board2GUI, CalibrationType, Nano33SerialComms, TestSerialComms
 
-from FitEllipsoid import fitEllipsoidNonRotated
+from FitEllipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ, makeSphericalMesh
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -169,6 +169,13 @@ class MainWindow(QMainWindow):
         self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "Fit ellipsoid.", self)
         self.action_fit_ellipsoid.triggered.connect(self.action_fit_ellipsoid_callback)
 
+        self.action_plot_ellipsoid_wireframe = QAction(
+            QIcon.fromTheme(""), "Wireframe", self
+        )
+        self.action_plot_ellipsoid_wireframe.triggered.connect(
+            self.action_plot_ellipsoid_wireframe_callback
+        )
+
         self.action_random_data = QAction(text="Add random data")
         self.action_random_data.setShortcut(QKeySequence("Ctrl+D"))
         self.action_random_data.triggered.connect(self.add_random_data)
@@ -182,6 +189,7 @@ class MainWindow(QMainWindow):
                 self.action_get_calibration,
                 self.action_set_calibration,
                 self.action_fit_ellipsoid,
+                self.action_plot_ellipsoid_wireframe,
                 self.action_quit,
             ]
         )
@@ -236,6 +244,12 @@ class MainWindow(QMainWindow):
             self.action_get_calibration.setEnabled(False)
             self.update_current_board()
             self.start_calibration_get.emit("magnetic")
+
+    def action_plot_ellipsoid_wireframe_callback(self) -> None:
+        print("wireframe_callback")
+        params = self.calibration_widget.get_fit_calibration()
+        x, y, z = makeEllipsoidXYZ(*params, as_mesh=True)
+        self.primary_canvas.update_wireframe(x, y, z)
 
     @Slot(object)  # pyright: ignore
     def calibration_received_handler(self, return_tuple: Tuple) -> None:

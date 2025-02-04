@@ -253,10 +253,8 @@ class CalibrationWidget(QWidget):
         self.fit_calibration.set_offset(calibration[3:6])
 
     def get_fit_calibration(self) -> np.ndarray:
-        gain = self.device_calibration.get_gain()
-        offset = self.device_calibration.get_offset()
-
-        QMessageBox.information(self, "Jotain", f"{gain}, {offset}")
+        gain = self.fit_calibration.get_gain()
+        offset = self.fit_calibration.get_offset()
 
         return np.concat((gain, offset), axis=0)
 

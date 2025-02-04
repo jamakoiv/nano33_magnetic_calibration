@@ -18,6 +18,8 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
     # NOTE: We should probably inherit QAbstractItemView as well since we
     # are basically implementing a Qt view. However both QAbstractItemView
     # and FigureCanvasQTAgg have paintEvent which conflict when inheriting both.
+    #
+    # NOTE: Lots of 'pyright: ignore' because of numpy type hints/function signatures being what they are
 
     plot: Callable
     update_plot: Callable
@@ -81,7 +83,16 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
 
         self.draw()
 
-    def plot_wireframe(self) -> None: ...
+    def update_wireframe(self, x, y, z) -> None:
+        print("plot_wireframe")
+        try:
+            self.plot_ref["fit_wireframe"].remove()
+        except (KeyError, AttributeError):
+            pass
+        finally:
+            self.plot_ref["fit_wireframe"] = self.axes["3d"].plot_wireframe(x, y, z)  # pyright: ignore
+
+        self.draw()
 
     def plot_2d(self) -> None:
         for i, axis in enumerate(["x", "y", "z"]):

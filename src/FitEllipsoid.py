@@ -7,6 +7,7 @@ from typing import Tuple
 
 
 def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
+    print("make spherical")
     theta = np.linspace(0.0, np.pi, N)
     phi = np.linspace(0.0, np.pi * 2.0, N)
     theta, phi = np.meshgrid(theta, phi)
@@ -15,23 +16,35 @@ def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
 
 
 def makeEllipsoidXYZ(
-    x0: float, y0: float, z0: float, a: float, b: float, c: float, N: int = 20
-) -> np.ndarray:
+    x0: float,
+    y0: float,
+    z0: float,
+    a: float,
+    b: float,
+    c: float,
+    N: int = 20,
+    as_mesh=False,
+) -> np.ndarray | Tuple[np.ndarray, np.ndarray, np.ndarray]:
     noise = np.random.normal(size=(N * N), loc=0, scale=1e-2)
+
+    print("make ellipsoid")
 
     theta, phi = makeSphericalMesh(N)
 
-    x = a * np.sin(theta) * np.cos(phi)
-    y = b * np.sin(theta) * np.sin(phi)
-    z = c * np.cos(theta)
+    x = a * np.sin(theta) * np.cos(phi) + x0
+    y = b * np.sin(theta) * np.sin(phi) + y0
+    z = c * np.cos(theta) + z0
 
-    return np.array(
-        [
-            x.flatten() + noise + x0,
-            y.flatten() + noise + y0,
-            z.flatten() + noise + z0,
-        ]
-    ).transpose()
+    if as_mesh:
+        return x, y, z
+    else:
+        return np.array(
+            [
+                x.flatten() + noise,
+                y.flatten() + noise,
+                z.flatten() + noise,
+            ]
+        ).transpose()
 
 
 def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple:
