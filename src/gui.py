@@ -252,14 +252,17 @@ class MainWindow(QMainWindow):
             self.start_calibration_get.emit("magnetic")
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
-        print("wireframe_callback")
         if (
             self.calibration_widget.fit_calibration.checkState()
             == Qt.CheckState.Checked
         ):
+            print("plot")
             offset, gain = self.calibration_widget.get_fit_calibration()
             x, y, z = makeEllipsoidXYZ(*offset, *gain, as_mesh=True)
             self.primary_canvas.update_wireframe(x, y, z)
+        else:
+            print("delete")
+            self.primary_canvas.delete_wireframe()
 
     @Slot(object)  # pyright: ignore
     def calibration_received_handler(self, return_tuple: Tuple) -> None:

@@ -87,12 +87,27 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
         print("plot_wireframe")
         try:
             self.plot_ref["fit_wireframe"].remove()
-        except (KeyError, AttributeError):
+            del self.plot_ref["fit_wireframe"]
+        except (
+            KeyError,
+            AttributeError,
+        ):  # If self.plot_ref or fit_wireframe do not exist.
             pass
         finally:
             self.plot_ref["fit_wireframe"] = self.axes["3d"].plot_wireframe(x, y, z)  # pyright: ignore
+            self.draw()
 
-        self.draw()
+    def delete_wireframe(self) -> None:
+        try:
+            self.plot_ref["fit_wireframe"].remove()
+            del self.plot_ref["fit_wireframe"]
+        except (
+            KeyError,
+            AttributeError,
+        ):  # If self.plot_ref or fit_wireframe do not exist.
+            pass
+        finally:
+            self.draw()
 
     def plot_2d(self) -> None:
         for i, axis in enumerate(["x", "y", "z"]):

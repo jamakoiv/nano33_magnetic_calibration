@@ -202,6 +202,10 @@ class CalibrationFormWidget(QGroupBox):
         self.y_gain.setText(str(gain[1]))
         self.z_gain.setText(str(gain[2]))
 
+        # NOTE: Emit signal manually so we only have to connect editingChanged,
+        # rather than all the possible QLineEdit signals.
+        self.editingFinished.emit()
+
     def get_offset(self) -> np.ndarray:
         try:
             x = float(self.x_offset.text())
@@ -227,6 +231,8 @@ class CalibrationFormWidget(QGroupBox):
         self.x_offset.setText(str(offset[0]))
         self.y_offset.setText(str(offset[1]))
         self.z_offset.setText(str(offset[2]))
+
+        self.editingFinished.emit()
 
     def checkState(self) -> Qt.CheckState:
         return self.show_check.checkState()
