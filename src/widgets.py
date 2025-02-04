@@ -47,7 +47,7 @@ class DeviceSelectWidget(QWidget):
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
-        self.scan_devices_button = QPushButton(parent=self, text="Scan devices")
+        self.scan_devices_button = QPushButton("Scan devices", parent=self)
         self.scan_devices_button.clicked.connect(self.refresh_serial_ports)
         self.device_selector = QComboBox(parent=self)
         self.serial_ports_model = SerialPortsModel(parent=self)
@@ -59,7 +59,7 @@ class DeviceSelectWidget(QWidget):
         self.data_points.setValue(20)
 
         self.data_label = QLabel(parent=self, text="Calibration points: ")
-        self.data_button = QPushButton(parent=self, text="Read data")
+        self.data_button = QPushButton("Read data", parent=self)
 
         self.device_box = QGroupBox(title="", parent=self)
         self.device_layout = QHBoxLayout()
@@ -137,7 +137,7 @@ class CalibrationFormWidget(QGroupBox):
         self.y_offset = QLineEdit(parent=self)
         self.z_offset = QLineEdit(parent=self)
 
-        self.show_check = QCheckBox(text="Show in plot", parent=self)
+        self.show_check = QCheckBox("Show in plot", parent=self)
 
         for edit in [
             self.x_gain,
@@ -228,14 +228,9 @@ class CalibrationWidget(QWidget):
         self.device_calibration = CalibrationFormWidget(title="Device", parent=self)
         self.fit_calibration = CalibrationFormWidget(title="Fit", parent=self)
 
-        self.send_to_device_button = QPushButton(text="Read from device", parent=self)
-        self.read_from_device_button = QPushButton(text="Send to device", parent=self)
-
         layout = QGridLayout()
         layout.addWidget(self.device_calibration, 0, 0)
         layout.addWidget(self.fit_calibration, 0, 1)
-        layout.addWidget(self.read_from_device_button, 1, 0)
-        layout.addWidget(self.send_to_device_button, 1, 1)
         self.setLayout(layout)
 
     @Slot(object)  # pyright: ignore
