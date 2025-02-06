@@ -83,6 +83,7 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
 
         self.draw()
 
+    # TODO: Both wireframe -functions can only handle one wireframe plot.
     def update_wireframe(self, x, y, z) -> None:
         print("plot_wireframe")
         try:

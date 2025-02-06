@@ -34,6 +34,7 @@ logging.basicConfig(level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 
+# TODO: This is becoming a god-class.
 class MainWindow(QMainWindow):
     primary_canvas: MatplotlibCanvas
     secondary_canvas: MatplotlibCanvas
@@ -76,6 +77,7 @@ class MainWindow(QMainWindow):
         self.start_comms_thread()
         self.device_select_widget.refresh_serial_ports()
 
+    # UI ------------------------
     def build_ui(self) -> None:
         # NOTE: These must be called in this order.
         # E.g. Actions must be created before they can be added to toolbar.
@@ -223,6 +225,9 @@ class MainWindow(QMainWindow):
             ]
         )
 
+    # End of UI -----------------
+
+    # Controller -----------------------
     def start_comms_thread(self) -> None:
         self.comms_thread = QThread()
         self.board_comms = Board2GUI()
@@ -335,6 +340,8 @@ class MainWindow(QMainWindow):
         self.device_select_widget.data_button.setText("Start")
         self.action_get_calibration.setEnabled(True)
         self.action_set_calibration.setEnabled(True)
+
+    # End of Controller ----------------
 
     @Slot()
     def comms_task_done(self) -> None:
