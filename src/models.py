@@ -69,8 +69,9 @@ class CalibrationDataModel(QAbstractTableModel):
         except IndexError:
             # TODO: Log error if we get indexerror.
             return False
+        finally:
+            self.endRemoveRows()
 
-        self.endRemoveRows()
         return True
 
     def calculate_magnitude(self, row: np.ndarray) -> float:
@@ -208,24 +209,6 @@ class SerialPortsModel(QAbstractListModel):
         return len(self.ports)
 
 
-def test_calibration_data_model():
-    model = CalibrationDataModel()
-
-    d = np.arange(50 * 4).reshape(50, 4)
-    model.set_data(d)
-
-    app = QApplication()
-    main = QMainWindow()
-
-    view = QTableView(parent=main)
-    view.setModel(model)
-    view.verticalHeader().setVisible(False)
-    main.setCentralWidget(view)
-    main.show()
-
-    sys.exit(app.exec())
-
-
 def test_SerialPortsModel():
     model = SerialPortsModel()
 
@@ -242,14 +225,6 @@ def test_SerialPortsModel():
     view.setModel(model)
     main.setCentralWidget(view)
     main.show()
-
-    view.currentIndexChanged.connect(
-        lambda: QMessageBox.information(
-            main,
-            "IndexChanged",
-            f"Selected: {view.currentIndex()}, {view.currentData()}",
-        )
-    )
 
     sys.exit(app.exec())
 
