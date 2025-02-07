@@ -27,8 +27,6 @@ def makeEllipsoidXYZ(
 ) -> np.ndarray | Tuple[np.ndarray, np.ndarray, np.ndarray]:
     noise = np.random.normal(size=(N * N), loc=0, scale=1e-2)
 
-    print("make ellipsoid")
-
     theta, phi = makeSphericalMesh(N)
 
     x = a * np.sin(theta) * np.cos(phi) + x0
