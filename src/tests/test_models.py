@@ -1,4 +1,5 @@
 import unittest
+from PySide6.QtCore import QAbstractItemModel, Qt
 import numpy as np
 
 from PySide6.QtWidgets import QApplication
@@ -43,25 +44,64 @@ class test_calibration_data_model(unittest.TestCase):
     def test_append_data_single(self) -> None:
         print("test_append_data")
 
-        res = np.array([1, 2, 3, 3.741657]).reshape(1, 4)
+        correct = np.array([1, 2, 3, 3.741657]).reshape(1, 4)
         self.model.append_data(np.array([1, 2, 3]))
 
         try:
-            np.testing.assert_array_almost_equal(self.model._data, res)
+            np.testing.assert_array_almost_equal(self.model._data, correct)
             self.assertTrue(True)
         except AssertionError:
             self.assertTrue(False)
 
     def test_append_data_multiple(self) -> None:
         print("test_append_data_multiple")
-        res = np.array([1, 2, 3, 3.741657, 10, 20, 30, 37.41657386]).reshape(2, 4)
+        correct = np.array([1, 2, 3, 3.741657, 10, 20, 30, 37.41657386]).reshape(2, 4)
         self.model.append_data(np.array([1, 2, 3]))
         self.model.append_data(np.array([10, 20, 30]))
 
         try:
-            np.testing.assert_array_almost_equal(self.model._data, res)
+            np.testing.assert_array_almost_equal(self.model._data, correct)
             self.assertTrue(True)
         except AssertionError:
             self.assertTrue(False)
 
-    def test_get_xyz_data(self) -> None: ...
+    def test_get_xyz_data(self) -> None:
+        self.model.append_data(np.array([1, 2, 3]))
+        self.model.append_data(np.array([10, 20, 30]))
+
+        x, y, z = self.model.get_xyz_data()
+        try:
+            np.testing.assert_array_equal(x, np.array([1, 10]))
+            np.testing.assert_array_equal(y, np.array([2, 20]))
+            np.testing.assert_array_equal(z, np.array([3, 30]))
+            self.assertTrue(True)
+        except AssertionError:
+            self.assertTrue(False)
+
+    def test_rowCount(self) -> None:
+        self.model.append_data(np.array([1, 2, 3]))
+        self.model.append_data(np.array([10, 20, 30]))
+        self.model.append_data(np.array([100, 200, 300]))
+
+        self.assertEqual(self.model.rowCount(), 3)
+
+    def test_columnCount(self) -> None:
+        self.model.append_data(np.array([1, 2, 3]))
+
+        self.assertEqual(self.model.columnCount(), 4)
+
+    def test_data(self) -> None:
+        self.model.append_data(np.array([1, 2, 3]))
+        self.model.append_data(np.array([10, 20, 30]))
+
+        correct = self.model.data(
+            self.model.createIndex(0, 1), Qt.ItemDataRole.DisplayRole
+        )
+
+        self.assertEqual(float(correct), 2)  # pyright: ignore
+
+        correct = self.model.data(
+            self.model.createIndex(1, 2), Qt.ItemDataRole.DisplayRole
+        )
+
+        self.assertEqual(float(correct), 30)  # pyright: ignore
