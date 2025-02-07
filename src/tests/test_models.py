@@ -1,5 +1,6 @@
 import unittest
 from PySide6.QtCore import QAbstractItemModel, Qt
+from PySide6.QtTest import QTest, QSignalSpy
 import numpy as np
 
 from PySide6.QtWidgets import QApplication
@@ -10,40 +11,32 @@ from ..models import CalibrationDataModel, SerialPortsModel
 class test_calibration_data_model(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        print("setUpClass")
         cls.app = QApplication.instance() or QApplication()
 
         return super().setUpClass()
 
     @classmethod
     def tearDownClass(cls) -> None:
-        print("tearDownClass")
         cls.app.quit()
 
         return super().tearDownClass()
 
     def setUp(self) -> None:
-        print("setUp")
         self.model = CalibrationDataModel(parent=None)
 
         return super().setUp()
 
     def tearDown(self) -> None:
-        print("tearDown")
         del self.model
 
         return super().tearDown()
 
     def test_set_data(self) -> None:
-        print("test_set_data")
-
         data = np.arange(10 * 3).reshape(10, 3)
         self.model.set_data(data)
         self.assertTrue((self.model._data == data).all())
 
     def test_append_data_single(self) -> None:
-        print("test_append_data")
-
         correct = np.array([1, 2, 3, 3.741657]).reshape(1, 4)
         self.model.append_data(np.array([1, 2, 3]))
 
@@ -54,7 +47,6 @@ class test_calibration_data_model(unittest.TestCase):
             self.assertTrue(False)
 
     def test_append_data_multiple(self) -> None:
-        print("test_append_data_multiple")
         correct = np.array([1, 2, 3, 3.741657, 10, 20, 30, 37.41657386]).reshape(2, 4)
         self.model.append_data(np.array([1, 2, 3]))
         self.model.append_data(np.array([10, 20, 30]))
@@ -105,3 +97,19 @@ class test_calibration_data_model(unittest.TestCase):
         )
 
         self.assertEqual(float(correct), 30)  # pyright: ignore
+
+    def test_insert_row_signal(self) -> None:
+        spy = QSignalSpy(self.model.rowsInserted)
+        self.assertTrue(spy.isValid())
+        self.model.append_data(np.array([1, 2, 3]))
+        self.model.append_data(np.array([10, 20, 30]))
+        self.assertEqual(spy.count(), 2)
+
+    def test_remove_row_signal(self) -> None:
+        spy = QSignalSpy(self.model.rowsRemoved)
+        self.assertTrue(spy.isValid())
+        self.model.append_data(np.array([1, 2, 3]))
+        self.model.append_data(np.array([10, 20, 30]))
+        self.model.removeRows(0, 2)
+
+        self.assertEqual(spy.count(), 1)
