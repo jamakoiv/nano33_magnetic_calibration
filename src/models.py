@@ -54,6 +54,25 @@ class CalibrationDataModel(QAbstractTableModel):
         finally:
             self.endInsertRows()
 
+    def removeRows(
+        self,
+        row: int,
+        count: int,
+        /,
+        parent: QModelIndex | QPersistentModelIndex | None = None,
+    ) -> bool:
+        self.beginRemoveRows(QModelIndex(), row, row + count)
+
+        row_index = np.arange(row, row + count)
+        try:
+            self._data = np.delete(self._data, row_index, axis=0)
+        except IndexError:
+            # TODO: Log error if we get indexerror.
+            return False
+
+        self.endRemoveRows()
+        return True
+
     def calculate_magnitude(self, row: np.ndarray) -> float:
         return np.sqrt((row**2).sum())
 
