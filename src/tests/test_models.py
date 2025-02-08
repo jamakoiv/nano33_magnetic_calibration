@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import unittest
 from PySide6.QtCore import QAbstractItemModel, Qt
 from PySide6.QtTest import QTest, QSignalSpy
@@ -8,7 +9,7 @@ from PySide6.QtWidgets import QApplication
 from ..models import CalibrationDataModel, SerialPortsModel
 
 
-class test_calibration_data_model(unittest.TestCase):
+class test_calibrationDataModel(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.app = QApplication.instance() or QApplication()
@@ -112,4 +113,53 @@ class test_calibration_data_model(unittest.TestCase):
         self.model.append_data(np.array([10, 20, 30]))
         self.model.removeRows(0, 2)
 
+        self.assertEqual(spy.count(), 1)
+
+
+class test_SerialPortsModel(unittest.TestCase):
+    def setUp(self) -> None:
+        self.model = SerialPortsModel()
+
+        self.test_ports = OrderedDict()
+        self.test_ports["/dev/ttyACM1"] = "TestBoard ABC123"
+        self.test_ports["/dev/tty10"] = ""
+
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        del self.model
+
+        return super().tearDown()
+
+    def test_set_ports(self) -> None:
+        self.model.set_ports(self.test_ports)
+
+        self.assertEqual(self.model.ports, self.test_ports)
+
+    def test_rowCount(self) -> None:
+        self.model.set_ports(self.test_ports)
+
+        self.assertEqual(self.model.rowCount(), 2)
+
+    def test_data(self) -> None:
+        self.model.set_ports(self.test_ports)
+
+        index = self.model.createIndex(0, 0)
+        correct_displayrole = "/dev/ttyACM1 - TestBoard ABC123"
+        correct_userrole = "/dev/ttyACM1"
+
+        self.assertEqual(
+            self.model.data(index, role=Qt.ItemDataRole.DisplayRole),
+            correct_displayrole,
+        )
+        self.assertEqual(
+            self.model.data(index, role=Qt.ItemDataRole.UserRole), correct_userrole
+        )
+
+    def test_modelReset_signal(self) -> None:
+        spy = QSignalSpy(self.model.modelReset)
+
+        print(spy.count())
+        self.assertTrue(spy.isValid())
+        self.model.set_ports(self.test_ports)
         self.assertEqual(spy.count(), 1)
