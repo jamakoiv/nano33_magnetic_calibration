@@ -159,5 +159,6 @@ class test_CalibrationFormWidget(unittest.TestCase):
             edit.setText("")
             QTest.keyClicks(edit, "123")
 
-        # NOTE: Each key-click fires one 'textEdited' signal.
-        self.assertEqual(spy.count(), 6 * 3)
+        # NOTE: Each key-click fires one 'textEdited' signal,
+        # so 3 clicks per edit with 6 edits.
+        self.assertEqual(spy.count(), 3 * 6)
