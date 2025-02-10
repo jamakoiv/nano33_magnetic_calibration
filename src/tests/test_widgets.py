@@ -5,7 +5,7 @@ from PySide6.QtCore import QAbstractItemModel, Qt
 from PySide6.QtTest import QTest, QSignalSpy
 from PySide6.QtWidgets import QApplication
 
-from ..widgets import DeviceSelectWidget
+from ..widgets import CalibrationFormWidget, DeviceSelectWidget
 
 
 class test_DeviceSelectWidget(unittest.TestCase):
@@ -44,3 +44,39 @@ class test_DeviceSelectWidget(unittest.TestCase):
 
         self.widget.data_points.stepBy(-20000)
         self.assertEqual(self.widget.data_points.value(), 10)
+
+    def test_refresh_serial_ports(self) -> None:
+        # TODO: Only tests that the debug-entry exists.
+        # Others hard to test since the serial port names are OS-specific.
+
+        QTest.mouseClick(self.widget.scan_devices_button, Qt.MouseButton.LeftButton)
+        self.assertIn("debug", self.widget.serial_ports_model.ports)
+
+
+class test_CalibrationFormWidget(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.app = QApplication.instance() or QApplication()
+        return super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.app.quit()
+        del cls.app
+
+        return super().tearDownClass()
+
+    def setUp(self) -> None:
+        self.widget = CalibrationFormWidget()
+
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        del self.widget
+
+        return super().tearDown()
+
+    def test_validator(self) -> None:
+        self.widget.x_gain.setText("1000")
+
+        print(self.widget.x_gain.text())
