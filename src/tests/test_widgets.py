@@ -117,3 +117,47 @@ class test_CalibrationFormWidget(unittest.TestCase):
             self.assertTrue(True)
         except AssertionError:
             self.assertTrue(False)
+
+    def test_set_gain(self) -> None:
+        self.widget.set_gain(np.array([1.0, 2.0, 3.0]))
+
+        self.assertEqual(self.widget.x_gain.text(), "1.0")
+        self.assertEqual(self.widget.y_gain.text(), "2.0")
+        self.assertEqual(self.widget.z_gain.text(), "3.0")
+
+    def test_set_offset(self) -> None:
+        self.widget.set_gain(np.array([11.1, 22.2, 33.3]))
+
+        self.assertEqual(self.widget.x_gain.text(), "11.1")
+        self.assertEqual(self.widget.y_gain.text(), "22.2")
+        self.assertEqual(self.widget.z_gain.text(), "33.3")
+
+    def test_signals(self) -> None:
+        spy = QSignalSpy(self.widget.textChanged)
+        self.assertTrue(spy.isValid())
+        self.widget.set_gain(np.array([11.1, 22.2, 33.3]))
+        self.widget.set_offset(np.array([11.1, 22.2, 33.3]))
+        self.assertEqual(spy.count(), 6)
+
+        spy = QSignalSpy(self.widget.editingFinished)
+        self.assertTrue(spy.isValid())
+        self.widget.set_gain(np.array([11.1, 22.2, 33.3]))
+        self.widget.set_offset(np.array([11.1, 22.2, 33.3]))
+        self.assertEqual(spy.count(), 2)
+
+        spy = QSignalSpy(self.widget.textEdited)
+        self.assertTrue(spy.isValid())
+
+        for edit in [
+            self.widget.x_gain,
+            self.widget.y_gain,
+            self.widget.z_gain,
+            self.widget.x_offset,
+            self.widget.y_offset,
+            self.widget.z_offset,
+        ]:
+            edit.setText("")
+            QTest.keyClicks(edit, "123")
+
+        # NOTE: Each key-click fires one 'textEdited' signal.
+        self.assertEqual(spy.count(), 6 * 3)
