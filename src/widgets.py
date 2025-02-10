@@ -1,10 +1,8 @@
 import sys
 import logging
-
+import numpy as np
 from typing import Tuple
 from collections import OrderedDict
-
-import numpy as np
 
 from PySide6.QtCore import Qt, Slot, Signal
 from PySide6.QtGui import QDoubleValidator

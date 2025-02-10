@@ -22,12 +22,11 @@ from PySide6.QtWidgets import (
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 
-from canvas import MatplotlibCanvas
-from models import CalibrationDataModel
-from widgets import DeviceSelectWidget, CalibrationWidget
-from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
-
-from ellipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
+from .canvas import MatplotlibCanvas
+from .models import CalibrationDataModel
+from .widgets import DeviceSelectWidget, CalibrationWidget
+from .serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
+from .ellipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
 
 
 logging.basicConfig(level=logging.DEBUG)
