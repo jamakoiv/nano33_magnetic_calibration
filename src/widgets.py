@@ -192,7 +192,6 @@ class CalibrationFormWidget(QGroupBox):
             )
             res = np.zeros(3)
 
-        print("gain", res)
         return res
 
     def set_gain(self, gain: np.ndarray) -> None:
@@ -222,7 +221,6 @@ class CalibrationFormWidget(QGroupBox):
             )
             res = np.zeros(3)
 
-        print("offset", res)
         return res
 
     def set_offset(self, offset: np.ndarray) -> None:

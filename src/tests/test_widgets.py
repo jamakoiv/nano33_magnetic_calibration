@@ -69,6 +69,13 @@ class test_CalibrationFormWidget(unittest.TestCase):
     def setUp(self) -> None:
         self.widget = CalibrationFormWidget()
 
+        self.widget.x_gain.setText("12.3")
+        self.widget.y_gain.setText("45.6")
+        self.widget.z_gain.setText("78.9")
+        self.widget.x_offset.setText("55.5")
+        self.widget.y_offset.setText("66.6")
+        self.widget.z_offset.setText("77.7")
+
         return super().setUp()
 
     def tearDown(self) -> None:
@@ -77,6 +84,36 @@ class test_CalibrationFormWidget(unittest.TestCase):
         return super().tearDown()
 
     def test_validator(self) -> None:
-        self.widget.x_gain.setText("1000")
+        for edit in [
+            self.widget.x_gain,
+            self.widget.y_gain,
+            self.widget.z_gain,
+            self.widget.x_offset,
+            self.widget.y_offset,
+            self.widget.z_offset,
+        ]:
+            edit.setText("")
+            QTest.keyClicks(edit, "123456")
+            self.assertEqual(edit.text(), "123")
 
-        print(self.widget.x_gain.text())
+            edit.setText("")
+            QTest.keyClicks(edit, "123.456")
+            self.assertEqual(edit.text(), "123.45")
+
+    def test_get_gain(self) -> None:
+        correct = np.array([12.3, 45.6, 78.9])
+
+        try:
+            np.testing.assert_array_almost_equal(self.widget.get_gain(), correct)
+            self.assertTrue(True)
+        except AssertionError:
+            self.assertTrue(False)
+
+    def test_get_offset(self) -> None:
+        correct = np.array([55.5, 66.6, 77.7])
+
+        try:
+            np.testing.assert_array_almost_equal(self.widget.get_offset(), correct)
+            self.assertTrue(True)
+        except AssertionError:
+            self.assertTrue(False)
