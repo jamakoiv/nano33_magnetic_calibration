@@ -1,6 +1,8 @@
 #!/usr/bin/python
 
 import numpy as np
+from numpy.typing import NDArray
+
 from scipy import optimize
 
 from typing import Tuple
@@ -25,25 +27,19 @@ def makeEllipsoidXYZ(
     N: int = 20,
     noise_scale: float = 0.0,
     as_mesh=False,
-) -> np.ndarray | Tuple[np.ndarray, np.ndarray, np.ndarray]:
-    noise = np.random.normal(size=(N * N), loc=0, scale=noise_scale)
+) -> np.ndarray:
+    noise = np.random.normal(size=(N, N), loc=0, scale=noise_scale)
 
     theta, phi = makeSphericalMesh(N)
 
-    x = a * np.sin(theta) * np.cos(phi) + x0
-    y = b * np.sin(theta) * np.sin(phi) + y0
-    z = c * np.cos(theta) + z0
+    x = a * np.sin(theta) * np.cos(phi) + x0 + noise
+    y = b * np.sin(theta) * np.sin(phi) + y0 + noise
+    z = c * np.cos(theta) + z0 + noise
 
     if as_mesh:
-        return x, y, z
+        return np.array([x, y, z])
     else:
-        return np.array(
-            [
-                x.flatten() + noise,
-                y.flatten() + noise,
-                z.flatten() + noise,
-            ]
-        ).transpose()
+        return np.array([x.flatten(), y.flatten(), z.flatten()])
 
 
 def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple:
