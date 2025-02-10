@@ -8,6 +8,9 @@ from ..ellipsoid import makeSphericalMesh, makeEllipsoidXYZ, fitEllipsoidNonRota
 
 class test_ellipsoid(unittest.TestCase):
     def setUp(self) -> None:
+        self.N = 5
+        self.test_params = (10, 10, 10, 15, 20, 25, self.N)
+
         return super().setUp()
 
     def tearDown(self) -> None:
@@ -34,7 +37,7 @@ class test_ellipsoid(unittest.TestCase):
         )
 
         try:
-            theta, phi = makeSphericalMesh(5)
+            theta, phi = makeSphericalMesh(self.N)
 
             np.testing.assert_array_almost_equal(theta, correct_theta)
             np.testing.assert_array_almost_equal(phi, correct_phi)
@@ -131,7 +134,42 @@ class test_ellipsoid(unittest.TestCase):
         )
 
         try:
-            res = makeEllipsoidXYZ(10, 10, 10, 15, 20, 25, 5)
+            res = makeEllipsoidXYZ(*self.test_params, as_mesh=False)
+            np.testing.assert_array_almost_equal(res, correct)
+
+            self.assertTrue(True)
+        except AssertionError:
+            self.assertTrue(False)
+
+    def test_makeEllipsoidXYZ_as_mesh(self) -> None:
+        correct = np.array(
+            [
+                [
+                    [10.0, 20.60660172, 25.0, 20.60660172, 10.0],
+                    [10.0, 10.0, 10.0, 10.0, 10.0],
+                    [10.0, -0.60660172, -5.0, -0.60660172, 10.0],
+                    [10.0, 10.0, 10.0, 10.0, 10.0],
+                    [10.0, 20.60660172, 25.0, 20.60660172, 10.0],
+                ],
+                [
+                    [10.0, 10.0, 10.0, 10.0, 10.0],
+                    [10.0, 24.14213562, 30.0, 24.14213562, 10.0],
+                    [10.0, 10.0, 10.0, 10.0, 10.0],
+                    [10.0, -4.14213562, -10.0, -4.14213562, 10.0],
+                    [10.0, 10.0, 10.0, 10.0, 10.0],
+                ],
+                [
+                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
+                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
+                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
+                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
+                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
+                ],
+            ]
+        )
+
+        try:
+            res = makeEllipsoidXYZ(*self.test_params, as_mesh=True)
             np.testing.assert_array_almost_equal(res, correct)
 
             self.assertTrue(True)

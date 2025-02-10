@@ -10,7 +10,7 @@ from serial import Serial, SerialException
 from threading import Lock
 from PySide6.QtCore import QObject, Signal, Slot, Qt
 
-from FitEllipsoid import makeEllipsoidXYZ
+from ellipsoid import makeEllipsoidXYZ
 
 
 """
@@ -227,7 +227,7 @@ class TestSerialComms(QObject):
     def __init__(self):
         super().__init__()
 
-        self.data = makeEllipsoidXYZ(20, 15, -12, 40, 35, 50)
+        self.data = makeEllipsoidXYZ(20, 15, -12, 40, 35, 50, N=20, noise_scale=1)
 
     def open(self) -> None: ...
 
@@ -253,8 +253,8 @@ class TestSerialComms(QObject):
 
     def read_row(self) -> np.ndarray:
         time.sleep(0.05)
-        row = np.random.randint(0, len(self.data))
-        return self.data[row].reshape(1, 3)
+        row = np.random.randint(0, self.data.shape[1])
+        return self.data.transpose()[row].reshape(1, 3)
 
 
 class Nano33SerialComms(QObject):

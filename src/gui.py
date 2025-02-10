@@ -27,7 +27,7 @@ from models import CalibrationDataModel
 from widgets import DeviceSelectWidget, CalibrationWidget
 from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 
-from FitEllipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
+from ellipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
 
 
 logging.basicConfig(level=logging.DEBUG)
@@ -401,4 +401,5 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
 
+    breakpoint()
     sys.exit(app.exec())
