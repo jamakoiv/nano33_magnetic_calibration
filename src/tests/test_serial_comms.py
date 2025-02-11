@@ -1,0 +1,104 @@
+import unittest
+import numpy as np
+
+from PySide6.QtCore import QAbstractItemModel, Qt
+from PySide6.QtTest import QTest, QSignalSpy
+from PySide6.QtWidgets import QApplication
+
+from ..serial_comms import Board2GUI, TestSerialComms
+
+
+class test_Board2GUI(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.app = QApplication.instance() or QApplication()
+        return super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.app.quit()
+        del cls.app
+
+        return super().tearDownClass()
+
+    def setUp(self) -> None:
+        self.board = TestSerialComms(random_seed=0xABCD)
+        self.board_comms = Board2GUI()
+        self.board_comms.set_board(self.board)
+
+        self.correct_magnetic_calibration = np.array(
+            [
+                32.92342533,
+                28.29592604,
+                10.76117538,
+                11.63470385,
+                18.84903367,
+                6.45735546,
+            ]
+        )
+        self.correct_accelerometer_calibration = np.array(
+            [0.98326345, 0.22859553, 0.91280166, 0.84211096, 0.0967116, 0.36238348]
+        )
+        self.correct_gyroscope_calibration = np.array(
+            [0.80242609, 0.51806079, 0.21262697, 0.92620838, 0.30832967, 0.1353237]
+        )
+
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        del self.board_comms
+        del self.board
+
+        return super().tearDown()
+
+    def test_get_calibration(self) -> None:
+        spy = QSignalSpy(self.board_comms.calibration_received)
+        self.assertTrue(spy.isValid())
+
+        self.board_comms.get_calibration("magnetometer")
+        self.assertEqual(spy.count(), 1)
+
+        id = spy.at(0)[0][0]
+        res = np.array(spy.at(0)[0][1])
+
+        self.assertEqual(id, "magnetometer")
+
+        try:
+            np.testing.assert_array_almost_equal(res, self.correct_magnetic_calibration)
+            self.assertTrue(True)
+        except AttributeError:
+            self.assertTrue(False)
+
+        self.board_comms.get_calibration("accelerometer")
+        self.assertEqual(spy.count(), 2)
+
+        id = spy.at(1)[0][0]
+        res = np.array(spy.at(1)[0][1])
+
+        self.assertEqual(id, "accelerometer")
+
+        try:
+            np.testing.assert_array_almost_equal(
+                res, self.correct_accelerometer_calibration
+            )
+            self.assertTrue(True)
+        except AttributeError:
+            self.assertTrue(False)
+
+        self.board_comms.get_calibration("gyroscope")
+        self.assertEqual(spy.count(), 3)
+
+        id = spy.at(2)[0][0]
+        res = np.array(spy.at(2)[0][1])
+
+        self.assertEqual(id, "gyroscope")
+
+        try:
+            np.testing.assert_array_almost_equal(
+                res, self.correct_gyroscope_calibration
+            )
+            self.assertTrue(True)
+        except AttributeError:
+            self.assertTrue(False)
+
+    def test_set_calibration(self) -> None: ...

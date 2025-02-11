@@ -224,10 +224,18 @@ class Board2GUI(QObject):
 
 
 class TestSerialComms(QObject):
-    def __init__(self):
+    def __init__(self, random_seed=None):
         super().__init__()
 
-        self.data = makeEllipsoidXYZ(20, 15, -12, 40, 35, 50, N=20, noise_scale=1)
+        self.rng = np.random.default_rng(seed=random_seed)
+
+        self.magnetic_calibration = self.rng.random(6) * 40
+        self.accelerometer_calibration = self.rng.random(6)
+        self.gyroscope_calibration = self.rng.random(6)
+
+        self.data = makeEllipsoidXYZ(
+            20, 15, -12, 40, 35, 50, N=20, noise_scale=1, generator=self.rng
+        )
 
     def open(self) -> None: ...
 
@@ -239,15 +247,17 @@ class TestSerialComms(QObject):
         pass
 
     def get_magnetometer_calibration(self) -> np.ndarray:
-        return np.random.random(size=6)
+        return self.magnetic_calibration
 
     def set_magnetometer_calibration(self, data: np.ndarray) -> None: ...
 
-    def get_accelerometer_calibration(self) -> np.ndarray: ...
+    def get_accelerometer_calibration(self) -> np.ndarray:
+        return self.accelerometer_calibration
 
     def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
 
-    def get_gyroscope_calibration(self) -> np.ndarray: ...
+    def get_gyroscope_calibration(self) -> np.ndarray:
+        return self.gyroscope_calibration
 
     def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
 
