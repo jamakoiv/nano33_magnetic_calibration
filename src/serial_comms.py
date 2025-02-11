@@ -249,17 +249,20 @@ class TestSerialComms(QObject):
     def get_magnetometer_calibration(self) -> np.ndarray:
         return self.magnetic_calibration
 
-    def set_magnetometer_calibration(self, data: np.ndarray) -> None: ...
+    def set_magnetometer_calibration(self, data: np.ndarray) -> None:
+        self.magnetic_calibration = data
 
     def get_accelerometer_calibration(self) -> np.ndarray:
         return self.accelerometer_calibration
 
-    def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
+    def set_accelerometer_calibration(self, data: np.ndarray) -> None:
+        self.accelerometer_calibration = data
 
     def get_gyroscope_calibration(self) -> np.ndarray:
         return self.gyroscope_calibration
 
-    def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
+    def set_gyroscope_calibration(self, data: np.ndarray) -> None:
+        self.gyroscope_calibration = data
 
     def read_row(self) -> np.ndarray:
         time.sleep(0.05)
