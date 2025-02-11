@@ -400,5 +400,5 @@ if __name__ == "__main__":
     window = MainWindow()
     window.show()
 
-    breakpoint()
+    # breakpoint()
     sys.exit(app.exec())
