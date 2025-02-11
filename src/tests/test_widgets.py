@@ -100,34 +100,28 @@ class test_CalibrationFormWidget(unittest.TestCase):
             QTest.keyClicks(edit, "123.456")
             self.assertEqual(edit.text(), "123.45")
 
-    def test_get_gain(self) -> None:
+    def test_get_functions(self) -> None:
         correct = np.array([12.3, 45.6, 78.9])
-
         try:
             np.testing.assert_array_almost_equal(self.widget.get_gain(), correct)
             self.assertTrue(True)
         except AssertionError:
             self.assertTrue(False)
 
-    def test_get_offset(self) -> None:
         correct = np.array([55.5, 66.6, 77.7])
-
         try:
             np.testing.assert_array_almost_equal(self.widget.get_offset(), correct)
             self.assertTrue(True)
         except AssertionError:
             self.assertTrue(False)
 
-    def test_set_gain(self) -> None:
+    def test_set_functions(self) -> None:
         self.widget.set_gain(np.array([1.0, 2.0, 3.0]))
-
         self.assertEqual(self.widget.x_gain.text(), "1.0")
         self.assertEqual(self.widget.y_gain.text(), "2.0")
         self.assertEqual(self.widget.z_gain.text(), "3.0")
 
-    def test_set_offset(self) -> None:
         self.widget.set_gain(np.array([11.1, 22.2, 33.3]))
-
         self.assertEqual(self.widget.x_gain.text(), "11.1")
         self.assertEqual(self.widget.y_gain.text(), "22.2")
         self.assertEqual(self.widget.z_gain.text(), "33.3")
