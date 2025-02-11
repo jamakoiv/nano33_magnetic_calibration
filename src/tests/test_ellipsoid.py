@@ -1,9 +1,15 @@
 import unittest
 import numpy as np
+from matplotlib.path import Path
 
 from PySide6.QtWidgets import QApplication
 
-from ..ellipsoid import makeSphericalMesh, makeEllipsoidXYZ, fitEllipsoidNonRotated
+from ..ellipsoid import (
+    create_paths,
+    makeSphericalMesh,
+    makeEllipsoidXYZ,
+    fitEllipsoidNonRotated,
+)
 
 
 class test_ellipsoid(unittest.TestCase):
@@ -189,3 +195,25 @@ class test_ellipsoid(unittest.TestCase):
             self.assertTrue(True)
         except AssertionError:
             self.assertTrue(False)
+
+    def test_create_paths(self) -> None:
+        w, q = np.meshgrid(np.arange(3), np.arange(3), sparse=False)
+
+        correct = [
+            Path([(0, 0), (1, 0), (0, 1), (1, 1)]),
+            Path([(1, 0), (2, 0), (1, 1), (2, 1)]),
+            Path([(0, 1), (1, 1), (0, 2), (1, 2)]),
+            Path([(1, 1), (2, 1), (1, 2), (2, 2)]),
+        ]
+        res = create_paths(w, q)
+
+        self.assertEqual(len(res), len(correct))
+        for i in range(len(res)):
+            try:
+                np.testing.assert_array_almost_equal(
+                    res[i].vertices,  # pyright: ignore
+                    correct[i].vertices,  # pyright: ignore
+                )
+
+            except AssertionError:
+                self.assertTrue(False)

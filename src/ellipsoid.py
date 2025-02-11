@@ -123,6 +123,7 @@ def create_paths(w: np.ndarray, q: np.ndarray) -> List[Path]:
     returns: list of matplotlib.path.Path -objects.
 
     """
+    # TODO: There is no real need for w and q to have same dimensions.
     assert w.shape == q.shape, "Input arrays must have same shape."
     assert w.shape[0] == w.shape[1], "Input array shape must be square."
 
