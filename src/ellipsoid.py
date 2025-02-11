@@ -135,10 +135,21 @@ def create_paths(w: np.ndarray, q: np.ndarray) -> List[Path]:
                 [
                     (w[i, j], q[i, j]),
                     (w[i, j + 1], q[i, j + 1]),
-                    (w[i + 1, j], q[i + 1, j]),
                     (w[i + 1, j + 1], q[i + 1, j + 1]),
+                    (w[i + 1, j], q[i + 1, j]),
                 ]
             )
             paths.append(p)
 
     return paths
+
+
+def check_sampling_space(points: np.ndarray, paths: List[Path]) -> np.ndarray:
+    sampled = np.zeros(len(paths))
+
+    for point in points:
+        for i, path in enumerate(paths):
+            if path.contains_point(point):
+                sampled[i] = 1
+
+    return sampled

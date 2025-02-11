@@ -197,13 +197,17 @@ class test_ellipsoid(unittest.TestCase):
             self.assertTrue(False)
 
     def test_create_paths(self) -> None:
-        w, q = np.meshgrid(np.arange(3), np.arange(3), sparse=False)
+        w, q = np.meshgrid(np.array([0, 10, 20]), np.array([0, 100, 200]), sparse=False)
 
         correct = [
-            Path([(0, 0), (1, 0), (0, 1), (1, 1)]),
-            Path([(1, 0), (2, 0), (1, 1), (2, 1)]),
-            Path([(0, 1), (1, 1), (0, 2), (1, 2)]),
-            Path([(1, 1), (2, 1), (1, 2), (2, 2)]),
+            Path(np.array([[0.0, 0.0], [10.0, 0.0], [10.0, 100.0], [0.0, 100.0]])),
+            Path(np.array([[10.0, 0.0], [20.0, 0.0], [20.0, 100.0], [10.0, 100.0]])),
+            Path(
+                np.array([[0.0, 100.0], [10.0, 100.0], [10.0, 200.0], [0.0, 200.0]]),
+            ),
+            Path(
+                np.array([[10.0, 100.0], [20.0, 100.0], [20.0, 200.0], [10.0, 200.0]]),
+            ),
         ]
         res = create_paths(w, q)
 
