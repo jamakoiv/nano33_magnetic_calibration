@@ -1,9 +1,13 @@
 import numpy as np
 from scipy import optimize
-from typing import Tuple
+from typing import Tuple, List
+from matplotlib.path import Path
 
 
 def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Helper function for creating meshgrid for spherical coordinates theta = [0, pi], phi = [0, 2*pi].
+    """
     theta = np.linspace(0.0, np.pi, N)
     phi = np.linspace(0.0, np.pi * 2.0, N)
     theta, phi = np.meshgrid(theta, phi)
@@ -23,6 +27,8 @@ def makeEllipsoidXYZ(
     as_mesh=False,
     generator: np.random.Generator | None = None,
 ) -> np.ndarray:
+    """ """
+
     try:
         noise = generator.normal(size=(N, N), loc=0, scale=noise_scale)  # pyright: ignore
     except AttributeError:
@@ -105,3 +111,33 @@ def loss(g: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.float
     mse = np.square(pred - target).mean()
 
     return mse
+
+
+def create_paths(w: np.ndarray, q: np.ndarray) -> List[Path]:
+    """
+    Creates matplotlib Path-objects from 2D-grid.
+    Each path describes a square of the 2D-grid.
+
+    w, q: numpy.arrays as returned by numpy.meshgrid(x, y, sparse=False).
+
+    returns: list of matplotlib.path.Path -objects.
+
+    """
+    assert w.shape == q.shape, "Input arrays must have same shape."
+    assert w.shape[0] == w.shape[1], "Input array shape must be square."
+
+    paths = []
+    # TODO: Can we write this with numpy.vectorize instead of loops?
+    for i in range(w.shape[0] - 1):
+        for j in range(w.shape[0] - 1):
+            p = Path(
+                [
+                    (w[i, j], q[i, j]),
+                    (w[i, j + 1], q[i, j + 1]),
+                    (w[i + 1, j], q[i + 1, j]),
+                    (w[i + 1, j + 1], q[i + 1, j + 1]),
+                ]
+            )
+            paths.append(p)
+
+    return paths
