@@ -1,11 +1,9 @@
 import numpy as np
-from numpy.typing import NDArray
 from scipy import optimize
 from typing import Tuple
 
 
 def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
-    print("make spherical")
     theta = np.linspace(0.0, np.pi, N)
     phi = np.linspace(0.0, np.pi * 2.0, N)
     theta, phi = np.meshgrid(theta, phi)
@@ -23,8 +21,12 @@ def makeEllipsoidXYZ(
     N: int = 20,
     noise_scale: float = 0.0,
     as_mesh=False,
+    generator: np.random.Generator | None = None,
 ) -> np.ndarray:
-    noise = np.random.normal(size=(N, N), loc=0, scale=noise_scale)
+    try:
+        noise = generator.normal(size=(N, N), loc=0, scale=noise_scale)  # pyright: ignore
+    except AttributeError:
+        noise = np.random.normal(size=(N, N), loc=0, scale=noise_scale)
 
     theta, phi = makeSphericalMesh(N)
 
