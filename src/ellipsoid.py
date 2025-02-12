@@ -10,11 +10,11 @@ def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
     """
     assert N > 0, "Number N must be positive number."
 
-    theta = np.linspace(0.0, np.pi, N)
-    phi = np.linspace(0.0, np.pi * 2.0, N)
-    theta, phi = np.meshgrid(theta, phi)
+    polar_angle = np.linspace(0.0, np.pi, N)
+    azimuth = np.linspace(0.0, np.pi * 2.0, N)
+    polar_angle, azimuth = np.meshgrid(polar_angle, azimuth)
 
-    return theta, phi
+    return polar_angle, azimuth
 
 
 def makeEllipsoidXYZ(
@@ -157,14 +157,16 @@ class SphereSampling:
     """
 
     def __init__(self, N: int = 10):
-        self.theta, self.phi = makeSphericalMesh(N)
-        self.segments = makePaths(self.theta, self.phi)
+        self.polar_angle, self.azimuth = makeSphericalMesh(N)
+        self.segments = makePaths(self.polar_angle, self.azimuth)
         self.sampled = np.zeros(len(self.segments))
 
     def update_single_point(self, point: np.ndarray | Tuple[float, float]) -> None:
         for i, segment in enumerate(self.segments):
             if segment.contains_point(point):  # pyright: ignore
                 self.sampled[i] = 1
+                print(i)
+                return
 
         raise SamplingError(f"Point {point} is not contained in any parameter segment.")
 
