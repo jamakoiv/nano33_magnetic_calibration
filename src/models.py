@@ -173,7 +173,7 @@ class CalibrationDataModel(QAbstractTableModel):
         x, y, z = self.get_xyz_data(with_offset=False)
         res = fitEllipsoidNonRotated(x, y, z)
         self.ellipsoid_params = np.array(res[0])
-        print(self.ellipsoid_params)
+        # print(self.ellipsoid_params)
 
     def update_sampling(self) -> None:
         if self.rowCount() % 10 == 0:
@@ -190,7 +190,7 @@ class CalibrationDataModel(QAbstractTableModel):
         # TODO: Should use the sampling.update_single_point instead of updating all.
         self.sampling.update(coords)
 
-        print(f"offset: {self.ellipsoid_params[:3]}")
+        # print(f"offset: {self.ellipsoid_params[:3]}")
         print(
             f"sample coverage: {self.sampling.get_percentage()}, {self.sampling.get_count()} / {len(self.sampling.segments)}"
         )
