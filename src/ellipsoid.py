@@ -165,7 +165,7 @@ class SphereSampling:
         for i, segment in enumerate(self.segments):
             if segment.contains_point(point):  # pyright: ignore
                 self.sampled[i] = 1
-                print(i)
+                # print(f"i: {i}")
                 return
 
         raise SamplingError(f"Point {point} is not contained in any parameter segment.")
@@ -179,3 +179,6 @@ class SphereSampling:
 
     def get_percentage(self) -> float:
         return np.count_nonzero(self.sampled) / len(self.sampled)
+
+    def get_segments(self) -> Tuple:
+        return self.segments, self.sampled

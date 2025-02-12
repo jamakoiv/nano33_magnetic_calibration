@@ -23,12 +23,16 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QColor
 
+from src.ellipsoid import SphereSampling, fitEllipsoidNonRotated
+
 
 class CalibrationDataModel(QAbstractTableModel):
     _data: np.ndarray
     data_changed = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
+        self.sampling = SphereSampling(N=10)
+
         super().__init__(parent=parent)
 
     def set_data(self, array: np.ndarray) -> None:
@@ -52,6 +56,7 @@ class CalibrationDataModel(QAbstractTableModel):
         except AttributeError:  # if self._data does not exists
             self.set_data(row)
         finally:
+            self.update_sampling()
             self.endInsertRows()
 
     def removeRows(
@@ -81,9 +86,9 @@ class CalibrationDataModel(QAbstractTableModel):
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
     ) -> int:
         try:
-            assert (
-                len(self._data) == self._data.shape[0]
-            ), "Error with data shape: 'len' and np.ndarray.shape[0] do not match."
+            assert len(self._data) == self._data.shape[0], (
+                "Error with data shape: 'len' and np.ndarray.shape[0] do not match."
+            )
 
             return len(self._data)
         except AttributeError:
@@ -155,7 +160,40 @@ class CalibrationDataModel(QAbstractTableModel):
             y = np.zeros(0)
             z = np.zeros(0)
 
-        return x, y, z
+        return x.copy(), y.copy(), z.copy()
+
+    def calculate_simple_offset(self) -> np.ndarray:
+        x, y, z = self.get_xyz_data()
+
+        return np.array([x.mean(), y.mean(), z.mean()])
+
+    def update_sampling(self) -> None:
+        if self.rowCount() % 5 != 0:
+            return
+
+        x, y, z = self.get_xyz_data()
+        res = fitEllipsoidNonRotated(x, y, z)
+
+        params = res[0]
+        x_offset, y_offset, z_offset = params[:3]
+
+        x -= x_offset
+        y -= y_offset
+        z -= z_offset
+
+        r = np.sqrt(x**2 + y**2 + z**2)
+        polar_angle = np.arccos(z / r)
+        azimuth = np.atan2(y, x)
+
+        coords = np.array([polar_angle, azimuth]).transpose()
+
+        self.sampling.update(coords)
+
+        print(f"offset: {x_offset, y_offset, z_offset}")
+        print(
+            f"sample coverage: {self.sampling.get_percentage()}, {self.sampling.get_count()} / {len(self.sampling.segments)}"
+        )
+        # print(coords)
 
 
 class SerialPortsModel(QAbstractListModel):

@@ -65,6 +65,7 @@ class MainWindow(QMainWindow):
 
         self.data_model = CalibrationDataModel(parent=self)
         self.data_table_widget.setModel(self.data_model)
+        self.data_model.rowsInserted.connect(self.data_table_widget.scrollToBottom)
 
         self.primary_canvas.setModel(self.data_model)
         self.secondary_canvas.setModel(self.data_model)
