@@ -8,6 +8,8 @@ def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
     """
     Helper function for creating meshgrid for spherical coordinates theta = [0, pi], phi = [0, 2*pi].
     """
+    assert N > 0, "Number N must be positive number."
+
     theta = np.linspace(0.0, np.pi, N)
     phi = np.linspace(0.0, np.pi * 2.0, N)
     theta, phi = np.meshgrid(theta, phi)
@@ -113,7 +115,7 @@ def loss(g: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.float
     return mse
 
 
-def create_paths(w: np.ndarray, q: np.ndarray) -> List[Path]:
+def makePaths(w: np.ndarray, q: np.ndarray) -> List[Path]:
     """
     Creates matplotlib Path-objects from 2D-grid.
     Each path describes a square of the 2D-grid.
@@ -144,12 +146,34 @@ def create_paths(w: np.ndarray, q: np.ndarray) -> List[Path]:
     return paths
 
 
-def check_sampling_space(points: np.ndarray, paths: List[Path]) -> np.ndarray:
-    sampled = np.zeros(len(paths))
+class SamplingError(Exception):
+    pass
 
-    for point in points:
-        for i, path in enumerate(paths):
-            if path.contains_point(point):
-                sampled[i] = 1
 
-    return sampled
+class SphereSampling:
+    """
+    Create a mesh describing a parameter-space for spherical coordinates, and track
+    how many segments in the space have been sampled.
+    """
+
+    def __init__(self, N: int = 10):
+        self.theta, self.phi = makeSphericalMesh(N)
+        self.segments = makePaths(self.theta, self.phi)
+        self.sampled = np.zeros(len(self.segments))
+
+    def update_single_point(self, point: np.ndarray | Tuple[float, float]) -> None:
+        for i, segment in enumerate(self.segments):
+            if segment.contains_point(point):  # pyright: ignore
+                self.sampled[i] = 1
+
+        raise SamplingError(f"Point {point} is not contained in any parameter segment.")
+
+    def update(self, points: np.ndarray | List[Tuple[float, float]]) -> None:
+        for point in points:
+            self.update_single_point(point)
+
+    def get_count(self) -> int:
+        return np.count_nonzero(self.sampled)
+
+    def get_percentage(self) -> float:
+        return np.count_nonzero(self.sampled) / len(self.sampled)
