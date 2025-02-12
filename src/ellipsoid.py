@@ -11,7 +11,7 @@ def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
     assert N > 0, "Number N must be positive number."
 
     polar_angle = np.linspace(0.0, np.pi, N)
-    azimuth = np.linspace(0.0, np.pi * 2.0, N)
+    azimuth = np.linspace(-1 * np.pi, np.pi, N)
     polar_angle, azimuth = np.meshgrid(polar_angle, azimuth)
 
     return polar_angle, azimuth

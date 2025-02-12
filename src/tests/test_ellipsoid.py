@@ -2,10 +2,8 @@ import unittest
 import numpy as np
 from matplotlib.path import Path
 
-from PySide6.QtWidgets import QApplication
-
 from ..ellipsoid import (
-    create_paths,
+    makePaths,
     makeSphericalMesh,
     makeEllipsoidXYZ,
     fitEllipsoidNonRotated,
@@ -23,30 +21,30 @@ class test_ellipsoid(unittest.TestCase):
         return super().tearDown()
 
     def test_makeSphericalMesh(self) -> None:
-        correct_theta = np.array(
+        correct_polar_angle = np.array(
             [
                 [0.0, 0.78539816, 1.57079633, 2.35619449, 3.14159265],
                 [0.0, 0.78539816, 1.57079633, 2.35619449, 3.14159265],
                 [0.0, 0.78539816, 1.57079633, 2.35619449, 3.14159265],
                 [0.0, 0.78539816, 1.57079633, 2.35619449, 3.14159265],
                 [0.0, 0.78539816, 1.57079633, 2.35619449, 3.14159265],
-            ]
+            ],
         )
-        correct_phi = np.array(
+        correct_azimuth = np.array(
             [
+                [-3.14159265, -3.14159265, -3.14159265, -3.14159265, -3.14159265],
+                [-1.57079633, -1.57079633, -1.57079633, -1.57079633, -1.57079633],
                 [0.0, 0.0, 0.0, 0.0, 0.0],
                 [1.57079633, 1.57079633, 1.57079633, 1.57079633, 1.57079633],
                 [3.14159265, 3.14159265, 3.14159265, 3.14159265, 3.14159265],
-                [4.71238898, 4.71238898, 4.71238898, 4.71238898, 4.71238898],
-                [6.28318531, 6.28318531, 6.28318531, 6.28318531, 6.28318531],
             ]
         )
 
         try:
-            theta, phi = makeSphericalMesh(self.N)
+            polar_angle, azimuth = makeSphericalMesh(self.N)
 
-            np.testing.assert_array_almost_equal(theta, correct_theta)
-            np.testing.assert_array_almost_equal(phi, correct_phi)
+            np.testing.assert_array_almost_equal(polar_angle, correct_polar_angle)
+            np.testing.assert_array_almost_equal(azimuth, correct_azimuth)
 
             self.assertTrue(True)
         except AssertionError:
@@ -56,16 +54,6 @@ class test_ellipsoid(unittest.TestCase):
         correct = np.array(
             [
                 [
-                    10.0,
-                    20.60660172,
-                    25.0,
-                    20.60660172,
-                    10.0,
-                    10.0,
-                    10.0,
-                    10.0,
-                    10.0,
-                    10.0,
                     10.0,
                     -0.60660172,
                     -5.0,
@@ -81,18 +69,18 @@ class test_ellipsoid(unittest.TestCase):
                     25.0,
                     20.60660172,
                     10.0,
+                    10.0,
+                    10.0,
+                    10.0,
+                    10.0,
+                    10.0,
+                    10.0,
+                    -0.60660172,
+                    -5.0,
+                    -0.60660172,
+                    10.0,
                 ],
                 [
-                    10.0,
-                    10.0,
-                    10.0,
-                    10.0,
-                    10.0,
-                    10.0,
-                    24.14213562,
-                    30.0,
-                    24.14213562,
-                    10.0,
                     10.0,
                     10.0,
                     10.0,
@@ -102,6 +90,16 @@ class test_ellipsoid(unittest.TestCase):
                     -4.14213562,
                     -10.0,
                     -4.14213562,
+                    10.0,
+                    10.0,
+                    10.0,
+                    10.0,
+                    10.0,
+                    10.0,
+                    10.0,
+                    24.14213562,
+                    30.0,
+                    24.14213562,
                     10.0,
                     10.0,
                     10.0,
@@ -151,17 +149,17 @@ class test_ellipsoid(unittest.TestCase):
         correct = np.array(
             [
                 [
-                    [10.0, 20.60660172, 25.0, 20.60660172, 10.0],
-                    [10.0, 10.0, 10.0, 10.0, 10.0],
                     [10.0, -0.60660172, -5.0, -0.60660172, 10.0],
                     [10.0, 10.0, 10.0, 10.0, 10.0],
                     [10.0, 20.60660172, 25.0, 20.60660172, 10.0],
+                    [10.0, 10.0, 10.0, 10.0, 10.0],
+                    [10.0, -0.60660172, -5.0, -0.60660172, 10.0],
                 ],
                 [
                     [10.0, 10.0, 10.0, 10.0, 10.0],
-                    [10.0, 24.14213562, 30.0, 24.14213562, 10.0],
-                    [10.0, 10.0, 10.0, 10.0, 10.0],
                     [10.0, -4.14213562, -10.0, -4.14213562, 10.0],
+                    [10.0, 10.0, 10.0, 10.0, 10.0],
+                    [10.0, 24.14213562, 30.0, 24.14213562, 10.0],
                     [10.0, 10.0, 10.0, 10.0, 10.0],
                 ],
                 [
@@ -196,7 +194,7 @@ class test_ellipsoid(unittest.TestCase):
         except AssertionError:
             self.assertTrue(False)
 
-    def test_create_paths(self) -> None:
+    def test_makePaths(self) -> None:
         w, q = np.meshgrid(np.array([0, 10, 20]), np.array([0, 100, 200]), sparse=False)
 
         correct = [
@@ -209,7 +207,7 @@ class test_ellipsoid(unittest.TestCase):
                 np.array([[10.0, 100.0], [20.0, 100.0], [20.0, 200.0], [10.0, 200.0]]),
             ),
         ]
-        res = create_paths(w, q)
+        res = makePaths(w, q)
 
         self.assertEqual(len(res), len(correct))
         for i in range(len(res)):
