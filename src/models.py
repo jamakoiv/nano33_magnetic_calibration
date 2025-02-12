@@ -152,34 +152,34 @@ class CalibrationDataModel(QAbstractTableModel):
             case _:
                 return None
 
-    def get_xyz_data(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def get_xyz_data(self, with_offset: bool = False) -> np.ndarray:
         try:
-            x, y, z, _ = self._data.transpose()
+            x, y, z, _ = self._data.copy().transpose()
+
+            if with_offset:
+                x_offset, y_offset, z_offset = self.ellipsoid_params[:3]
+                x -= x_offset
+                y -= y_offset
+                z -= z_offset
+
         except AttributeError:
             x = np.zeros(0)
             y = np.zeros(0)
             z = np.zeros(0)
 
-        return x.copy(), y.copy(), z.copy()
+        return np.array([x, y, z])
 
-    def calculate_simple_offset(self) -> np.ndarray:
-        x, y, z = self.get_xyz_data()
-
-        return np.array([x.mean(), y.mean(), z.mean()])
+    def update_offset(self) -> None:
+        x, y, z = self.get_xyz_data(with_offset=False)
+        res = fitEllipsoidNonRotated(x, y, z)
+        self.ellipsoid_params = np.array(res[0])
+        print(self.ellipsoid_params)
 
     def update_sampling(self) -> None:
-        if self.rowCount() % 5 != 0:
-            return
+        if self.rowCount() % 10 == 0:
+            self.update_offset()
 
-        x, y, z = self.get_xyz_data()
-        res = fitEllipsoidNonRotated(x, y, z)
-
-        params = res[0]
-        x_offset, y_offset, z_offset = params[:3]
-
-        x -= x_offset
-        y -= y_offset
-        z -= z_offset
+        x, y, z = self.get_xyz_data(with_offset=True)
 
         r = np.sqrt(x**2 + y**2 + z**2)
         polar_angle = np.arccos(z / r)
@@ -187,9 +187,10 @@ class CalibrationDataModel(QAbstractTableModel):
 
         coords = np.array([polar_angle, azimuth]).transpose()
 
+        # TODO: Should use the sampling.update_single_point instead of updating all.
         self.sampling.update(coords)
 
-        print(f"offset: {x_offset, y_offset, z_offset}")
+        print(f"offset: {self.ellipsoid_params[:3]}")
         print(
             f"sample coverage: {self.sampling.get_percentage()}, {self.sampling.get_count()} / {len(self.sampling.segments)}"
         )
