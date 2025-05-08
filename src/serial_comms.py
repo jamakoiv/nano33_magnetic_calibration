@@ -366,7 +366,7 @@ class Nano33SerialComms(QObject):
                     self.send_command_string(command)
 
             except SerialException as err:
-                ...
+                raise BoardCommsError(err)
 
     def wait_for_board_response(self) -> Tuple[bool, str]:
         # TODO: Raise error instead of returning success-state.
@@ -399,7 +399,7 @@ class Nano33SerialComms(QObject):
                     return self.parse_calibration_from_board(calib_raw)
 
             except SerialException as err:
-                ...
+                raise BoardCommsError(err)
             finally:
                 ...
 
@@ -422,7 +422,7 @@ class Nano33SerialComms(QObject):
                     self.wait_for_board_response()
 
             except SerialException as err:
-                ...
+                raise BoardCommsError(err)
             finally:
                 ...
 
@@ -450,8 +450,8 @@ class Nano33SerialComms(QObject):
             # self.logStd("Handshake with board failed.\n", self.command_log)
             return False
 
-        # self.logStd("Handshake with board successful.\n", self.command_log)
-        # self.logStd("Sending command: " + command + "\n", self.command_log)
+        print("Handshake with board successful.\n")
+        print("Sending command: " + command + "\n")
         self.ser.write(command.encode("utf8"))
         return True
 
@@ -469,8 +469,10 @@ class Nano33SerialComms(QObject):
             response = self.remove_control_characters(response)
 
             if response == SERIAL_HANDSHAKE:
+                print("Serial handshake successful")
                 return True
             else:
+                print("Serial handshake failed")
                 time.sleep(0.50)
 
         return False
