@@ -271,11 +271,11 @@ class MainWindow(QMainWindow):
 
     @Slot(object)  # pyright: ignore
     def calibration_received_handler(self, return_tuple: Tuple) -> None:
-        id, values = return_tuple
+        id, offset, gain = return_tuple
 
         match id.lower():
             case "magnetometer" | "magnetic":
-                self.calibration_widget.set_device_calibration(values)
+                self.calibration_widget.set_device_calibration(offset, gain)
 
             case "gyroscope":
                 print("Not implemented...")

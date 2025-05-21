@@ -1,10 +1,10 @@
 from enum import Enum
 import time
 import unicodedata
-from PySide6.QtWidgets import QMessageBox
+import struct
 import numpy as np
 
-from typing import Protocol, Tuple, Union
+from typing import Iterable, Protocol
 from serial import Serial, SerialException
 
 from threading import Lock
@@ -188,6 +188,7 @@ class Board2GUI(QObject):
     def get_calibration(self, calibration_type: str) -> None:
         try:
             self.to_log.emit("Start reading calibration from board.")
+            self.board.open()
 
             with self.mutex:
                 self.task_running = True
@@ -208,13 +209,17 @@ class Board2GUI(QObject):
                 case _:
                     raise ValueError("Wrong calibration type supplied")
 
-            self.calibration_received.emit((id, res))
+            offset = res[:3]
+            gain = res[3:]
+            self.calibration_received.emit((id, offset, gain))
 
         finally:
             with self.mutex:
                 self.task_running = False
 
             self.task_done.emit()
+            self.board.close()
+            self.to_log.emit("Done reading calibration.")
 
     @Slot()
     def set_stop_flag(self) -> None:
@@ -295,14 +300,25 @@ class Nano33SerialComms(QObject):
         self.serial_timeout = timeout
         self.handshake_timeout = handshake_timeout
 
+    def send_command_bytes(self, cmd: bytes) -> None:
+        with self.mutex:
+            try:
+                self.ser.write(cmd)
+
+            except SerialException as err:
+                raise BoardCommsError(err)
+            except AttributeError as err:
+                raise BoardCommsError(err)
+
     def reset_calibration(self) -> None:
-        self.send_command(SERIAL_RESET_KVSTORE)
+        cmd = struct.pack("<BB", SERIAL_RESET_KVSTORE, 2)
+        self.send_command_bytes(cmd)
 
     def set_output_mode(self, mode: int) -> None:
-        command_str = self.parse_command_string(mode)
+        cmd = struct.pack("<BB", mode, 2)
 
         try:
-            self.send_command_string(command_str)
+            self.send_command_bytes(cmd)
         except SerialException as e:
             raise BoardCommsError(e)
 
@@ -354,128 +370,63 @@ class Nano33SerialComms(QObject):
 
         return row.reshape(1, 3)
 
-    def send_command(self, command_id: int) -> None:
-        with self.mutex:
-            try:
-                with Serial(
-                    self.serial_port,
-                    timeout=self.serial_timeout,
-                    baudrate=self.serial_baudrate,
-                ) as self.ser:
-                    command = self.parse_command_string(command_id)
-                    self.send_command_string(command)
-
-            except SerialException as err:
-                raise BoardCommsError(err)
-
-    def wait_for_board_response(self) -> Tuple[bool, str]:
-        # TODO: Raise error instead of returning success-state.
-
-        timeout = time.time() + self.handshake_timeout
-        while (data := self.ser.readline()) == SERIAL_NO_OUTPUT:
-            if time.time() > timeout:
-                return False, ""
-            else:
-                continue
-
-        return True, data.decode("utf8")
-
-    def get_calibration(self, calibration_type: int) -> list[float] | None:
+    def get_calibration(self, calibration_type: int) -> Iterable[float] | None:
         """
         Get calibration data from the board.
 
         IN: calibration_type: One of the 'SERIAL_GET_...' constants.
         """
-        with self.mutex:
-            try:
-                with Serial(
-                    self.serial_port,
-                    timeout=self.serial_timeout,
-                    baudrate=self.serial_baudrate,
-                ) as self.ser:
-                    command = self.parse_command_string(calibration_type)
-                    self.send_command_string(command)
-                    _, calib_raw = self.wait_for_board_response()
-                    return self.parse_calibration_from_board(calib_raw)
+        response_format = "<BBffffff"
+        response_size = struct.calcsize(response_format)
+        calib = [0, 0, 0, 1, 1, 1]
 
-            except SerialException as err:
-                raise BoardCommsError(err)
-            finally:
-                ...
+        try:
+            cmd_0 = struct.pack("<BB", SERIAL_PRINT_NOTHING, 2)
+            cmd_1 = struct.pack("<BB", calibration_type, 2)
+            self.send_command_bytes(cmd_0 + b";" + cmd_1 + b";")
 
-    def set_calibration(self, calibration_type: int, data: list[float]) -> None:
+            for i in range(5):
+                # response = self.ser.read(response_size)
+                response = self.ser.readlines()
+                time.sleep(0.5)
+
+                for raw_line in response:
+                    line = raw_line.split(b";")[0]
+                    try:
+                        cmd_id, n_bytes, *calib = struct.unpack(response_format, line)
+                        print(f"{cmd_id}, {n_bytes}, {calib}")
+                        return calib
+
+                    except struct.error as err:
+                        print(
+                            f"Try number {i}: response from board {line} create error: {err}"
+                        )
+
+            return calib
+
+        except SerialException as err:
+            raise BoardCommsError(err)
+        finally:
+            ...
+
+    def set_calibration(
+        self, calibration_type: int, data: tuple[float] | list[float]
+    ) -> None:
         """
         Send calibration data to the board.
 
         IN: calibration_type: One of the 'SERIAL_SET_...' constants.
-            data: list of calibration values. Only first three are used [x, y, z].
+            data: list of calibration values.
         """
-        with self.mutex:
-            try:
-                with Serial(
-                    self.serial_port,
-                    timeout=self.serial_timeout,
-                    baudrate=self.serial_baudrate,
-                ) as self.ser:
-                    command = self.parse_command_string(calibration_type, data)
-                    self.send_command_string(command)
-                    self.wait_for_board_response()
+        try:
+            self.send_command_bytes(
+                struct.pack("<BBffffff", calibration_type, *data[:6])
+            )
 
-            except SerialException as err:
-                raise BoardCommsError(err)
-            finally:
-                ...
-
-    def parse_calibration_from_board(self, input: str) -> list[float]:
-        """
-        Parse values from string of format "Offset: <x>, <y>, <z>; Gain: <x>, <y>, <z>",
-        where <x,y,z> are the calibration values.
-
-        IN: The string to be parsed.
-
-        OUT: List of the offset and gain calibration values.
-        """
-
-        s = input.replace(":", ";").split(sep=";")
-        vals_str = s[1] + "," + s[3]
-        return [float(x) for x in vals_str.split(",")]
-
-    def send_command_string(self, command: str) -> bool:
-        """
-        Send a command to the board.
-
-        NOTE: The serial object 'self.ser' has to be opened before using this function.
-        """
-        if not self.serial_handshake():
-            # self.logStd("Handshake with board failed.\n", self.command_log)
-            return False
-
-        print("Handshake with board successful.\n")
-        print("Sending command: " + command + "\n")
-        self.ser.write(command.encode("utf8"))
-        return True
-
-    def serial_handshake(self) -> bool:
-        """
-        Wait for the board to return the handshake.
-
-        NOTE: The serial object 'self.ser' has to be opened before using this function.
-        """
-        self.ser.write(SERIAL_HANDSHAKE.encode("utf8"))
-
-        time_end = time.time() + self.handshake_timeout
-        while time.time() < time_end:
-            response = self.ser.readline().decode("utf8")
-            response = self.remove_control_characters(response)
-
-            if response == SERIAL_HANDSHAKE:
-                print("Serial handshake successful")
-                return True
-            else:
-                print("Serial handshake failed")
-                time.sleep(0.50)
-
-        return False
+        except SerialException as err:
+            raise BoardCommsError(err)
+        finally:
+            ...
 
     @staticmethod
     def remove_control_characters(input: str) -> str:
@@ -485,12 +436,3 @@ class Nano33SerialComms(QObject):
             )
         except TypeError:
             return ""
-
-    @staticmethod
-    def parse_command_string(command: int, data: list[Union[int, float]] = []) -> str:
-        command_str = "0x{:02x}; ".format(command)
-        for item in data:
-            command_str += "{}, ".format(item)
-        command_str += "; "
-
-        return command_str
