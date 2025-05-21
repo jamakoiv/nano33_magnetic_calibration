@@ -221,6 +221,40 @@ class Board2GUI(QObject):
             self.board.close()
             self.to_log.emit("Done reading calibration.")
 
+    @Slot(str, object, object)  # pyright: ignore
+    def set_calibration(
+        self, calibration_type: str, offset: np.ndarray, gain: np.ndarray
+    ) -> None:
+        try:
+            self.to_log.emit("Start setting calibration to board.")
+            self.board.open()
+
+            with self.mutex:
+                self.task_running = True
+
+            calib = np.concatenate((offset, gain))
+
+            match calibration_type.lower():
+                case "magnetometer" | "magnetic":
+                    self.board.set_magnetometer_calibration(calib)
+
+                case "gyroscope":
+                    self.board.set_gyroscope_calibration(calib)
+
+                case "accelerometer":
+                    self.board.set_accelerometer_calibration(calib)
+
+                case _:
+                    raise ValueError("Wrong calibration type supplied")
+
+        finally:
+            with self.mutex:
+                self.task_running = False
+
+            self.task_done.emit()
+            self.board.close()
+            self.to_log.emit("Done setting calibration.")
+
     @Slot()
     def set_stop_flag(self) -> None:
         self.to_log.emit("Stopping comms operation.")
@@ -419,8 +453,10 @@ class Nano33SerialComms(QObject):
             data: list of calibration values.
         """
         try:
+            command_format = "<BBffffff"
+            command_size = struct.calcsize(command_format)
             self.send_command_bytes(
-                struct.pack("<BBffffff", calibration_type, *data[:6])
+                struct.pack(command_format, calibration_type, command_size, *data[:6])
             )
 
         except SerialException as err:

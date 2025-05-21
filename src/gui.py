@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
     comms_thread: QThread
     start_data_read = Signal()
     start_calibration_get = Signal(str)
-    start_calibration_set = Signal(str)
+    start_calibration_set = Signal(str, object, object)
     stop_comms_task = Signal()
 
     log_widget: QTextEdit
@@ -173,6 +173,9 @@ class MainWindow(QMainWindow):
             "Send calibration to currently selected device.",
             self,
         )
+        self.action_set_calibration.triggered.connect(
+            self.action_set_calibration_callback
+        )
 
         self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "Fit ellipsoid.", self)
         self.action_fit_ellipsoid.triggered.connect(self.action_fit_ellipsoid_callback)
@@ -242,6 +245,7 @@ class MainWindow(QMainWindow):
 
         self.start_data_read.connect(self.board_comms.read_magnetic_calibration_data)
         self.start_calibration_get.connect(self.board_comms.get_calibration)
+        self.start_calibration_set.connect(self.board_comms.set_calibration)
         self.stop_comms_task.connect(
             self.board_comms.set_stop_flag, Qt.ConnectionType.DirectConnection
         )
@@ -255,6 +259,15 @@ class MainWindow(QMainWindow):
             self.action_get_calibration.setEnabled(False)
             self.update_current_board()
             self.start_calibration_get.emit("magnetic")
+
+    def action_set_calibration_callback(self):
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+
+            self.action_set_calibration.setEnabled(False)
+            self.update_current_board()
+            offset, gain = self.calibration_widget.get_device_calibration()
+            self.start_calibration_set.emit("magnetic", offset, gain)
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
         if (

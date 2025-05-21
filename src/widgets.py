@@ -255,7 +255,6 @@ class CalibrationWidget(QWidget):
         gain = self.device_calibration.get_gain()
         offset = self.device_calibration.get_offset()
 
-        print("get_device_calibration", gain, offset)
         return offset, gain
 
     def set_fit_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
@@ -266,7 +265,6 @@ class CalibrationWidget(QWidget):
         gain = self.fit_calibration.get_gain()
         offset = self.fit_calibration.get_offset()
 
-        print("get_fit_calibration", gain, offset)
         return offset, gain
 
 
