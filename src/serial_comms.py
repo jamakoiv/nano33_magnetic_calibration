@@ -10,7 +10,7 @@ from serial import Serial, SerialException
 from threading import Lock
 from PySide6.QtCore import QObject, Signal, Slot, Qt
 
-from .ellipsoid import makeEllipsoidXYZ
+from ellipsoid import makeEllipsoidXYZ
 
 
 """

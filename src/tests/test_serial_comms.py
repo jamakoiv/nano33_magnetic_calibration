@@ -5,7 +5,7 @@ from PySide6.QtCore import QAbstractItemModel, Qt
 from PySide6.QtTest import QTest, QSignalSpy
 from PySide6.QtWidgets import QApplication
 
-from ..serial_comms import Board2GUI, TestSerialComms
+from serial_comms import Board2GUI, TestSerialComms
 
 
 class test_Board2GUI(unittest.TestCase):

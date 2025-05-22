@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d.art3d import Line3D
 from mpl_toolkits.mplot3d.axes3d import Axes3D
 from matplotlib.lines import Line2D
 
-from .models import CalibrationDataModel
+from models import CalibrationDataModel
 
 
 class MatplotlibCanvas(FigureCanvasQTAgg):

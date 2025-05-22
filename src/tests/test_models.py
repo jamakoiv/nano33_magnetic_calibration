@@ -6,7 +6,7 @@ import numpy as np
 
 from PySide6.QtWidgets import QApplication
 
-from ..models import CalibrationDataModel, SerialPortsModel
+from models import CalibrationDataModel, SerialPortsModel
 
 
 class test_calibrationDataModel(unittest.TestCase):

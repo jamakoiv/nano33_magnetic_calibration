@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 from matplotlib.path import Path
 
-from ..ellipsoid import (
+from ellipsoid import (
     makePaths,
     makeSphericalMesh,
     makeEllipsoidXYZ,

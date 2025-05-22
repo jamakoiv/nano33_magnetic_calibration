@@ -5,7 +5,7 @@ from PySide6.QtCore import QAbstractItemModel, Qt
 from PySide6.QtTest import QTest, QSignalSpy
 from PySide6.QtWidgets import QApplication
 
-from ..widgets import CalibrationFormWidget, DeviceSelectWidget
+from widgets import CalibrationFormWidget, DeviceSelectWidget
 
 
 class test_DeviceSelectWidget(unittest.TestCase):

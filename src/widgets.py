@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from serial.tools import list_ports
-from .models import SerialPortsModel
+from models import SerialPortsModel
 
 
 class DeviceSelectWidget(QWidget):
