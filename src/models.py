@@ -3,7 +3,6 @@ import logging
 import numpy as np
 
 from collections import OrderedDict
-
 from PySide6.QtCore import (
     Slot,
     Signal,

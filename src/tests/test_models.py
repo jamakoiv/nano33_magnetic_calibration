@@ -1,9 +1,9 @@
-from collections import OrderedDict
 import unittest
-from PySide6.QtCore import QAbstractItemModel, Qt
-from PySide6.QtTest import QTest, QSignalSpy
 import numpy as np
 
+from collections import OrderedDict
+from PySide6.QtCore import QAbstractItemModel, Qt
+from PySide6.QtTest import QTest, QSignalSpy
 from PySide6.QtWidgets import QApplication
 
 from models import CalibrationDataModel, SerialPortsModel

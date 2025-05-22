@@ -1,9 +1,10 @@
 import sys
 import logging
 import numpy as np
+
 from typing import Tuple
 from collections import OrderedDict
-
+from serial.tools import list_ports
 from PySide6.QtCore import Qt, Slot, Signal
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
@@ -22,7 +23,6 @@ from PySide6.QtWidgets import (
     QPushButton,
 )
 
-from serial.tools import list_ports
 from models import SerialPortsModel
 
 

@@ -1,10 +1,9 @@
 import sys
 import logging
 import datetime
-from typing import Tuple
-
 import numpy as np
 
+from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from PySide6.QtCore import Qt, Slot, Signal, QThread
 from PySide6.QtGui import QAction, QKeySequence, QIcon
 from PySide6.QtWidgets import (
@@ -20,7 +19,6 @@ from PySide6.QtWidgets import (
     QTextEdit,
 )
 
-from matplotlib.backends.backend_qt import NavigationToolbar2QT
 
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel
@@ -283,7 +281,7 @@ class MainWindow(QMainWindow):
             self.primary_canvas.delete_wireframe()
 
     @Slot(object)  # pyright: ignore
-    def calibration_received_handler(self, return_tuple: Tuple) -> None:
+    def calibration_received_handler(self, return_tuple: tuple) -> None:
         id, offset, gain = return_tuple
 
         match id.lower():
