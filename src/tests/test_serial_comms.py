@@ -74,29 +74,25 @@ class test_Board2GUI(unittest.TestCase):
 
         self.board_comms.get_calibration("magnetometer")
         self.assertEqual(spy.count(), 1)
-
-        id = spy.at(0)[0][0]
-        res = np.array(spy.at(0)[0][1])
+        id, offset, gain = spy.at(0)[0]
 
         self.assertEqual(id, "magnetometer")
-
         try:
-            np.testing.assert_array_almost_equal(res, self.correct_magnetic_calibration)
+            np.testing.assert_array_almost_equal(
+                np.concat((offset, gain)), self.correct_magnetic_calibration
+            )
             self.assertTrue(True)
         except AttributeError:
             self.assertTrue(False)
 
         self.board_comms.get_calibration("accelerometer")
         self.assertEqual(spy.count(), 2)
-
-        id = spy.at(1)[0][0]
-        res = np.array(spy.at(1)[0][1])
+        id, offset, gain = spy.at(1)[0]
 
         self.assertEqual(id, "accelerometer")
-
         try:
             np.testing.assert_array_almost_equal(
-                res, self.correct_accelerometer_calibration
+                np.concat((offset, gain)), self.correct_accelerometer_calibration
             )
             self.assertTrue(True)
         except AttributeError:
@@ -104,15 +100,12 @@ class test_Board2GUI(unittest.TestCase):
 
         self.board_comms.get_calibration("gyroscope")
         self.assertEqual(spy.count(), 3)
-
-        id = spy.at(2)[0][0]
-        res = np.array(spy.at(2)[0][1])
+        id, offset, gain = spy.at(2)[0]
 
         self.assertEqual(id, "gyroscope")
-
         try:
             np.testing.assert_array_almost_equal(
-                res, self.correct_gyroscope_calibration
+                np.concat((offset, gain)), self.correct_gyroscope_calibration
             )
             self.assertTrue(True)
         except AttributeError:
