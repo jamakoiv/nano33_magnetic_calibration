@@ -1,3 +1,4 @@
+import logging
 import time
 import unicodedata
 import struct
@@ -10,6 +11,8 @@ from enum import Enum
 from PySide6.QtCore import QObject, Signal, Slot, Qt
 
 from ellipsoid import makeEllipsoidXYZ
+
+log = logging.getLogger(__name__)
 
 
 """
@@ -108,7 +111,6 @@ class Board2GUI(QObject):
 
     data_row_received = Signal(object)
     calibration_received = Signal(object)
-    debug_signal = Signal(str)
     error_signal = Signal(object)
     to_log = Signal(str)
 
@@ -151,16 +153,12 @@ class Board2GUI(QObject):
                         i += 1
                         time.sleep(self.read_wait)
                     except NoDataReceived:
-                        self.debug_signal.emit(
-                            f"Reading data failed, attempt {attempt}."
-                        )
+                        log.warning(f"Reading data failed, attempt {attempt}")
                         continue  # Runs the retry-loop again.
                     else:
                         break  # Stop the retry-loop if no error occured.
                 else:  # This gets executed only if the for loop is NOT stopped with break.
-                    self.debug_signal.emit(
-                        f"Reading data failed after {self.read_retries} retries."
-                    )
+                    log.warning(f"Reading data failed after {self.read_retries} retries")
                     self.error_signal.emit(
                         RetryLimitReached(
                             f"Reading data failed after {self.read_retries} tries."
@@ -169,11 +167,11 @@ class Board2GUI(QObject):
                     break
 
         except AttributeError as e:
-            self.debug_signal.emit(f"{e}")
+            log.error(f"AttributeError: {e}")
             self.error_signal.emit(e)
 
         except BoardCommsError as e:
-            self.debug_signal.emit(f"{e}")
+            log.error(f"BoardCommsError: {e}")
             self.error_signal.emit(e)
 
         finally:

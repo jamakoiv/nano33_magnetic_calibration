@@ -241,7 +241,6 @@ class MainWindow(QMainWindow):
         self.board_comms.data_row_received.connect(self.data_model.append_data)
         self.board_comms.calibration_received.connect(self.calibration_received_handler)
         self.board_comms.to_log.connect(self.gui_logger)
-        self.board_comms.debug_signal.connect(self.debug_printer)
         self.board_comms.error_signal.connect(self.exception2MessageBox)
         self.board_comms.task_done.connect(self.comms_task_done)
 
@@ -409,13 +408,11 @@ class MainWindow(QMainWindow):
 
         return super().closeEvent(event)
 
-    # TODO: With proper logging we should not have any problem printing debug-messages from all threads.
-    @Slot(str)  # pyright: ignore
-    def debug_printer(self, d: str):
-        print(d)
-
     @Slot(object)  # pyright: ignore
     def exception2MessageBox(self, e: Exception):
+        """
+        Show exception error message in a GUI message box.
+        """
         QMessageBox.warning(
             self,
             "Error",
@@ -426,5 +423,8 @@ class MainWindow(QMainWindow):
 
     @Slot(str)  # pyright: ignore
     def gui_logger(self, msg: str):
+        """
+        Print message to the GUI log widget.
+        """
         time = datetime.datetime.now().time()
         self.log_widget.append(f"{time}: {msg}")
