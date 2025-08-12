@@ -1,8 +1,11 @@
+import logging
 import numpy as np
 
 from scipy import optimize
 from typing import Tuple, List
 from matplotlib.path import Path
+
+log = logging.getLogger(__name__)
 
 
 def makeSphericalMesh(N: int) -> Tuple[np.ndarray, np.ndarray]:
@@ -30,7 +33,13 @@ def makeEllipsoidXYZ(
     as_mesh=False,
     generator: np.random.Generator | None = None,
 ) -> np.ndarray:
-    """ """
+    """
+    Create ellipsoid with center offset (x0, y0, z0) and axes (a, b, c).
+
+    noise_scale: Standard deviation of noise added to coordinates.
+    as_mesh: If True, return as meshgrid. If False, return as flattened xyz-arrays.
+    generator: Optional numpy generator for generating noise (mainly for testing purposes).
+    """
 
     try:
         noise = generator.normal(size=(N, N), loc=0, scale=noise_scale)  # pyright: ignore
@@ -50,6 +59,8 @@ def makeEllipsoidXYZ(
 
 
 def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple:
+    """ """
+
     gamma_guess = np.zeros(6)
     # Center offset values can be estimated from the mean of the axes.
     gamma_guess[0] = x.mean()  # X-offset x0
@@ -61,16 +72,9 @@ def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple
     gamma_guess[5] = (z.max() - z.min()) / 2
     gamma_guess = np.array(gamma_guess)
 
-    print("First guess of the parameters: ", end="")
-    print(gamma_guess)
+    log.info(f"First guess of the parameters: {gamma_guess}")
+    log.info(f"Mean squared error of first guess: {loss(gamma_guess, x, y, z)}")
 
-    print("Mean squared error of first guess: ")
-    print(loss(gamma_guess, x, y, z))
-
-    print("Gradient: ")
-    # print(jax.grad(loss)(gamma_guess, x, y, z))
-
-    # Do the actual fit using BFGS-method.
     res = optimize.fmin_bfgs(
         loss,  # Error-function to minimize.
         gamma_guess,  # Initial guess of the parameters.
@@ -81,7 +85,8 @@ def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple
         gtol=1e-17,  # Gradient norm must be less than gtol
         maxiter=300,  # Maximum number of iterations.
         full_output=True,
-        disp=1,
+        # disp=1,
+        disp=0,
         retall=0,
         callback=None,
     )
@@ -89,10 +94,12 @@ def fitEllipsoidNonRotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> Tuple
     return res
 
 
-# Error function to be minimized.
 def predict(
     gamma: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray
 ) -> np.ndarray:
+    """
+    Error function to be minimized.
+    """
     # compute f hat
     x0 = gamma[0]
     y0 = gamma[1]
@@ -108,7 +115,9 @@ def predict(
 
 
 def loss(g: np.ndarray, x: np.ndarray, y: np.ndarray, z: np.ndarray) -> np.float64:
-    # compute mean squared error
+    """
+    Loss function. Computes mean squared error.
+    """
     pred = predict(g, x, y, z)
     target = np.ones_like(pred)
     mse = np.square(pred - target).mean()
