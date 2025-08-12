@@ -53,6 +53,8 @@ class MainWindow(QMainWindow):
     calibration_dock: QDockWidget
 
     def __init__(self, parent: QWidget | None = None):
+        log.info("Creating main window.")
+
         super().__init__(parent=parent)
 
         self.build_ui()
@@ -65,8 +67,6 @@ class MainWindow(QMainWindow):
         self.secondary_canvas.setModel(self.data_model)
 
         self.device_select_widget.data_button.pressed.connect(self.data_read_callback)
-
-        log.debug("Created main window.")
 
         self.start_comms_thread()
         self.device_select_widget.refresh_serial_ports()
@@ -82,6 +82,8 @@ class MainWindow(QMainWindow):
         self.build_menus()
 
     def build_dock_widgets(self) -> None:
+        log.info("Creating GUI dock widgets")
+
         default_size_policy = QSizePolicy(
             QSizePolicy.Policy.Preferred,
             QSizePolicy.Policy.Fixed,
@@ -128,9 +130,9 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_table_dock)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_dock)
 
-        log.debug("Created dock widgets.")
-
     def build_canvases(self) -> None:
+        log.info("Creating plot canvases")
+
         self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
         self.secondary_canvas = MatplotlibCanvas(5, 5, 96, projection="2d")
 
@@ -147,9 +149,9 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(splitter)
 
-        log.debug("Created canvases.")
-
     def build_actions(self) -> None:
+        log.info("Creating GUI-actions")
+
         self.action_quit = QAction(QIcon.fromTheme("application-exit"), "&Exit", self)
         self.action_quit.setShortcut(QKeySequence("Ctrl+Q"))
         self.action_quit.triggered.connect(self.close)
@@ -186,6 +188,8 @@ class MainWindow(QMainWindow):
         self.action_random_data.triggered.connect(self.add_random_data)
 
     def build_toolbars(self) -> None:
+        log.info("Creating GUI toolbars")
+
         self.toolbar_main = QToolBar("main_toolbar")
 
         self.toolbar_main.addActions(
@@ -207,6 +211,8 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
 
     def build_menus(self) -> None:
+        log.info("Creating GUI menus")
+
         self.menu_file = self.menuBar().addMenu("&File")
         self.menu_file.addAction(self.action_quit)
 
@@ -226,6 +232,8 @@ class MainWindow(QMainWindow):
 
     # Controller -----------------------
     def start_comms_thread(self) -> None:
+        log.info("Starting communication thread")
+
         self.comms_thread = QThread()
         self.board_comms = Board2GUI()
         self.board_comms.moveToThread(self.comms_thread)
@@ -278,6 +286,7 @@ class MainWindow(QMainWindow):
 
     @Slot(object)  # pyright: ignore
     def calibration_received_handler(self, return_tuple: tuple) -> None:
+        log.info(f"Calibration data received: {return_tuple}")
         id, offset, gain = return_tuple
 
         match id.lower():
@@ -285,23 +294,26 @@ class MainWindow(QMainWindow):
                 self.calibration_widget.set_device_calibration(offset, gain)
 
             case "gyroscope":
-                print("Not implemented...")
+                log.warning("Gyroscope calibration not implemented")
 
             case "accelerometer":
-                print("Not implemented...")
+                log.warning("Accelerometer calibration not implemented")
 
             case _:
+                log.error(f"Wrong calibration id: {id}")
                 raise ValueError(f"Wrong calibration id supplied: {id}")
 
     def data_read_callback(self) -> None:
+        log.info("Data read callback triggered")
         self.update_current_board()
 
         if not self.board_comms.task_running:
+            log.info("Starting data read task")
             self.disable_comms_buttons()
 
             self.start_data_read.emit()
         else:
-            print("Sending stop signal.")
+            log.info("Stopping data read task")
             self.stop_comms_task.emit()
 
     def action_fit_ellipsoid_callback(self):
@@ -339,11 +351,15 @@ class MainWindow(QMainWindow):
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))
 
     def disable_comms_buttons(self) -> None:
+        log.info("Disabling communication buttons")
+
         self.device_select_widget.data_button.setText("Stop")
         self.action_get_calibration.setDisabled(True)
         self.action_set_calibration.setDisabled(True)
 
     def restore_comms_buttons(self) -> None:
+        log.info("Restoring communication buttons")
+
         self.device_select_widget.data_button.setText("Start")
         self.action_get_calibration.setEnabled(True)
         self.action_set_calibration.setEnabled(True)
@@ -352,10 +368,14 @@ class MainWindow(QMainWindow):
 
     @Slot()
     def comms_task_done(self) -> None:
+        log.info("Communication task done")
+
         self.restore_comms_buttons()
         self.gui_logger("Board communication done.")
 
     def update_current_board(self) -> None:
+        log.info("Updating current board")
+
         device = self.device_select_widget.device_selector.currentData()
 
         if device == "debug":
@@ -367,9 +387,15 @@ class MainWindow(QMainWindow):
         self.board_comms.set_board(self.board)
         self.board_comms.set_sample_size(self.device_select_widget.data_points.value())
 
+        log.info(
+            f"Current board set to: {device}, N={self.board_comms.read_sample_size}"
+        )
+
     def closeEvent(self, event):
         # NOTE: We must stop all running threads we have created before closing the main application.
         # Not doing this gives the occasional segfault.
+
+        log.info("Closing main window and stopping threads.")
         try:
             if self.comms_thread.isRunning():
                 self.stop_comms_task.emit()
@@ -383,6 +409,7 @@ class MainWindow(QMainWindow):
 
         return super().closeEvent(event)
 
+    # TODO: With proper logging we should not have any problem printing debug-messages from all threads.
     @Slot(str)  # pyright: ignore
     def debug_printer(self, d: str):
         print(d)
