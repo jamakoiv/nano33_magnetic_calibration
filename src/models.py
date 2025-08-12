@@ -25,6 +25,9 @@ from PySide6.QtGui import QColor
 from ellipsoid import SphereSampling, fitEllipsoidNonRotated
 
 
+log = logging.getLogger(__name__)
+
+
 class CalibrationDataModel(QAbstractTableModel):
     _data: np.ndarray
     data_changed = Signal()
@@ -44,6 +47,8 @@ class CalibrationDataModel(QAbstractTableModel):
 
     @Slot(object)  # pyright: ignore
     def append_data(self, row: np.ndarray) -> None:
+        log.info(f"Appending data to model: {row}")
+
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 
         # TODO: Too much babysitting the input shape.
@@ -65,6 +70,7 @@ class CalibrationDataModel(QAbstractTableModel):
         /,
         parent: QModelIndex | QPersistentModelIndex | None = None,
     ) -> bool:
+        log.info(f"Removing rows {row} to {row + count} from model.")
         self.beginRemoveRows(QModelIndex(), row, row + count)
 
         row_index = np.arange(row, row + count)
@@ -190,10 +196,9 @@ class CalibrationDataModel(QAbstractTableModel):
         self.sampling.update(coords)
 
         # print(f"offset: {self.ellipsoid_params[:3]}")
-        print(
+        log.info(
             f"sample coverage: {self.sampling.get_percentage()}, {self.sampling.get_count()} / {len(self.sampling.segments)}"
         )
-        # print(coords)
 
 
 class SerialPortsModel(QAbstractListModel):
