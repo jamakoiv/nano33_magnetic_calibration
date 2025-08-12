@@ -1,4 +1,3 @@
-import sys
 import logging
 import datetime
 import numpy as np
@@ -405,12 +404,3 @@ class MainWindow(QMainWindow):
     def gui_logger(self, msg: str):
         time = datetime.datetime.now().time()
         self.log_widget.append(f"{time}: {msg}")
-
-
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-
-    # breakpoint()
-    sys.exit(app.exec())
