@@ -185,10 +185,10 @@ class SphereSampling:
             self.update_single_point(point)
 
     def get_count(self) -> int:
-        return np.count_nonzero(self.sampled)
+        return int(np.count_nonzero(self.sampled))
 
     def get_percentage(self) -> float:
-        return np.count_nonzero(self.sampled) / len(self.sampled)
+        return float(np.count_nonzero(self.sampled) / len(self.sampled))
 
     def get_segments(self) -> Tuple:
         return self.segments, self.sampled
