@@ -158,7 +158,9 @@ class Board2GUI(QObject):
                     else:
                         break  # Stop the retry-loop if no error occured.
                 else:  # This gets executed only if the for loop is NOT stopped with break.
-                    log.warning(f"Reading data failed after {self.read_retries} retries")
+                    log.warning(
+                        f"Reading data failed after {self.read_retries} retries"
+                    )
                     self.error_signal.emit(
                         RetryLimitReached(
                             f"Reading data failed after {self.read_retries} tries."
@@ -321,7 +323,7 @@ class Nano33SerialComms(QObject):
         self,
         port: str,
         baudrate: int = 57600,
-        timeout: float = 2.0,
+        timeout: float = 5.0,
         handshake_timeout: float = 5.0,
     ):
         super().__init__()
@@ -408,7 +410,7 @@ class Nano33SerialComms(QObject):
         IN: calibration_type: One of the 'SERIAL_GET_...' constants.
         """
         response_format = "<BBffffff"
-        response_size = struct.calcsize(response_format)
+        # response_size = struct.calcsize(response_format)
         calib = [0, 0, 0, 1, 1, 1]
 
         try:
@@ -417,21 +419,18 @@ class Nano33SerialComms(QObject):
             self.send_command_bytes(cmd_0 + b";" + cmd_1 + b";")
 
             for i in range(5):
-                # response = self.ser.read(response_size)
-                response = self.ser.readlines()
+                response = self.ser.read_until(";".encode("UTF-8"))
                 time.sleep(0.5)
 
-                for raw_line in response:
-                    line = raw_line.split(b";")[0]
-                    try:
-                        cmd_id, n_bytes, *calib = struct.unpack(response_format, line)
-                        print(f"{cmd_id}, {n_bytes}, {calib}")
-                        return calib
+                try:
+                    cmd_id, n_bytes, *calib = struct.unpack(response_format, response)
+                    print(f"{cmd_id}, {n_bytes}, {calib}")
+                    return calib
 
-                    except struct.error as err:
-                        print(
-                            f"Try number {i}: response from board {line} create error: {err}"
-                        )
+                except struct.error as err:
+                    print(
+                        f"Try number {i}: response from board {response} create error: {err}"
+                    )
 
             return calib
 
@@ -452,9 +451,12 @@ class Nano33SerialComms(QObject):
         try:
             command_format = "<BBffffff"
             command_size = struct.calcsize(command_format)
+            self.ser.reset_input_buffer()
             self.send_command_bytes(
                 struct.pack(command_format, calibration_type, command_size, *data[:6])
             )
+            s = self.ser.readline()
+            log.info(f"Set calibration reply from board: {s}")
 
         except SerialException as err:
             raise BoardCommsError(err)
