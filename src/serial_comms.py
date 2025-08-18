@@ -139,6 +139,7 @@ class Board2GUI(QObject):
 
         try:
             self.to_log.emit("Start reading raw magnetometer data from board.")
+            log.info("Start reading raw magnetometer data from board")
 
             self.board.open()
             self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
@@ -150,6 +151,7 @@ class Board2GUI(QObject):
                         row = self.board.read_row()
                         self.data_row_received.emit(row)
                         self.to_log.emit("Received data: {}".format(row))
+                        log.info("Received data: {}".format(row))
                         i += 1
                         time.sleep(self.read_wait)
                     except NoDataReceived:
@@ -187,6 +189,7 @@ class Board2GUI(QObject):
     def get_calibration(self, calibration_type: str) -> None:
         try:
             self.to_log.emit("Start reading calibration from board.")
+            log.info(f"Start reading calibration from board: {calibration_type}")
             self.board.open()
 
             with self.mutex:
@@ -226,6 +229,7 @@ class Board2GUI(QObject):
     ) -> None:
         try:
             self.to_log.emit("Start setting calibration to board.")
+            log.info(f"Start setting calibration to board: {calibration_type}")
             self.board.open()
 
             with self.mutex:
@@ -253,10 +257,12 @@ class Board2GUI(QObject):
             self.task_done.emit()
             self.board.close()
             self.to_log.emit("Done setting calibration.")
+            log.info("Done setting calibration")
 
     @Slot()
     def set_stop_flag(self) -> None:
         self.to_log.emit("Stopping comms operation.")
+        log.info("Stopping comms operation")
         with self.mutex:
             self.stop = True
 
@@ -420,15 +426,16 @@ class Nano33SerialComms(QObject):
 
             for i in range(5):
                 response = self.ser.read_until(";".encode("UTF-8"))
+                log.info(f"Response from board: {response}")
                 time.sleep(0.5)
 
                 try:
                     cmd_id, n_bytes, *calib = struct.unpack(response_format, response)
-                    print(f"{cmd_id}, {n_bytes}, {calib}")
+                    log.info(f"Response unpacked: {cmd_id}, {n_bytes}, {calib}")
                     return calib
 
                 except struct.error as err:
-                    print(
+                    log.warning(
                         f"Try number {i}: response from board {response} create error: {err}"
                     )
 
