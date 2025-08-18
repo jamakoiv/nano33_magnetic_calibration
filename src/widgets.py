@@ -250,9 +250,31 @@ class CalibrationWidget(QWidget):
         self.mag_calibration.set_offset(offset)
         self.mag_calibration.set_gain(gain)
 
+    @Slot(object)  # pyright: ignore
+    def set_gyro_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
+        self.gyro_calibration.set_offset(offset)
+        self.gyro_calibration.set_gain(gain)
+
+    @Slot(object)  # pyright: ignore
+    def set_acc_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
+        self.acc_calibration.set_offset(offset)
+        self.acc_calibration.set_gain(gain)
+
     def get_mag_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
         gain = self.mag_calibration.get_gain()
         offset = self.mag_calibration.get_offset()
+
+        return offset, gain
+
+    def get_gyro_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
+        gain = self.gyro_calibration.get_gain()
+        offset = self.gyro_calibration.get_offset()
+
+        return offset, gain
+
+    def get_acc_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
+        gain = self.acc_calibration.get_gain()
+        offset = self.acc_calibration.get_offset()
 
         return offset, gain
 
