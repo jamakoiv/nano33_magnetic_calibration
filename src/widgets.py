@@ -110,6 +110,10 @@ class DeviceSelectWidget(QWidget):
 
 
 class CalibrationFormWidget(QWidget):
+    """
+    Widget for displaying and entering magnetometer, gyroscope, and accelerometer gain and offset values.
+    """
+
     editingFinished = Signal()
     textEdited = Signal(str)
     textChanged = Signal(str)
@@ -225,6 +229,60 @@ class CalibrationFormWidget(QWidget):
         self.editingFinished.emit()
 
 
+class CalibrationMiscWidget(QWidget):
+    """
+    Calibration widget for displaying and setting output offsets and AHRS settings.
+    """
+
+    def __init__(self, parent: QWidget | None = None, *args, **kwargs):
+        super().__init__(parent=parent, *args, **kwargs)
+
+        self.output_offset_box = QGroupBox(title="Output offset", parent=self)
+
+        self.yaw_offset = QLineEdit(parent=self)
+        self.pitch_offset = QLineEdit(parent=self)
+        self.roll_offset = QLineEdit(parent=self)
+        self.yaw_label = QLabel(text="Yaw:", parent=self)
+        self.pitch_label = QLabel(text="Pitch:", parent=self)
+        self.roll_label = QLabel(text="Roll:", parent=self)
+
+        self.offset_box_layout = QGridLayout()
+        self.offset_box_layout.addWidget(self.yaw_label, 0, 0)
+        self.offset_box_layout.addWidget(self.yaw_offset, 0, 1)
+        self.offset_box_layout.addWidget(self.pitch_label, 1, 0)
+        self.offset_box_layout.addWidget(self.pitch_offset, 1, 1)
+        self.offset_box_layout.addWidget(self.roll_label, 2, 0)
+        self.offset_box_layout.addWidget(self.roll_offset, 2, 1)
+        self.output_offset_box.setLayout(self.offset_box_layout)
+
+        self.ahrs_box = QGroupBox(title="AHRS settings", parent=self)
+
+        self.ahrs_gain = QLineEdit(parent=self)
+        self.ahrs_acc_reject = QLineEdit(parent=self)
+        self.ahrs_mag_reject = QLineEdit(parent=self)
+        self.ahrs_reject_timeout = QLineEdit(parent=self)
+        self.ahrs_gain_label = QLabel(text="Gain:", parent=self)
+        self.ahrs_acc_reject_label = QLabel(text="Acceleration rejection:", parent=self)
+        self.ahrs_mag_reject_label = QLabel(text="Magnetic rejection:", parent=self)
+        self.ahrs_reject_timeout_label = QLabel(text="Rejection timeout:", parent=self)
+
+        self.ahrs_box_layout = QGridLayout()
+        self.ahrs_box_layout.addWidget(self.ahrs_gain_label, 0, 0)
+        self.ahrs_box_layout.addWidget(self.ahrs_gain, 0, 1)
+        self.ahrs_box_layout.addWidget(self.ahrs_acc_reject_label, 1, 0)
+        self.ahrs_box_layout.addWidget(self.ahrs_acc_reject, 1, 1)
+        self.ahrs_box_layout.addWidget(self.ahrs_mag_reject_label, 2, 0)
+        self.ahrs_box_layout.addWidget(self.ahrs_mag_reject, 2, 1)
+        self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout_label, 3, 0)
+        self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout, 3, 1)
+        self.ahrs_box.setLayout(self.ahrs_box_layout)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.output_offset_box)
+        layout.addWidget(self.ahrs_box)
+        self.setLayout(layout)
+
+
 class CalibrationWidget(QWidget):
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
@@ -234,7 +292,7 @@ class CalibrationWidget(QWidget):
         self.mag_calibration = CalibrationFormWidget(parent=self.tabs)
         self.gyro_calibration = CalibrationFormWidget(parent=self.tabs)
         self.acc_calibration = CalibrationFormWidget(parent=self.tabs)
-        self.misc = QWidget(parent=self.tabs)
+        self.misc = CalibrationMiscWidget(parent=self.tabs)
 
         self.tabs.addTab(self.mag_calibration, "Mag")
         self.tabs.addTab(self.gyro_calibration, "Gyro")
