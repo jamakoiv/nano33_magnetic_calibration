@@ -209,11 +209,14 @@ class Board2GUI(QObject):
                     res = self.board.get_accelerometer_calibration()
 
                 case _:
+                    self.to_log.emit("Wrong calibration type supplied")
                     raise ValueError("Wrong calibration type supplied")
 
-            offset = res[:3]
-            gain = res[3:]
+            offset, gain = res[:3], res[3:]
             self.calibration_received.emit((id, offset, gain))
+            self.to_log.emit(
+                f"Received calibration data: {calibration_type}, offset {offset}, gain {gain}"
+            )
 
         finally:
             with self.mutex:
@@ -256,8 +259,10 @@ class Board2GUI(QObject):
 
             self.task_done.emit()
             self.board.close()
-            self.to_log.emit("Done setting calibration.")
-            log.info("Done setting calibration")
+
+            msg = f"Set calibration data: {calibration_type}, offset {offset}, gain {gain}"
+            self.to_log.emit(msg)
+            log.info(msg)
 
     @Slot()
     def set_stop_flag(self) -> None:
@@ -420,26 +425,40 @@ class Nano33SerialComms(QObject):
         calib = [0, 0, 0, 1, 1, 1]
 
         try:
-            cmd_0 = struct.pack("<BB", SERIAL_PRINT_NOTHING, 2)
+            # cmd_0 = struct.pack("<BB", SERIAL_PRINT_NOTHING, 2)
+            # self.ser.reset_output_buffer()
+            # self.ser.reset_input_buffer()
             cmd_1 = struct.pack("<BB", calibration_type, 2)
-            self.send_command_bytes(cmd_0 + b";" + cmd_1 + b";")
+            # self.send_command_bytes(cmd_0 + b";" + cmd_1 + b";")
+            self.send_command_bytes(cmd_1 + b";")
 
             for i in range(5):
                 response = self.ser.read_until(";".encode("UTF-8"))
+                # response = self.ser.readline()
                 log.info(f"Response from board: {response}")
-                time.sleep(0.5)
+                # time.sleep(0.5) # Why is this here?
 
                 try:
-                    cmd_id, n_bytes, *calib = struct.unpack(response_format, response)
+                    cmd_id, n_bytes, *calib = struct.unpack(
+                        response_format,
+                        response.strip(b";").strip(b"\n").strip(b"\r"),
+                        # TODO: Should use readline so we don't have to guard againts extra LFCR
+                    )
                     log.info(f"Response unpacked: {cmd_id}, {n_bytes}, {calib}")
+                    if cmd_id != calibration_type:
+                        raise BoardCommsError(
+                            f"Received cmd_id 0x{cmd_id:02x} does not match the requested type 0x{calibration_type:02x}"
+                        )
+
                     return calib
 
-                except struct.error as err:
+                except (struct.error, BoardCommsError) as err:
                     log.warning(
                         f"Try number {i}: response from board {response} create error: {err}"
                     )
 
-            return calib
+            log.error("Did not receive proper response after 5 tries")
+            raise BoardCommsError("Did not receive proper response after 5 tries")
 
         except SerialException as err:
             raise BoardCommsError(err)
@@ -459,9 +478,14 @@ class Nano33SerialComms(QObject):
             command_format = "<BBffffff"
             command_size = struct.calcsize(command_format)
             self.ser.reset_input_buffer()
-            self.send_command_bytes(
-                struct.pack(command_format, calibration_type, command_size, *data[:6])
+            log.info(
+                f"Sending to board: {calibration_type:02x}, {command_size}, {data}"
             )
+
+            cmd = struct.pack(command_format, calibration_type, command_size, *data[:6])
+            self.send_command_bytes(cmd + b";")
+            log.info(f"Send command: {cmd}")
+
             s = self.ser.readline()
             log.info(f"Set calibration reply from board: {s}")
 
