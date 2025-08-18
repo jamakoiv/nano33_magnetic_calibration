@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QSpinBox,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
     QComboBox,
@@ -108,7 +109,7 @@ class DeviceSelectWidget(QWidget):
         self.device_selector.setCurrentIndex(last_selected_index)
 
 
-class CalibrationFormWidget(QGroupBox):
+class CalibrationFormWidget(QWidget):
     editingFinished = Signal()
     textEdited = Signal(str)
     textChanged = Signal(str)
@@ -138,9 +139,6 @@ class CalibrationFormWidget(QGroupBox):
         self.y_offset = QLineEdit(parent=self)
         self.z_offset = QLineEdit(parent=self)
 
-        self.show_check = QCheckBox("Show in plot", parent=self)
-        self.show_check.checkStateChanged.connect(self.checkStateChange.emit)
-
         for edit in [
             self.x_gain,
             self.y_gain,
@@ -168,10 +166,6 @@ class CalibrationFormWidget(QGroupBox):
         layout.addWidget(self.z_gain, 3, 0)
         layout.addWidget(self.z_offset, 3, 1)
 
-        # columnSpan can be used only for layouts, not single widgets.
-        check_layout = QHBoxLayout()
-        check_layout.addWidget(self.show_check)
-        layout.addItem(check_layout, 4, 0, columnSpan=2)
         self.setLayout(layout)
 
     def get_gain(self) -> np.ndarray:
@@ -230,40 +224,35 @@ class CalibrationFormWidget(QGroupBox):
 
         self.editingFinished.emit()
 
-    def checkState(self) -> Qt.CheckState:
-        return self.show_check.checkState()
-
 
 class CalibrationWidget(QWidget):
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
-        self.device_calibration = CalibrationFormWidget(title="Device", parent=self)
-        self.fit_calibration = CalibrationFormWidget(title="Fit", parent=self)
+        self.tabs = QTabWidget(parent=self)
 
-        layout = QGridLayout()
-        layout.addWidget(self.device_calibration, 0, 0)
-        layout.addWidget(self.fit_calibration, 0, 1)
+        self.mag_calibration = CalibrationFormWidget(parent=self.tabs)
+        self.gyro_calibration = CalibrationFormWidget(parent=self.tabs)
+        self.acc_calibration = CalibrationFormWidget(parent=self.tabs)
+        self.misc = QWidget(parent=self.tabs)
+
+        self.tabs.addTab(self.mag_calibration, "Mag")
+        self.tabs.addTab(self.gyro_calibration, "Gyro")
+        self.tabs.addTab(self.acc_calibration, "Acc")
+        self.tabs.addTab(self.misc, "Misc")
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.tabs)
         self.setLayout(layout)
 
     @Slot(object)  # pyright: ignore
-    def set_device_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
-        self.device_calibration.set_offset(offset)
-        self.device_calibration.set_gain(gain)
+    def set_mag_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
+        self.mag_calibration.set_offset(offset)
+        self.mag_calibration.set_gain(gain)
 
-    def get_device_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
-        gain = self.device_calibration.get_gain()
-        offset = self.device_calibration.get_offset()
-
-        return offset, gain
-
-    def set_fit_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
-        self.fit_calibration.set_offset(offset)
-        self.fit_calibration.set_gain(gain)
-
-    def get_fit_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
-        gain = self.fit_calibration.get_gain()
-        offset = self.fit_calibration.get_offset()
+    def get_mag_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
+        gain = self.mag_calibration.get_gain()
+        offset = self.mag_calibration.get_offset()
 
         return offset, gain
 

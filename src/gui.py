@@ -96,10 +96,10 @@ class MainWindow(QMainWindow):
         self.calibration_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         )
-        self.calibration_widget.fit_calibration.editingFinished.connect(
+        self.calibration_widget.mag_calibration.editingFinished.connect(
             self.action_plot_ellipsoid_wireframe_callback
         )
-        self.calibration_widget.fit_calibration.checkStateChange.connect(
+        self.calibration_widget.mag_calibration.checkStateChange.connect(
             self.action_plot_ellipsoid_wireframe_callback
         )
 
@@ -267,16 +267,16 @@ class MainWindow(QMainWindow):
 
             self.action_set_calibration.setEnabled(False)
             self.update_current_board()
-            offset, gain = self.calibration_widget.get_device_calibration()
+            offset, gain = self.calibration_widget.get_mag_calibration()
             self.start_calibration_set.emit("magnetic", offset, gain)
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
         if (
-            self.calibration_widget.fit_calibration.checkState()
+            self.calibration_widget.mag_calibration.checkState()
             == Qt.CheckState.Checked
         ):
             print("plot")
-            offset, gain = self.calibration_widget.get_fit_calibration()
+            offset, gain = self.calibration_widget.get_mag_calibration()
             x, y, z = makeEllipsoidXYZ(*offset, *gain, as_mesh=True)
             self.primary_canvas.update_wireframe(x, y, z)
         else:
@@ -290,7 +290,7 @@ class MainWindow(QMainWindow):
 
         match id.lower():
             case "magnetometer" | "magnetic":
-                self.calibration_widget.set_device_calibration(offset, gain)
+                self.calibration_widget.set_mag_calibration(offset, gain)
 
             case "gyroscope":
                 log.warning("Gyroscope calibration not implemented")
@@ -331,7 +331,7 @@ class MainWindow(QMainWindow):
         offset = params[:3]
         gain = params[3:]
 
-        self.calibration_widget.set_fit_calibration(offset, gain)
+        self.calibration_widget.set_mag_calibration(offset, gain)
 
         s_params = (
             "Fit parameters",
