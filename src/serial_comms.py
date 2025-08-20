@@ -1,5 +1,6 @@
 import logging
 import time
+import copy
 import unicodedata
 import struct
 import numpy as np
@@ -47,6 +48,16 @@ SERIAL_RESET_KVSTORE = 0x70
 SERIAL_BAUDRATE = 57600  # NOTE: Baudrate should not matter with Arduino NANO33
 SERIAL_WAIT = 2.0  # seconds
 SERIAL_NO_OUTPUT = b""  # serial.readline returns b'' if read timeouts.
+
+"""
+    ASCII data transmit control characters.
+"""
+ASCII_SOH = 0x01  # Start of header
+ASCII_STX = 0x02  # Start of data
+ASCII_ETX = 0x03  # End of data
+ASCII_EOT = 0x04  # End of transmission
+ASCII_ESC = 0x1B  # Escape next character
+ESCAPE_OFFSET = 0x20
 
 
 class BoardCommsError(Exception):
@@ -414,6 +425,35 @@ class Nano33SerialComms(QObject):
 
         return row.reshape(1, 3)
 
+    def parse_outbound_bytes(self, d: bytes) -> bytes:
+        """
+        Prepend all ASCII transmission control characters with escape byte.
+        """
+        res = copy.deepcopy(d)  # Is this necessary?
+
+        # NOTE: ASCII_ESC must be first in list or we replace all the escapes
+        # from previous characters. This is fragile...
+        for c in (ASCII_ESC, ASCII_SOH, ASCII_STX, ASCII_ETX, ASCII_EOT):
+            res = res.replace(bytes([c]), bytes([ASCII_ESC, c + ESCAPE_OFFSET]))
+
+        return res
+
+    def parse_inbound_bytes(self, d: bytes) -> bytes:
+        """
+        Remove all ASCII_ESC characters and restore the following character.
+        """
+
+        res = copy.deepcopy(d)
+        while True:
+            i = res.find(bytes([ASCII_ESC]))
+
+            if i == -1:
+                return res
+            else:
+                c_esc = res[i + 1]
+                c_real = c_esc - ESCAPE_OFFSET
+                res = res.replace(bytes([ASCII_ESC, c_esc]), bytes([c_real]))
+
     def get_calibration(self, calibration_type: int) -> Iterable[float] | None:
         """
         Get calibration data from the board.
@@ -484,7 +524,7 @@ class Nano33SerialComms(QObject):
 
             cmd = struct.pack(command_format, calibration_type, command_size, *data[:6])
             self.send_command_bytes(cmd + b";")
-            log.info(f"Send command: {cmd}")
+            log.info(f"Send command: {cmd + b';'}")
 
             s = self.ser.readline()
             log.info(f"Set calibration reply from board: {s}")
