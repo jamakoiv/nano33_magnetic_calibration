@@ -5,7 +5,7 @@ from PySide6.QtCore import QAbstractItemModel, Qt
 from PySide6.QtTest import QTest, QSignalSpy
 from PySide6.QtWidgets import QApplication
 
-from serial_comms import Board2GUI, TestSerialComms
+from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 
 
 class test_Board2GUI(unittest.TestCase):
@@ -112,3 +112,31 @@ class test_Board2GUI(unittest.TestCase):
             self.assertTrue(False)
 
     def test_set_calibration(self) -> None: ...
+
+
+class test_Nano33SerialComms(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.app = QApplication.instance() or QApplication()
+        return super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.app.quit()
+        del cls.app
+
+        return super().tearDownClass()
+
+    def test_parse_outbound_bytes(self) -> None:
+        msg = b"abcd\x01abcd\x02abcd\x03abcd\x04"
+        correct = b"abcd\x1b\x21abcd\x1b\x22abcd\x1b\x23abcd\x1b\x24"
+        res = Nano33SerialComms.parse_outbound_bytes(msg)
+
+        self.assertEqual(res, correct)
+
+    def test_parse_inbound_bytes(self) -> None:
+        msg = b"abcd\x1b\x21abcd\x1b\x22abcd\x1b\x23abcd\x1b\x24"
+        correct = b"abcd\x01abcd\x02abcd\x03abcd\x04"
+        res = Nano33SerialComms.parse_inbound_bytes(msg)
+
+        self.assertEqual(res, correct)
