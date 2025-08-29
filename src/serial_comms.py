@@ -18,6 +18,10 @@ log = logging.getLogger(__name__)
 # TODO: The entire code for communication with the board is a horrible mess at the moment.
 # We need to rewrite significant parts to handle the fact that accelerometer/gyroscope
 # have different amount of calibration parameters than magnetometer.
+#
+# TODO: Should we just delete the entire Board2GUI and handle everything in each different board-type?
+# As if there ever will be more than Nano33..
+# Also the Nano33SerialComms still must inherit from QObject to be able to send it to another QThread...
 
 
 """
