@@ -109,6 +109,168 @@ class DeviceSelectWidget(QWidget):
         self.device_selector.setCurrentIndex(last_selected_index)
 
 
+class CalibrationVectorWidget(QWidget):
+    """
+    Widget for displaying and entering a XYZ-vector.
+    """
+
+    editingFinished = Signal()
+    textEdited = Signal(str)
+    textChanged = Signal(str)
+    checkStateChange = Signal(object)
+
+    def __init__(self, parent: QWidget | None = None, *args, **kwargs):
+        super().__init__(parent=parent, *args, **kwargs)
+
+        # NOTE: Hard coded, but the raw data is in microteslas
+        # and should be in the range of 20-100 uT.
+        validator = QDoubleValidator(-999, 999, 2, parent=self)
+        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+
+        self.x_edit = QLineEdit(parent=self)
+        self.y_edit = QLineEdit(parent=self)
+        self.z_edit = QLineEdit(parent=self)
+
+        for edit in [
+            self.x_edit,
+            self.y_edit,
+            self.z_edit,
+        ]:
+            edit.setValidator(validator)
+            edit.setText("1.0")
+            edit.setMaxLength(6)
+            edit.setMinimumWidth(40)
+
+            edit.editingFinished.connect(self.editingFinished.emit)
+            edit.textChanged.connect(self.textChanged.emit)
+            edit.textEdited.connect(self.textEdited.emit)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.x_edit)
+        layout.addWidget(self.y_edit)
+        layout.addWidget(self.z_edit)
+        self.setLayout(layout)
+
+    def get(self) -> np.ndarray:
+        x = float(self.x_edit.text())
+        y = float(self.y_edit.text())
+        z = float(self.z_edit.text())
+        res = np.array([x, y, z])
+
+        return res
+
+    def set(self, gain: np.ndarray) -> None:
+        self.x_edit.setText(str(gain[0]))
+        self.y_edit.setText(str(gain[1]))
+        self.z_edit.setText(str(gain[2]))
+
+        # NOTE: Emit signal manually so we only have to connect editingChanged,
+        # rather than all the possible QLineEdit signals.
+        self.editingFinished.emit()
+
+
+class CalibrationMatrixWidget(QWidget):
+    """
+    Widget for displaying and entering a 3x3-matrix.
+    """
+
+    editingFinished = Signal()
+    textEdited = Signal(str)
+    textChanged = Signal(str)
+    checkStateChange = Signal(object)
+
+    def __init__(self, parent: QWidget | None = None, *args, **kwargs):
+        super().__init__(parent=parent, *args, **kwargs)
+
+        # NOTE: Hard coded, but the raw data is in microteslas
+        # and should be in the range of 20-100 uT.
+        validator = QDoubleValidator(-999, 999, 2, parent=self)
+        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+
+        self.xx_edit = QLineEdit(parent=self)
+        self.xy_edit = QLineEdit(parent=self)
+        self.xz_edit = QLineEdit(parent=self)
+
+        self.yx_edit = QLineEdit(parent=self)
+        self.yy_edit = QLineEdit(parent=self)
+        self.yz_edit = QLineEdit(parent=self)
+
+        self.zx_edit = QLineEdit(parent=self)
+        self.zy_edit = QLineEdit(parent=self)
+        self.zz_edit = QLineEdit(parent=self)
+
+        for edit in [
+            self.xx_edit,
+            self.xy_edit,
+            self.xz_edit,
+            self.yx_edit,
+            self.yy_edit,
+            self.yz_edit,
+            self.zx_edit,
+            self.zy_edit,
+            self.zz_edit,
+        ]:
+            edit.setValidator(validator)
+            edit.setText("1.0")
+            edit.setMaxLength(6)
+            edit.setMinimumWidth(40)
+
+            edit.editingFinished.connect(self.editingFinished.emit)
+            edit.textChanged.connect(self.textChanged.emit)
+            edit.textEdited.connect(self.textEdited.emit)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.xx_edit)
+        layout.addWidget(self.xy_edit)
+        layout.addWidget(self.xz_edit)
+        layout.addWidget(self.yx_edit)
+        layout.addWidget(self.yy_edit)
+        layout.addWidget(self.yz_edit)
+        layout.addWidget(self.zx_edit)
+        layout.addWidget(self.zy_edit)
+        layout.addWidget(self.zz_edit)
+        self.setLayout(layout)
+
+    def get(self) -> np.ndarray:
+        xx = float(self.xx_edit.text())
+        xy = float(self.xy_edit.text())
+        xz = float(self.xz_edit.text())
+        yx = float(self.yx_edit.text())
+        yy = float(self.yy_edit.text())
+        yz = float(self.yz_edit.text())
+        zx = float(self.zx_edit.text())
+        zy = float(self.zy_edit.text())
+        zz = float(self.zz_edit.text())
+        res = np.array([xx, xy, xz, yx, yy, yz, zx, zy, zz]).reshape(3, 3)
+
+        return res
+
+    def set(self, values: np.ndarray) -> None:
+        if values.shape == (3, 3):
+            values = values.flatten()
+        elif values.shape == (9,):
+            pass
+        else:
+            # TODO: Create error if input shape is garbage.
+            pass
+
+        self.xx_edit.setText(str(values[0]))
+        self.xy_edit.setText(str(values[1]))
+        self.xz_edit.setText(str(values[2]))
+        self.yx_edit.setText(str(values[3]))
+        self.yy_edit.setText(str(values[4]))
+        self.yz_edit.setText(str(values[5]))
+        self.zx_edit.setText(str(values[6]))
+        self.zy_edit.setText(str(values[7]))
+        self.zz_edit.setText(str(values[8]))
+
+        # NOTE: Emit signal manually so we only have to connect editingChanged,
+        # rather than all the possible QLineEdit signals.
+        self.editingFinished.emit()
+
+    ...
+
+
 class CalibrationFormWidget(QWidget):
     """
     Widget for displaying and entering magnetometer, gyroscope, and accelerometer gain and offset values.
@@ -281,6 +443,22 @@ class CalibrationMiscWidget(QWidget):
         layout.addWidget(self.output_offset_box)
         layout.addWidget(self.ahrs_box)
         self.setLayout(layout)
+
+
+class MagneticCalibrationWidget(QWidget):
+    """
+    Widget for displaying and entering one matrix and one vector.
+    """
+
+    pass
+
+
+class InertialCalibrationWidget(QWidget):
+    """
+    Widget for displaying and entering one matrix and two vectors.
+    """
+
+    pass
 
 
 class CalibrationWidget(QWidget):
