@@ -321,6 +321,20 @@ class MagneticCalibrationWidget(QWidget):
         layout.addWidget(self.hard_iron_box)
         self.setLayout(layout)
 
+    @Slot(object)
+    def set_soft_iron(self, data: np.ndarray) -> None:
+        self.soft_iron.set(data)
+
+    @Slot(object)
+    def set_hard_iron(self, data: np.ndarray) -> None:
+        self.hard_iron.set(data)
+
+    def get_soft_iron(self) -> np.ndarray:
+        return self.soft_iron.get()
+
+    def get_hard_iron(self) -> np.ndarray:
+        return self.hard_iron.get()
+
 
 class InertialCalibrationWidget(QWidget):
     """
@@ -358,6 +372,27 @@ class InertialCalibrationWidget(QWidget):
         layout.addWidget(self.sensitivity_box)
         layout.addWidget(self.offset_box)
         self.setLayout(layout)
+
+    @Slot(object)
+    def set_misalignment(self, data: np.ndarray) -> None:
+        self.misalignment.set(data)
+
+    @Slot(object)
+    def set_offset(self, data: np.ndarray) -> None:
+        self.offset.set(data)
+
+    @Slot(object)
+    def set_sensitivity(self, data: np.ndarray) -> None:
+        self.sensitivity.set(data)
+
+    def get_misalignment(self) -> np.ndarray:
+        return self.misalignment.get()
+
+    def get_offset(self) -> np.ndarray:
+        return self.offset.get()
+
+    def get_sensitivity(self) -> np.ndarray:
+        return self.sensitivity.get()
 
 
 class CalibrationMiscWidget(QWidget):
@@ -433,39 +468,6 @@ class CalibrationWidget(QWidget):
         layout = QVBoxLayout()
         layout.addWidget(self.tabs)
         self.setLayout(layout)
-
-    @Slot(object)  # pyright: ignore
-    def set_mag_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
-        self.mag_calibration.set_offset(offset)
-        self.mag_calibration.set_gain(gain)
-
-    @Slot(object)  # pyright: ignore
-    def set_gyro_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
-        self.gyro_calibration.set_offset(offset)
-        self.gyro_calibration.set_gain(gain)
-
-    @Slot(object)  # pyright: ignore
-    def set_acc_calibration(self, offset: np.ndarray, gain: np.ndarray) -> None:
-        self.acc_calibration.set_offset(offset)
-        self.acc_calibration.set_gain(gain)
-
-    def get_mag_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
-        gain = self.mag_calibration.get_gain()
-        offset = self.mag_calibration.get_offset()
-
-        return offset, gain
-
-    def get_gyro_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
-        gain = self.gyro_calibration.get_gain()
-        offset = self.gyro_calibration.get_offset()
-
-        return offset, gain
-
-    def get_acc_calibration(self) -> Tuple[np.ndarray, np.ndarray]:
-        gain = self.acc_calibration.get_gain()
-        offset = self.acc_calibration.get_offset()
-
-        return offset, gain
 
 
 if __name__ == "__main__":
