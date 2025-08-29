@@ -15,43 +15,52 @@ from ellipsoid import makeEllipsoidXYZ
 
 log = logging.getLogger(__name__)
 
+# TODO: The entire code for communication with the board is a horrible mess at the moment.
+# We need to rewrite significant parts to handle the fact that accelerometer/gyroscope
+# have different amount of calibration parameters than magnetometer.
+
 
 """
-    Control codes for controlling the serial output
-    and the magnetic calibration values of the Arduino NANO33.
+    Command IDs and parameters for controlling the board 
+    output and sending calibration values.
 
-    TODO:   Some are defined as string and some as integers.
-            Choose one and stick to it.
 """
-SERIAL_HANDSHAKE = "0x05"
-SERIAL_DONE = "0x06"
+#  TODO: Make into Enum or dictionary or something...
+#  TODO: Maybe also define valid amount of parameters for each command...
 
-SERIAL_PRINT_NOTHING = 0x10
-SERIAL_PRINT_MAG_RAW = 0x11
-SERIAL_PRINT_MAG_CALIB = 0x12
-SERIAL_PRINT_ACC_RAW = 0x13
-SERIAL_PRINT_ACC_CALIB = 0x14
-SERIAL_PRINT_GYRO_RAW = 0x15
-SERIAL_PRINT_GYRO_CALIB = 0x16
-SERIAL_PRINT_AHRS = 0x20
+# Commands
+SERIAL_SET_PRINT_MODE = 0x10
 
 SERIAL_MAG_SET_CALIB = 0x30
 SERIAL_MAG_GET_CALIB = 0x31
+
 SERIAL_ACC_SET_CALIB = 0x40
 SERIAL_ACC_GET_CALIB = 0x41
+
 SERIAL_GYRO_SET_CALIB = 0x50
 SERIAL_GYRO_GET_CALIB = 0x51
 
-SERIAL_RESET_FACTORY_DEFAULTS = 0x60
+SERIAL_SET_OFFSET = 0x80
+SERIAL_GET_OFFSET = 0x81
+
 SERIAL_RESET_KVSTORE = 0x70
 
-SERIAL_BAUDRATE = 57600  # NOTE: Baudrate should not matter with Arduino NANO33
-SERIAL_WAIT = 2.0  # seconds
-SERIAL_NO_OUTPUT = b""  # serial.readline returns b'' if read timeouts.
+# Valid print modes.
+SERIAL_PRINT_NOTHING = 0x15
+SERIAL_PRINT_AHRS = 0x16
+SERIAL_PRINT_AHRS_DEBUG = 0x17
+
+SERIAL_PRINT_MAG_RAW = 0x35
+SERIAL_PRINT_MAG_CALIB = 0x36
+SERIAL_PRINT_ACC_RAW = 0x45
+SERIAL_PRINT_ACC_CALIB = 0x46
+SERIAL_PRINT_GYRO_RAW = 0x55
+SERIAL_PRINT_GYRO_CALIB = 0x56
 
 """
     ASCII data transmit control characters.
 """
+ASCII_NUL = 0x00
 ASCII_SOH = 0x01  # Start of header
 ASCII_STX = 0x02  # Start of data
 ASCII_ETX = 0x03  # End of data
@@ -522,8 +531,8 @@ class Nano33SerialComms(QObject):
         res = copy.deepcopy(d)  # Is this necessary?
 
         # NOTE: ASCII_ESC must be first in list or we replace all the escapes
-        # from previous characters. This is fragile...
-        for c in (ASCII_ESC, ASCII_SOH, ASCII_STX, ASCII_ETX, ASCII_EOT):
+        # created by escaping other control characters. This is fragile...
+        for c in (ASCII_ESC, ASCII_SOH, ASCII_STX, ASCII_ETX, ASCII_EOT, ASCII_NUL):
             res = res.replace(bytes([c]), bytes([ASCII_ESC, c + ESCAPE_OFFSET]))
 
         return res
