@@ -455,14 +455,14 @@ class CalibrationWidget(QWidget):
 
         self.tabs = QTabWidget(parent=self)
 
-        self.mag_calibration = MagneticCalibrationWidget(parent=self.tabs)
-        self.gyro_calibration = InertialCalibrationWidget(parent=self.tabs)
-        self.acc_calibration = InertialCalibrationWidget(parent=self.tabs)
+        self.magnetic = MagneticCalibrationWidget(parent=self.tabs)
+        self.gyroscope = InertialCalibrationWidget(parent=self.tabs)
+        self.accelerometer = InertialCalibrationWidget(parent=self.tabs)
         self.misc = CalibrationMiscWidget(parent=self.tabs)
 
-        self.tabs.addTab(self.mag_calibration, "Mag")
-        self.tabs.addTab(self.gyro_calibration, "Gyro")
-        self.tabs.addTab(self.acc_calibration, "Acc")
+        self.tabs.addTab(self.magnetic, "Mag")
+        self.tabs.addTab(self.gyroscope, "Gyro")
+        self.tabs.addTab(self.accelerometer, "Acc")
         self.tabs.addTab(self.misc, "Misc")
 
         layout = QVBoxLayout()
