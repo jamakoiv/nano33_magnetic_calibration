@@ -96,12 +96,6 @@ class MainWindow(QMainWindow):
         self.calibration_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         )
-        self.calibration_widget.mag_calibration.editingFinished.connect(
-            self.action_plot_ellipsoid_wireframe_callback
-        )
-        self.calibration_widget.mag_calibration.checkStateChange.connect(
-            self.action_plot_ellipsoid_wireframe_callback
-        )
 
         self.device_select_widget = DeviceSelectWidget(parent=self)
         self.device_select_widget.setSizePolicy(default_size_policy)

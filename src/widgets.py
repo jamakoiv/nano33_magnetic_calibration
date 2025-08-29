@@ -10,6 +10,7 @@ from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QFormLayout,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -130,6 +131,9 @@ class CalibrationVectorWidget(QWidget):
         self.x_edit = QLineEdit(parent=self)
         self.y_edit = QLineEdit(parent=self)
         self.z_edit = QLineEdit(parent=self)
+        self.x_label = QLabel(parent=self, text="X: ")
+        self.y_label = QLabel(parent=self, text="Y: ")
+        self.z_label = QLabel(parent=self, text="Z: ")
 
         for edit in [
             self.x_edit,
@@ -145,10 +149,10 @@ class CalibrationVectorWidget(QWidget):
             edit.textChanged.connect(self.textChanged.emit)
             edit.textEdited.connect(self.textEdited.emit)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.x_edit)
-        layout.addWidget(self.y_edit)
-        layout.addWidget(self.z_edit)
+        layout = QFormLayout()
+        layout.addRow(self.x_label, self.x_edit)
+        layout.addRow(self.y_label, self.y_edit)
+        layout.addRow(self.z_label, self.z_edit)
         self.setLayout(layout)
 
     def get(self) -> np.ndarray:
@@ -199,6 +203,14 @@ class CalibrationMatrixWidget(QWidget):
         self.zy_edit = QLineEdit(parent=self)
         self.zz_edit = QLineEdit(parent=self)
 
+        self.x_column_label = QLabel(parent=self, text="X")
+        self.y_column_label = QLabel(parent=self, text="Y")
+        self.z_column_label = QLabel(parent=self, text="Z")
+
+        self.x_row_label = QLabel(parent=self, text="X")
+        self.y_row_label = QLabel(parent=self, text="Y")
+        self.z_row_label = QLabel(parent=self, text="Z")
+
         for edit in [
             self.xx_edit,
             self.xy_edit,
@@ -219,16 +231,24 @@ class CalibrationMatrixWidget(QWidget):
             edit.textChanged.connect(self.textChanged.emit)
             edit.textEdited.connect(self.textEdited.emit)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.xx_edit)
-        layout.addWidget(self.xy_edit)
-        layout.addWidget(self.xz_edit)
-        layout.addWidget(self.yx_edit)
-        layout.addWidget(self.yy_edit)
-        layout.addWidget(self.yz_edit)
-        layout.addWidget(self.zx_edit)
-        layout.addWidget(self.zy_edit)
-        layout.addWidget(self.zz_edit)
+        layout = QGridLayout()
+        layout.addWidget(self.x_row_label, 1, 0)
+        layout.addWidget(self.y_row_label, 2, 0)
+        layout.addWidget(self.z_row_label, 3, 0)
+
+        layout.addWidget(self.x_column_label, 0, 1)
+        layout.addWidget(self.y_column_label, 0, 2)
+        layout.addWidget(self.z_column_label, 0, 3)
+
+        layout.addWidget(self.xx_edit, 1, 1)
+        layout.addWidget(self.xy_edit, 1, 2)
+        layout.addWidget(self.xz_edit, 1, 3)
+        layout.addWidget(self.yx_edit, 2, 1)
+        layout.addWidget(self.yy_edit, 2, 2)
+        layout.addWidget(self.yz_edit, 2, 3)
+        layout.addWidget(self.zx_edit, 3, 1)
+        layout.addWidget(self.zy_edit, 3, 2)
+        layout.addWidget(self.zz_edit, 3, 3)
         self.setLayout(layout)
 
     def get(self) -> np.ndarray:
@@ -268,127 +288,76 @@ class CalibrationMatrixWidget(QWidget):
         # rather than all the possible QLineEdit signals.
         self.editingFinished.emit()
 
-    ...
 
-
-class CalibrationFormWidget(QWidget):
+class MagneticCalibrationWidget(QWidget):
     """
-    Widget for displaying and entering magnetometer, gyroscope, and accelerometer gain and offset values.
+    Widget for displaying and entering one matrix and one vector.
     """
 
     editingFinished = Signal()
     textEdited = Signal(str)
     textChanged = Signal(str)
-    checkStateChange = Signal(object)
 
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
-        # NOTE: Hard coded, but the raw data is in microteslas
-        # and should be in the range of 20-100 uT.
-        validator = QDoubleValidator(-999, 999, 2, parent=self)
-        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        self.soft_iron = CalibrationMatrixWidget(parent=self)
+        self.soft_iron_box = QGroupBox(title="Soft-iron matrix", parent=self)
 
-        label_alignment = Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter
+        self.hard_iron = CalibrationVectorWidget(parent=self)
+        self.hard_iron_box = QGroupBox(title="Hard-iron offset", parent=self)
 
-        self.offset_label = QLabel(text="Offset", parent=self)
-        self.gain_label = QLabel(text="Gain", parent=self)
+        for box, widget in (
+            (self.soft_iron_box, self.soft_iron),
+            (self.hard_iron_box, self.hard_iron),
+        ):
+            widget.editingFinished.connect(self.editingFinished.emit)
+            layout = QVBoxLayout()
+            layout.addWidget(widget)
+            box.setLayout(layout)
 
-        self.offset_label.setAlignment(label_alignment)
-        self.gain_label.setAlignment(label_alignment)
-
-        self.x_gain = QLineEdit(parent=self)
-        self.y_gain = QLineEdit(parent=self)
-        self.z_gain = QLineEdit(parent=self)
-
-        self.x_offset = QLineEdit(parent=self)
-        self.y_offset = QLineEdit(parent=self)
-        self.z_offset = QLineEdit(parent=self)
-
-        for edit in [
-            self.x_gain,
-            self.y_gain,
-            self.z_gain,
-            self.x_offset,
-            self.y_offset,
-            self.z_offset,
-        ]:
-            edit.setValidator(validator)
-            edit.setText("1.0")
-            edit.setMaxLength(6)
-            edit.setMinimumWidth(40)
-
-            edit.editingFinished.connect(self.editingFinished.emit)
-            edit.textChanged.connect(self.textChanged.emit)
-            edit.textEdited.connect(self.textEdited.emit)
-
-        layout = QGridLayout()
-        layout.addWidget(self.gain_label, 0, 0)
-        layout.addWidget(self.offset_label, 0, 1)
-        layout.addWidget(self.x_gain, 1, 0)
-        layout.addWidget(self.x_offset, 1, 1)
-        layout.addWidget(self.y_gain, 2, 0)
-        layout.addWidget(self.y_offset, 2, 1)
-        layout.addWidget(self.z_gain, 3, 0)
-        layout.addWidget(self.z_offset, 3, 1)
-
+        layout = QHBoxLayout()
+        layout.addWidget(self.soft_iron_box)
+        layout.addWidget(self.hard_iron_box)
         self.setLayout(layout)
 
-    def get_gain(self) -> np.ndarray:
-        try:
-            x = float(self.x_gain.text())
-            y = float(self.y_gain.text())
-            z = float(self.z_gain.text())
-            res = np.array([x, y, z])
 
-        except ValueError as e:
-            # TODO: Create better messagebox.
-            QMessageBox.warning(
-                self,
-                "Error converting gain values",
-                f"{e}",
-                QMessageBox.StandardButton.Ok,
-                QMessageBox.StandardButton.Cancel,
-            )
-            res = np.zeros(3)
+class InertialCalibrationWidget(QWidget):
+    """
+    Widget for displaying and entering one matrix and two vectors.
+    """
 
-        return res
+    editingFinished = Signal()
+    textEdited = Signal(str)
+    textChanged = Signal(str)
 
-    def set_gain(self, gain: np.ndarray) -> None:
-        self.x_gain.setText(str(gain[0]))
-        self.y_gain.setText(str(gain[1]))
-        self.z_gain.setText(str(gain[2]))
+    def __init__(self, parent: QWidget | None = None, *args, **kwargs):
+        super().__init__(parent=parent, *args, **kwargs)
 
-        # NOTE: Emit signal manually so we only have to connect editingChanged,
-        # rather than all the possible QLineEdit signals.
-        self.editingFinished.emit()
+        self.misalignment_box = QGroupBox(title="Misalignment matrix", parent=self)
+        self.misalignment = CalibrationMatrixWidget(parent=self)
 
-    def get_offset(self) -> np.ndarray:
-        try:
-            x = float(self.x_offset.text())
-            y = float(self.y_offset.text())
-            z = float(self.z_offset.text())
-            res = np.array([x, y, z])
+        self.sensitivity_box = QGroupBox(title="Sensitivity", parent=self)
+        self.sensitivity = CalibrationVectorWidget(parent=self)
 
-        except ValueError as e:
-            # TODO: Create better messagebox.
-            QMessageBox.warning(
-                self,
-                "Error converting offset values",
-                f"{e}",
-                QMessageBox.StandardButton.Ok,
-                QMessageBox.StandardButton.Cancel,
-            )
-            res = np.zeros(3)
+        self.offset_box = QGroupBox(title="Offset", parent=self)
+        self.offset = CalibrationVectorWidget(parent=self)
 
-        return res
+        for box, widget in (
+            (self.misalignment_box, self.misalignment),
+            (self.sensitivity_box, self.sensitivity),
+            (self.offset_box, self.offset),
+        ):
+            widget.editingFinished.connect(self.editingFinished.emit)
+            layout = QVBoxLayout()
+            layout.addWidget(widget)
+            box.setLayout(layout)
 
-    def set_offset(self, offset: np.ndarray) -> None:
-        self.x_offset.setText(str(offset[0]))
-        self.y_offset.setText(str(offset[1]))
-        self.z_offset.setText(str(offset[2]))
-
-        self.editingFinished.emit()
+        layout = QHBoxLayout()
+        layout.addWidget(self.misalignment_box)
+        layout.addWidget(self.sensitivity_box)
+        layout.addWidget(self.offset_box)
+        self.setLayout(layout)
 
 
 class CalibrationMiscWidget(QWidget):
@@ -445,31 +414,15 @@ class CalibrationMiscWidget(QWidget):
         self.setLayout(layout)
 
 
-class MagneticCalibrationWidget(QWidget):
-    """
-    Widget for displaying and entering one matrix and one vector.
-    """
-
-    pass
-
-
-class InertialCalibrationWidget(QWidget):
-    """
-    Widget for displaying and entering one matrix and two vectors.
-    """
-
-    pass
-
-
 class CalibrationWidget(QWidget):
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
         self.tabs = QTabWidget(parent=self)
 
-        self.mag_calibration = CalibrationFormWidget(parent=self.tabs)
-        self.gyro_calibration = CalibrationFormWidget(parent=self.tabs)
-        self.acc_calibration = CalibrationFormWidget(parent=self.tabs)
+        self.mag_calibration = MagneticCalibrationWidget(parent=self.tabs)
+        self.gyro_calibration = InertialCalibrationWidget(parent=self.tabs)
+        self.acc_calibration = InertialCalibrationWidget(parent=self.tabs)
         self.misc = CalibrationMiscWidget(parent=self.tabs)
 
         self.tabs.addTab(self.mag_calibration, "Mag")
