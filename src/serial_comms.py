@@ -560,3 +560,29 @@ class Nano33SerialComms(QObject):
                 c_esc = res[i + 1]
                 c_real = c_esc - ESCAPE_OFFSET
                 res = res.replace(bytes([ASCII_ESC, c_esc]), bytes([c_real]))
+
+    @staticmethod
+    def retrieve_header_and_body(d: bytes) -> tuple[bytes, bytes]:
+        """
+        Split the received data into header and body.
+
+        IN: d: Raw data received from the serial port.
+
+        OUT: (header, body): Tuple of bytes objects.
+        """
+        try:
+            i_soh = d.index(bytes([ASCII_SOH]))
+            i_stx = d.index(bytes([ASCII_STX]))
+            i_etx = d.index(bytes([ASCII_ETX]))
+            i_eot = d.index(bytes([ASCII_EOT]))
+
+            if not (i_soh < i_stx < i_etx < i_eot):
+                raise BoardCommsError("Received data has invalid format")
+
+            header = d[i_soh + 1 : i_stx]
+            body = d[i_stx + 1 : i_etx]
+
+            return (header, body)
+
+        except ValueError as e:
+            raise BoardCommsError(f"Received data has invalid format: {e}")
