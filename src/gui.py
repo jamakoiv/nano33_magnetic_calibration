@@ -261,17 +261,18 @@ class MainWindow(QMainWindow):
 
             self.action_set_calibration.setEnabled(False)
             self.update_current_board()
-            offset, gain = self.calibration_widget.get_mag_calibration()
-            self.start_calibration_set.emit("magnetic", offset, gain)
+            soft_iron = self.calibration_widget.magnetic.get_soft_iron()
+            hard_iron = self.calibration_widget.magnetic.get_hard_iron()
+
+            self.start_calibration_set.emit("magnetic", soft_iron, hard_iron)
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
-        if (
-            self.calibration_widget.mag_calibration.checkState()
-            == Qt.CheckState.Checked
-        ):
+        if True:
             print("plot")
-            offset, gain = self.calibration_widget.get_mag_calibration()
-            x, y, z = makeEllipsoidXYZ(*offset, *gain, as_mesh=True)
+            soft_iron = self.calibration_widget.magnetic.get_soft_iron()
+            hard_iron = self.calibration_widget.magnetic.get_hard_iron()
+
+            x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron), as_mesh=True)
             self.primary_canvas.update_wireframe(x, y, z)
         else:
             print("delete")
@@ -280,11 +281,13 @@ class MainWindow(QMainWindow):
     @Slot(object)  # pyright: ignore
     def calibration_received_handler(self, return_tuple: tuple) -> None:
         log.info(f"Calibration data received: {return_tuple}")
-        id, offset, gain = return_tuple
+        id = return_tuple[0]
 
         match id.lower():
             case "magnetometer" | "magnetic":
-                self.calibration_widget.set_mag_calibration(offset, gain)
+                _, soft_iron, hard_iron = return_tuple
+                self.calibration_widget.magnetic.set_soft_iron(soft_iron)
+                self.calibration_widget.magnetic.set_hard_iron(hard_iron)
 
             case "gyroscope":
                 log.warning("Gyroscope calibration not implemented")
@@ -322,10 +325,11 @@ class MainWindow(QMainWindow):
             warnflag,
         ) = fitEllipsoidNonRotated(*data)
 
-        offset = params[:3]
-        gain = params[3:]
+        hard_iron = np.array(params[:3])
+        soft_iron = np.diag(params[3:])
 
-        self.calibration_widget.set_mag_calibration(offset, gain)
+        self.calibration_widget.magnetic.set_soft_iron(soft_iron)
+        self.calibration_widget.magnetic.set_hard_iron(hard_iron)
 
         s_params = (
             "Fit parameters",
