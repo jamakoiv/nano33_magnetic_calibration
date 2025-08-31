@@ -433,6 +433,7 @@ class Nano33SerialComms(QObject):
         try:
             self.ser.close()
         except AttributeError:
+            # TODO: Log error if ser does not exist.
             pass
 
     def read_row(self) -> np.ndarray:
@@ -528,15 +529,6 @@ class Nano33SerialComms(QObject):
             raise BoardCommsError(err)
         finally:
             ...
-
-    @staticmethod
-    def remove_control_characters(input: str) -> str:
-        try:
-            return "".join(
-                char for char in input if unicodedata.category(char)[0] != "C"
-            )
-        except TypeError:
-            return ""
 
     @staticmethod
     def parse_outbound_bytes(d: bytes) -> bytes:
