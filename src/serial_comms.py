@@ -368,10 +368,20 @@ class Nano33SerialComms(QObject):
         self.serial_timeout = timeout
         self.handshake_timeout = handshake_timeout
 
-    def send_command_bytes(self, cmd: bytes) -> None:
+    def send_command(self, raw_header: bytes, raw_body: bytes) -> None:
+        header = self.parse_outbound_bytes(raw_header)
+        body = self.parse_outbound_bytes(raw_body)
+        msg = (
+            bytes([ASCII_SOH])
+            + header
+            + bytes([ASCII_STX])
+            + body
+            + bytes([ASCII_ETX, ASCII_EOT])
+        )
+
         with self.mutex:
             try:
-                self.ser.write(cmd)
+                self.ser.write(msg)
 
             except SerialException as err:
                 raise BoardCommsError(err)
@@ -379,14 +389,15 @@ class Nano33SerialComms(QObject):
                 raise BoardCommsError(err)
 
     def reset_calibration(self) -> None:
-        cmd = struct.pack("<BB", SERIAL_RESET_KVSTORE, 2)
-        self.send_command_bytes(cmd)
+        raw_header = struct.pack("<BB", SERIAL_RESET_KVSTORE, 0)
+        self.send_command(raw_header, b"")
 
     def set_output_mode(self, mode: int) -> None:
-        cmd = struct.pack("<BB", mode, 2)
+        raw_header = struct.pack("<BB", mode, 1)
+        raw_body = struct.pack("<f", float(mode))
 
         try:
-            self.send_command_bytes(cmd)
+            self.send_command(raw_header, raw_body)
         except SerialException as e:
             raise BoardCommsError(e)
 
