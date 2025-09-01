@@ -449,39 +449,54 @@ class Nano33SerialComms(QObject):
         except SerialException as e:
             raise BoardCommsError(e)
 
-    def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]:
-        raw_header = struct.pack("<BB", SERIAL_MAG_GET_CALIB, 0)
-
-        self.send_command(raw_header, b"")
-        self.ser.reset_input_buffer()
-
-        # TODO: Refactor the retry logic to separate function.
-        # We do not want to cut-paste this to each get-function.
+    def calibration_reply_helper(self, struct_format: str) -> np.ndarray:
+        """
+        Helper function to handle read retries when receiving the calibration values from the board.
+        """
         retry_number = 0
+        reply = ""
         while retry_number != 30:
             try:
                 reply = self.ser.readline()
                 print(reply)
-                reply_header, reply_body = self.retrieve_header_and_body(reply)
-                params = struct.unpack("<ffffffffffff", reply_body)
+                _, reply_body = self.retrieve_header_and_body(reply)
+                params = struct.unpack(struct_format, reply_body)
+                # assert reply_header[1] == len(params)
 
-                soft_iron = np.array(params[:9])
-                soft_iron.resize(3, 3)
-                hard_iron = np.array(params[9:])
-
-                return soft_iron, hard_iron
+                return np.array(params)
 
             except BoardCommsError as err:
-                print(f"Reply from board {reply} created error {err}")
+                log.info(f"Reply from board {reply} created error {err}")
                 retry_number += 1
 
             except struct.error as err:
-                print(f"Unpacking failed with error {err}")
+                log.info(f"Unpacking failed with error {err}")
                 retry_number += 1
+        else:
+            raise BoardCommsError(
+                "Could not extract calibration values from any board response."
+            )
 
-        return np.array([[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]]), np.array(
-            [-1, -1, -1]
-        )
+    def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_MAG_GET_CALIB, 0)
+        mag_struct_format = "<ffffffffffff"  # 3x3 matrix + xyz vector = 12 floats
+
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
+
+        try:
+            params = self.calibration_reply_helper(mag_struct_format)
+            soft_iron = np.array(params[:9])
+            soft_iron.resize(3, 3)
+            hard_iron = np.array(params[9:])
+
+        except BoardCommsError as err:
+            log.info(f"Error receiving calibration values: {err}")
+
+            soft_iron = np.array([[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]])
+            hard_iron = np.array([-1, -1, -1])
+
+        return soft_iron, hard_iron
 
     def set_magnetometer_calibration(
         self, soft_iron: np.ndarray, hard_iron: np.ndarray
@@ -496,19 +511,97 @@ class Nano33SerialComms(QObject):
 
     def get_accelerometer_calibration(
         self,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_ACC_GET_CALIB, 0)
+        acc_struct_format = "<fffffffffffffff"  # 3x3 matrix + 2 xyz-vectors = 15 floats
+
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
+
+        try:
+            params = self.calibration_reply_helper(acc_struct_format)
+            misalignment = np.array(params[:9])
+            misalignment.resize(3, 3)
+            sensitivity = np.array(params[9:12])
+            offset = np.array(params[12:15])
+
+        except BoardCommsError as err:
+            log.info(f"Error receiving calibration values: {err}")
+
+            misalignment = np.array([[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]])
+            sensitivity = np.array([-1, -1, -1])
+            offset = np.array([-1, -1, -1])
+
+        return misalignment, sensitivity, offset
 
     def set_accelerometer_calibration(
         self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
-    ) -> None: ...
+    ) -> None:
+        acc_struct_format = "<fffffffffffffff"  # 3x3 matrix + 2 xyz-vectors = 15 floats
+
+        raw_header = struct.pack(
+            "<BB", SERIAL_ACC_SET_CALIB, len(acc_struct_format) - 1
+        )
+        raw_body = struct.pack(
+            acc_struct_format,
+            *misalignment.flatten(),
+            *sensitivity.flatten(),
+            *offset.flatten(),
+        )
+
+        self.send_command(raw_header, raw_body)
+        self.ser.reset_input_buffer()
+        reply = self.ser.readline()
+        log.info(f"Reply from board: {reply}")
 
     def get_gyroscope_calibration(
         self,
-    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_GYRO_GET_CALIB, 0)
+        gyro_struct_format = (
+            "<fffffffffffffff"  # 3x3 matrix + 2 xyz-vectors = 15 floats
+        )
+
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
+
+        try:
+            params = self.calibration_reply_helper(gyro_struct_format)
+            misalignment = np.array(params[:9])
+            misalignment.resize(3, 3)
+            sensitivity = np.array(params[9:12])
+            offset = np.array(params[12:15])
+
+        except BoardCommsError as err:
+            log.info(f"Error receiving calibration values: {err}")
+
+            misalignment = np.array([[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]])
+            sensitivity = np.array([-1, -1, -1])
+            offset = np.array([-1, -1, -1])
+
+        return misalignment, sensitivity, offset
 
     def set_gyroscope_calibration(
         self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
-    ) -> None: ...
+    ) -> None:
+        gyro_struct_format = (
+            "<fffffffffffffff"  # 3x3 matrix + 2 xyz-vectors = 15 floats
+        )
+
+        raw_header = struct.pack(
+            "<BB", SERIAL_GYRO_SET_CALIB, len(gyro_struct_format) - 1
+        )
+        raw_body = struct.pack(
+            gyro_struct_format,
+            *misalignment.flatten(),
+            *sensitivity.flatten(),
+            *offset.flatten(),
+        )
+
+        self.send_command(raw_header, raw_body)
+        self.ser.reset_input_buffer()
+        reply = self.ser.readline()
+        log.info(f"Reply from board: {reply}")
 
     def open(self) -> None:
         try:
@@ -547,7 +640,8 @@ class Nano33SerialComms(QObject):
     @staticmethod
     def parse_outbound_bytes(d: bytes) -> bytes:
         """
-        Prepend all ASCII transmission control characters with escape byte.
+        Prepend all ASCII transmission control characters with escape byte
+        and offset the character with ESCAPE_OFFSET.
         """
         res = copy.deepcopy(d)  # Is this necessary?
 
@@ -576,13 +670,9 @@ class Nano33SerialComms(QObject):
                 res = res.replace(bytes([ASCII_ESC, c_esc]), bytes([c_real]))
 
     @staticmethod
-    def retrieve_header_and_body(d: bytes) -> tuple[bytes, bytes]:
+    def retrieve_header_and_body(d: bytes, raw: bool = False) -> tuple[bytes, bytes]:
         """
         Split the received data into header and body.
-
-        IN: d: Raw data received from the serial port.
-
-        OUT: (header, body): Tuple of bytes objects.
         """
         try:
             i_soh = d.index(bytes([ASCII_SOH]))
@@ -595,8 +685,13 @@ class Nano33SerialComms(QObject):
 
             raw_header = d[i_soh + 1 : i_stx]
             raw_body = d[i_stx + 1 : i_etx]
-            header = Nano33SerialComms.parse_inbound_bytes(raw_header)
-            body = Nano33SerialComms.parse_inbound_bytes(raw_body)
+
+            if raw:
+                header = raw_header
+                body = raw_body
+            else:
+                header = Nano33SerialComms.parse_inbound_bytes(raw_header)
+                body = Nano33SerialComms.parse_inbound_bytes(raw_body)
 
             return header, body
 
