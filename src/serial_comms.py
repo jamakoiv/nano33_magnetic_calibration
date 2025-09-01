@@ -358,15 +358,13 @@ class Nano33SerialComms(QObject):
         self,
         port: str,
         baudrate: int = 57600,
-        timeout: float = 5.0,
-        handshake_timeout: float = 5.0,
+        timeout: float = 3.0,
     ):
         super().__init__()
 
         self.serial_port = port
         self.serial_baudrate = baudrate
         self.serial_timeout = timeout
-        self.handshake_timeout = handshake_timeout
 
     def send_command(self, raw_header: bytes, raw_body: bytes) -> None:
         header = self.parse_outbound_bytes(raw_header)
@@ -401,23 +399,58 @@ class Nano33SerialComms(QObject):
         except SerialException as e:
             raise BoardCommsError(e)
 
-    def get_magnetometer_calibration(self) -> np.ndarray:
-        return np.array(self.get_calibration(SERIAL_MAG_GET_CALIB))
+    def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_MAG_GET_CALIB, 0)
 
-    def set_magnetometer_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_MAG_SET_CALIB, data.astype("float").tolist())
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
 
-    def get_accelerometer_calibration(self) -> np.ndarray:
-        return np.array(self.get_calibration(SERIAL_ACC_GET_CALIB))
+        # TODO: Refactor the retry logic to separate function.
+        # We do not want to cut-paste this to each get-function.
+        retry_number = 0
+        while retry_number != 30:
+            try:
+                reply = self.ser.readline()
+                print(reply)
+                reply_header, reply_body = self.retrieve_header_and_body(reply)
+                params = struct.unpack("<ffffffffffff", reply_body)
 
-    def set_accelerometer_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_ACC_SET_CALIB, data.astype("float").tolist())
+                soft_iron = np.array(params[:9])
+                soft_iron.resize(3, 3)
+                hard_iron = np.array(params[9:])
 
-    def get_gyroscope_calibration(self) -> np.ndarray:
-        return np.array(self.get_calibration(SERIAL_GYRO_GET_CALIB))
+                return soft_iron, hard_iron
 
-    def set_gyroscope_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_GYRO_SET_CALIB, data.astype("float").tolist())
+            except BoardCommsError as err:
+                print(f"Reply from board {reply} created error {err}")
+                retry_number += 1
+
+            except struct.error as err:
+                print(f"Unpacking failed with error {err}")
+                retry_number += 1
+
+        return np.array([[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]]), np.array(
+            [-1, -1, -1]
+        )
+
+    def set_magnetometer_calibration(
+        self, soft_iron: np.ndarray, hard_iron: np.ndarray
+    ) -> None:
+        raw_header = struct.pack("<BB", SERIAL_MAG_SET_CALIB, 9 + 3)
+        raw_body = struct.pack("<ffffffffffff", *soft_iron.flatten(), *hard_iron)
+
+        self.send_command(raw_header, raw_body)
+        self.ser.reset_input_buffer()
+        reply = self.ser.readline()
+        log.info(f"Reply from board: {reply}")
+
+    def get_accelerometer_calibration(self) -> np.ndarray: ...
+
+    def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
+
+    def get_gyroscope_calibration(self) -> np.ndarray: ...
+
+    def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
 
     def open(self) -> None:
         try:
@@ -501,35 +534,6 @@ class Nano33SerialComms(QObject):
         finally:
             ...
 
-    def set_calibration(
-        self, calibration_type: int, data: tuple[float] | list[float]
-    ) -> None:
-        """
-        Send calibration data to the board.
-
-        IN: calibration_type: One of the 'SERIAL_SET_...' constants.
-            data: list of calibration values.
-        """
-        try:
-            command_format = "<BBffffff"
-            command_size = struct.calcsize(command_format)
-            self.ser.reset_input_buffer()
-            log.info(
-                f"Sending to board: {calibration_type:02x}, {command_size}, {data}"
-            )
-
-            cmd = struct.pack(command_format, calibration_type, command_size, *data[:6])
-            self.send_command_bytes(cmd + b";")
-            log.info(f"Send command: {cmd + b';'}")
-
-            s = self.ser.readline()
-            log.info(f"Set calibration reply from board: {s}")
-
-        except SerialException as err:
-            raise BoardCommsError(err)
-        finally:
-            ...
-
     @staticmethod
     def parse_outbound_bytes(d: bytes) -> bytes:
         """
@@ -579,10 +583,12 @@ class Nano33SerialComms(QObject):
             if not (i_soh < i_stx < i_etx < i_eot):
                 raise BoardCommsError("Received data has invalid format")
 
-            header = d[i_soh + 1 : i_stx]
-            body = d[i_stx + 1 : i_etx]
+            raw_header = d[i_soh + 1 : i_stx]
+            raw_body = d[i_stx + 1 : i_etx]
+            header = Nano33SerialComms.parse_inbound_bytes(raw_header)
+            body = Nano33SerialComms.parse_inbound_bytes(raw_body)
 
-            return (header, body)
+            return header, body
 
         except ValueError as e:
             raise BoardCommsError(f"Received data has invalid format: {e}")
