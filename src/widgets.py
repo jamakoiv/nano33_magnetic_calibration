@@ -321,20 +321,6 @@ class MagneticCalibrationWidget(QWidget):
         layout.addWidget(self.hard_iron_box)
         self.setLayout(layout)
 
-    @Slot(object)
-    def set_soft_iron(self, data: np.ndarray) -> None:
-        self.soft_iron.set(data)
-
-    @Slot(object)
-    def set_hard_iron(self, data: np.ndarray) -> None:
-        self.hard_iron.set(data)
-
-    def get_soft_iron(self) -> np.ndarray:
-        return self.soft_iron.get()
-
-    def get_hard_iron(self) -> np.ndarray:
-        return self.hard_iron.get()
-
 
 class InertialCalibrationWidget(QWidget):
     """
@@ -372,27 +358,6 @@ class InertialCalibrationWidget(QWidget):
         layout.addWidget(self.sensitivity_box)
         layout.addWidget(self.offset_box)
         self.setLayout(layout)
-
-    @Slot(object)
-    def set_misalignment(self, data: np.ndarray) -> None:
-        self.misalignment.set(data)
-
-    @Slot(object)
-    def set_offset(self, data: np.ndarray) -> None:
-        self.offset.set(data)
-
-    @Slot(object)
-    def set_sensitivity(self, data: np.ndarray) -> None:
-        self.sensitivity.set(data)
-
-    def get_misalignment(self) -> np.ndarray:
-        return self.misalignment.get()
-
-    def get_offset(self) -> np.ndarray:
-        return self.offset.get()
-
-    def get_sensitivity(self) -> np.ndarray:
-        return self.sensitivity.get()
 
 
 class CalibrationMiscWidget(QWidget):

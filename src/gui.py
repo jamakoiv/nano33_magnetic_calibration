@@ -261,16 +261,16 @@ class MainWindow(QMainWindow):
 
             self.action_set_calibration.setEnabled(False)
             self.update_current_board()
-            soft_iron = self.calibration_widget.magnetic.get_soft_iron()
-            hard_iron = self.calibration_widget.magnetic.get_hard_iron()
+            soft_iron = self.calibration_widget.magnetic.soft_iron.get()
+            hard_iron = self.calibration_widget.magnetic.hard_iron.get()
 
             self.start_calibration_set.emit("magnetic", soft_iron, hard_iron)
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
         if True:
             print("plot")
-            soft_iron = self.calibration_widget.magnetic.get_soft_iron()
-            hard_iron = self.calibration_widget.magnetic.get_hard_iron()
+            soft_iron = self.calibration_widget.magnetic.soft_iron.get()
+            hard_iron = self.calibration_widget.magnetic.hard_iron.get()
 
             x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron), as_mesh=True)
             self.primary_canvas.update_wireframe(x, y, z)
@@ -286,8 +286,8 @@ class MainWindow(QMainWindow):
         match id.lower():
             case "magnetometer" | "magnetic":
                 _, soft_iron, hard_iron = return_tuple
-                self.calibration_widget.magnetic.set_soft_iron(soft_iron)
-                self.calibration_widget.magnetic.set_hard_iron(hard_iron)
+                self.calibration_widget.magnetic.soft_iron.set(soft_iron)
+                self.calibration_widget.magnetic.hard_iron.set(hard_iron)
 
             case "gyroscope":
                 log.warning("Gyroscope calibration not implemented")
@@ -328,8 +328,8 @@ class MainWindow(QMainWindow):
         hard_iron = np.array(params[:3])
         soft_iron = np.diag(params[3:])
 
-        self.calibration_widget.magnetic.set_soft_iron(soft_iron)
-        self.calibration_widget.magnetic.set_hard_iron(hard_iron)
+        self.calibration_widget.magnetic.soft_iron.set(soft_iron)
+        self.calibration_widget.magnetic.hard_iron.set(hard_iron)
 
         s_params = (
             "Fit parameters",
