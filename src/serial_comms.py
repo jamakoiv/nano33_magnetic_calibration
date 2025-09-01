@@ -177,6 +177,7 @@ class Board2GUI(QObject):
 
             self.board.open()
             self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
+            time.sleep(0.20)
 
             while i < self.read_sample_size and not self.stop:
                 # TODO: Retry code looks ugly and hard to read.
@@ -440,7 +441,7 @@ class Nano33SerialComms(QObject):
         self.send_command(raw_header, b"")
 
     def set_output_mode(self, mode: int) -> None:
-        raw_header = struct.pack("<BB", mode, 1)
+        raw_header = struct.pack("<BB", SERIAL_SET_PRINT_MODE, 1)
         raw_body = struct.pack("<f", float(mode))
 
         try:
@@ -532,11 +533,14 @@ class Nano33SerialComms(QObject):
 
         stop_byte = "\n".encode("ASCII")
         raw = self.ser.read_until(stop_byte).decode("utf8")
+        log.info(f"Received data: {raw}")
 
         try:
-            row = np.array([float(d) for d in raw.split(sep=",")])
-        except ValueError as e:  # if no data was received.
-            raise NoDataReceived(e)
+            str_floats = raw.split(sep=",")[:3]
+            log.info(f"Split data: {str_floats}")
+            row = np.array([float(d) for d in str_floats])
+        except ValueError:  # if no data was received.
+            raise NoDataReceived()
 
         return row.reshape(1, 3)
 
