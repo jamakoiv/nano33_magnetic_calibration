@@ -94,17 +94,27 @@ class BoardCommunications(Protocol):
 
     def set_output_mode(self, mode: int) -> None: ...
 
-    def get_magnetometer_calibration(self) -> np.ndarray: ...
+    def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]: ...
 
-    def set_magnetometer_calibration(self, data: np.ndarray) -> None: ...
+    def set_magnetometer_calibration(
+        self, soft_iron: np.ndarray, hard_iron: np.ndarray
+    ) -> None: ...
 
-    def get_accelerometer_calibration(self) -> np.ndarray: ...
+    def get_accelerometer_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
-    def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
+    def set_accelerometer_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None: ...
 
-    def get_gyroscope_calibration(self) -> np.ndarray: ...
+    def get_gyroscope_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
-    def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
+    def set_gyroscope_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None: ...
 
     def read_row(self) -> np.ndarray: ...
 
@@ -134,7 +144,7 @@ class Board2GUI(QObject):
     task_done = Signal()
 
     data_row_received = Signal(object)
-    calibration_received = Signal(object)
+    calibration_received = Signal(str, object)
     error_signal = Signal(object)
     to_log = Signal(str)
 
@@ -222,25 +232,31 @@ class Board2GUI(QObject):
             match calibration_type.lower():
                 case "magnetometer" | "magnetic":
                     id = "magnetometer"
-                    res = self.board.get_magnetometer_calibration()
+                    soft_iron, hard_iron = self.board.get_magnetometer_calibration()
+                    res = (soft_iron, hard_iron)
 
                 case "gyroscope":
                     id = "gyroscope"
-                    res = self.board.get_gyroscope_calibration()
+                    misalignment, sensitivity, offset = (
+                        self.board.get_gyroscope_calibration()
+                    )
+                    res = (misalignment, sensitivity, offset)
 
                 case "accelerometer":
                     id = "accelerometer"
-                    res = self.board.get_accelerometer_calibration()
+                    misalignment, sensitivity, offset = (
+                        self.board.get_accelerometer_calibration()
+                    )
+                    res = (misalignment, sensitivity, offset)
 
                 case _:
                     self.to_log.emit("Wrong calibration type supplied")
                     raise ValueError("Wrong calibration type supplied")
 
-            offset, gain = res[:3], res[3:]
-            self.calibration_received.emit((id, offset, gain))
-            self.to_log.emit(
-                f"Received calibration data: {calibration_type}, offset {offset}, gain {gain}"
-            )
+            self.calibration_received.emit(id, res)
+            # self.to_log.emit(
+            #     f"Received calibration data: {calibration_type}, offset {offset}, gain {gain}"
+            # )
 
         finally:
             with self.mutex:
@@ -252,7 +268,7 @@ class Board2GUI(QObject):
 
     @Slot(str, object, object)  # pyright: ignore
     def set_calibration(
-        self, calibration_type: str, offset: np.ndarray, gain: np.ndarray
+        self, calibration_type: str, data: tuple[np.ndarray, ...]
     ) -> None:
         try:
             self.to_log.emit("Start setting calibration to board.")
@@ -262,17 +278,22 @@ class Board2GUI(QObject):
             with self.mutex:
                 self.task_running = True
 
-            calib = np.concatenate((offset, gain))
-
             match calibration_type.lower():
                 case "magnetometer" | "magnetic":
-                    self.board.set_magnetometer_calibration(calib)
+                    soft_iron, hard_iron = data
+                    self.board.set_magnetometer_calibration(soft_iron, hard_iron)
 
                 case "gyroscope":
-                    self.board.set_gyroscope_calibration(calib)
+                    misalignment, sensitivity, offset = data
+                    self.board.set_gyroscope_calibration(
+                        misalignment, sensitivity, offset
+                    )
 
                 case "accelerometer":
-                    self.board.set_accelerometer_calibration(calib)
+                    misalignment, sensitivity, offset = data
+                    self.board.set_accelerometer_calibration(
+                        misalignment, sensitivity, offset
+                    )
 
                 case _:
                     raise ValueError("Wrong calibration type supplied")
@@ -284,7 +305,7 @@ class Board2GUI(QObject):
             self.task_done.emit()
             self.board.close()
 
-            msg = f"Set calibration data: {calibration_type}, offset {offset}, gain {gain}"
+            msg = f"Set calibration data: {calibration_type}, offset , gain "
             self.to_log.emit(msg)
             log.info(msg)
 
@@ -302,9 +323,16 @@ class TestSerialComms(QObject):
 
         self.rng = np.random.default_rng(seed=random_seed)
 
-        self.magnetic_calibration = self.rng.random(6) * 40
-        self.accelerometer_calibration = self.rng.random(6)
-        self.gyroscope_calibration = self.rng.random(6)
+        self.magnetic_soft_iron = self.rng.random((3, 3)) * 40
+        self.magnetic_hard_iron = self.rng.random(3) * 10
+
+        self.accelerometer_misalignment = self.rng.random((3, 3))
+        self.accelerometer_sensitivity = self.rng.random(3)
+        self.accelerometer_offset = self.rng.random(3)
+
+        self.gyroscope_misalignment = self.rng.random((3, 3))
+        self.gyroscope_sensitivity = self.rng.random(3)
+        self.gyroscope_offset = self.rng.random(3)
 
         self.data = makeEllipsoidXYZ(
             20, 15, -12, 40, 35, 50, N=20, noise_scale=1, generator=self.rng
@@ -319,23 +347,44 @@ class TestSerialComms(QObject):
     def set_output_mode(self, mode: int) -> None:
         pass
 
-    def get_magnetometer_calibration(self) -> np.ndarray:
-        return self.magnetic_calibration
+    def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]:
+        return (self.magnetic_soft_iron, self.magnetic_hard_iron)
 
-    def set_magnetometer_calibration(self, data: np.ndarray) -> None:
-        self.magnetic_calibration = data
+    def get_accelerometer_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return (
+            self.accelerometer_misalignment,
+            self.accelerometer_sensitivity,
+            self.accelerometer_offset,
+        )
 
-    def get_accelerometer_calibration(self) -> np.ndarray:
-        return self.accelerometer_calibration
+    def get_gyroscope_calibration(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return (
+            self.gyroscope_misalignment,
+            self.gyroscope_sensitivity,
+            self.gyroscope_offset,
+        )
 
-    def set_accelerometer_calibration(self, data: np.ndarray) -> None:
-        self.accelerometer_calibration = data
+    def set_magnetometer_calibration(
+        self, soft_iron: np.ndarray, hard_iron: np.ndarray
+    ) -> None:
+        self.magnetic_soft_iron = soft_iron
+        self.magnetic_hard_iron = hard_iron
 
-    def get_gyroscope_calibration(self) -> np.ndarray:
-        return self.gyroscope_calibration
+    def set_accelerometer_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None:
+        self.accelerometer_misalignment = misalignment
+        self.accelerometer_sensitivity = sensitivity
+        self.accelerometer_offset = offset
 
-    def set_gyroscope_calibration(self, data: np.ndarray) -> None:
-        self.gyroscope_calibration = data
+    def set_gyroscope_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None:
+        self.gyroscope_misalignment = misalignment
+        self.gyroscope_sensitivity = sensitivity
+        self.gyroscope_offset = offset
 
     def read_row(self) -> np.ndarray:
         time.sleep(0.05)
@@ -444,13 +493,21 @@ class Nano33SerialComms(QObject):
         reply = self.ser.readline()
         log.info(f"Reply from board: {reply}")
 
-    def get_accelerometer_calibration(self) -> np.ndarray: ...
+    def get_accelerometer_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
-    def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
+    def set_accelerometer_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None: ...
 
-    def get_gyroscope_calibration(self) -> np.ndarray: ...
+    def get_gyroscope_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
-    def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
+    def set_gyroscope_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None: ...
 
     def open(self) -> None:
         try:
@@ -482,57 +539,6 @@ class Nano33SerialComms(QObject):
             raise NoDataReceived(e)
 
         return row.reshape(1, 3)
-
-    def get_calibration(self, calibration_type: int) -> Iterable[float] | None:
-        """
-        Get calibration data from the board.
-
-        IN: calibration_type: One of the 'SERIAL_GET_...' constants.
-        """
-        response_format = "<BBffffff"
-        # response_size = struct.calcsize(response_format)
-        calib = [0, 0, 0, 1, 1, 1]
-
-        try:
-            # cmd_0 = struct.pack("<BB", SERIAL_PRINT_NOTHING, 2)
-            # self.ser.reset_output_buffer()
-            # self.ser.reset_input_buffer()
-            cmd_1 = struct.pack("<BB", calibration_type, 2)
-            # self.send_command_bytes(cmd_0 + b";" + cmd_1 + b";")
-            self.send_command_bytes(cmd_1 + b";")
-
-            for i in range(5):
-                response = self.ser.read_until(";".encode("UTF-8"))
-                # response = self.ser.readline()
-                log.info(f"Response from board: {response}")
-                # time.sleep(0.5) # Why is this here?
-
-                try:
-                    cmd_id, n_bytes, *calib = struct.unpack(
-                        response_format,
-                        response.strip(b";").strip(b"\n").strip(b"\r"),
-                        # TODO: Should use readline so we don't have to guard againts extra LFCR
-                    )
-                    log.info(f"Response unpacked: {cmd_id}, {n_bytes}, {calib}")
-                    if cmd_id != calibration_type:
-                        raise BoardCommsError(
-                            f"Received cmd_id 0x{cmd_id:02x} does not match the requested type 0x{calibration_type:02x}"
-                        )
-
-                    return calib
-
-                except (struct.error, BoardCommsError) as err:
-                    log.warning(
-                        f"Try number {i}: response from board {response} create error: {err}"
-                    )
-
-            log.error("Did not receive proper response after 5 tries")
-            raise BoardCommsError("Did not receive proper response after 5 tries")
-
-        except SerialException as err:
-            raise BoardCommsError(err)
-        finally:
-            ...
 
     @staticmethod
     def parse_outbound_bytes(d: bytes) -> bytes:

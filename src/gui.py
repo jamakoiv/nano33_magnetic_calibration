@@ -37,7 +37,7 @@ class MainWindow(QMainWindow):
     comms_thread: QThread
     start_data_read = Signal()
     start_calibration_get = Signal(str)
-    start_calibration_set = Signal(str, object, object)
+    start_calibration_set = Signal(str, object)
     stop_comms_task = Signal()
 
     log_widget: QTextEdit
@@ -264,7 +264,7 @@ class MainWindow(QMainWindow):
             soft_iron = self.calibration_widget.magnetic.soft_iron.get()
             hard_iron = self.calibration_widget.magnetic.hard_iron.get()
 
-            self.start_calibration_set.emit("magnetic", soft_iron, hard_iron)
+            self.start_calibration_set.emit("magnetic", (soft_iron, hard_iron))
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
         if True:
@@ -279,21 +279,26 @@ class MainWindow(QMainWindow):
             self.primary_canvas.delete_wireframe()
 
     @Slot(object)  # pyright: ignore
-    def calibration_received_handler(self, return_tuple: tuple) -> None:
-        log.info(f"Calibration data received: {return_tuple}")
-        id = return_tuple[0]
+    def calibration_received_handler(self, calibration_id: str, data: tuple) -> None:
+        log.info(f"Calibration data received: {calibration_id}, {data}")
 
-        match id.lower():
+        match calibration_id.lower():
             case "magnetometer" | "magnetic":
-                _, soft_iron, hard_iron = return_tuple
+                soft_iron, hard_iron = data
                 self.calibration_widget.magnetic.soft_iron.set(soft_iron)
                 self.calibration_widget.magnetic.hard_iron.set(hard_iron)
 
             case "gyroscope":
-                log.warning("Gyroscope calibration not implemented")
+                misalignment, sensitivity, offset = data
+                self.calibration_widget.gyroscope.misalignment.set(misalignment)
+                self.calibration_widget.gyroscope.sensitivity.set(sensitivity)
+                self.calibration_widget.gyroscope.offset.set(offset)
 
             case "accelerometer":
-                log.warning("Accelerometer calibration not implemented")
+                misalignment, sensitivity, offset = data
+                self.calibration_widget.accelerometer.misalignment.set(misalignment)
+                self.calibration_widget.accelerometer.sensitivity.set(sensitivity)
+                self.calibration_widget.accelerometer.offset.set(offset)
 
             case _:
                 log.error(f"Wrong calibration id: {id}")
