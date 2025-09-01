@@ -488,6 +488,7 @@ class Nano33SerialComms(QObject):
             params = self.calibration_reply_helper(mag_struct_format)
             soft_iron = np.array(params[:9])
             soft_iron.resize(3, 3)
+            soft_iron = np.linalg.inv(soft_iron)
             hard_iron = np.array(params[9:])
 
         except BoardCommsError as err:
@@ -502,6 +503,8 @@ class Nano33SerialComms(QObject):
         self, soft_iron: np.ndarray, hard_iron: np.ndarray
     ) -> None:
         raw_header = struct.pack("<BB", SERIAL_MAG_SET_CALIB, 9 + 3)
+
+        soft_iron = np.linalg.inv(soft_iron)
         raw_body = struct.pack("<ffffffffffff", *soft_iron.flatten(), *hard_iron)
 
         self.send_command(raw_header, raw_body)
