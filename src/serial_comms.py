@@ -70,6 +70,8 @@ ASCII_STX = 0x02  # Start of data
 ASCII_ETX = 0x03  # End of data
 ASCII_EOT = 0x04  # End of transmission
 ASCII_ESC = 0x1B  # Escape next character
+ASCII_LF = 0x0A
+ASCII_CR = 0x0D
 ESCAPE_OFFSET = 0x20
 
 
@@ -488,7 +490,7 @@ class Nano33SerialComms(QObject):
             params = self.calibration_reply_helper(mag_struct_format)
             soft_iron = np.array(params[:9])
             soft_iron.resize(3, 3)
-            soft_iron = np.linalg.inv(soft_iron)
+            # soft_iron = np.linalg.inv(soft_iron)
             hard_iron = np.array(params[9:])
 
         except BoardCommsError as err:
@@ -504,7 +506,7 @@ class Nano33SerialComms(QObject):
     ) -> None:
         raw_header = struct.pack("<BB", SERIAL_MAG_SET_CALIB, 9 + 3)
 
-        soft_iron = np.linalg.inv(soft_iron)
+        # soft_iron = np.linalg.inv(soft_iron)
         raw_body = struct.pack("<ffffffffffff", *soft_iron.flatten(), *hard_iron)
 
         self.send_command(raw_header, raw_body)
@@ -650,7 +652,16 @@ class Nano33SerialComms(QObject):
 
         # NOTE: ASCII_ESC must be first in list or we replace all the escapes
         # created by escaping other control characters. This is fragile...
-        for c in (ASCII_ESC, ASCII_SOH, ASCII_STX, ASCII_ETX, ASCII_EOT, ASCII_NUL):
+        for c in (
+            ASCII_ESC,
+            ASCII_SOH,
+            ASCII_STX,
+            ASCII_ETX,
+            ASCII_EOT,
+            ASCII_NUL,
+            ASCII_CR,
+            ASCII_LF,
+        ):
             res = res.replace(bytes([c]), bytes([ASCII_ESC, c + ESCAPE_OFFSET]))
 
         return res
