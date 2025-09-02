@@ -1,6 +1,7 @@
 import logging
 import datetime
 import numpy as np
+import scipy
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from PySide6.QtCore import Qt, Slot, Signal, QThread
@@ -330,11 +331,24 @@ class MainWindow(QMainWindow):
             warnflag,
         ) = fitEllipsoidNonRotated(*data)
 
-        hard_iron = np.array(params[:3])
-        soft_iron = np.diag(params[3:])
+        # INFO: Using notation from AN4246 page 7.
+        V = np.array(params[:3])
+        A = np.diag(params[3:])
+
+        # INFO: Eqn. 20 in AN4246.
+        # BUG: Cannot figure out if we are supposed to use the soft_iron or inv_soft_iron in the board-side calibration
+        #
+        # inv_soft_iron = scipy.linalg.sqrtm(A)
+        # soft_iron = np.linalg.inv(inv_soft_iron)
+        # breakpoint()
+        #
+
+        # INFO: For now we just use the inverse of the ellipsoid fit-matrix parameters.
+        # That gives us a calibrated magnetic vector normalised to 1 (???).
+        soft_iron = np.linalg.inv(A)
 
         self.calibration_widget.magnetic.soft_iron.set(soft_iron)
-        self.calibration_widget.magnetic.hard_iron.set(hard_iron)
+        self.calibration_widget.magnetic.hard_iron.set(V)
 
         s_params = (
             "Fit parameters",
