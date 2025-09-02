@@ -413,6 +413,38 @@ class CalibrationMiscWidget(QWidget):
         layout.addWidget(self.ahrs_box)
         self.setLayout(layout)
 
+    def get_ahrs_settings(self) -> np.ndarray:
+        gain = float(self.ahrs_gain.text())
+        acceleration_rejection = float(self.ahrs_acc_reject.text())
+        magnetic_rejection = float(self.ahrs_mag_reject.text())
+        rejection_timeout = float(self.ahrs_reject_timeout.text())
+
+        return np.array(
+            [gain, acceleration_rejection, magnetic_rejection, rejection_timeout]
+        )
+
+    def set_ahrs_settings(self, settings: np.ndarray) -> None:
+        gain, acceleration_rejection, magnetic_rejection, rejection_timeout = settings
+
+        self.ahrs_gain.setText(str(gain))
+        self.ahrs_acc_reject.setText(str(acceleration_rejection))
+        self.ahrs_mag_reject.setText(str(magnetic_rejection))
+        self.ahrs_reject_timeout.setText(str(rejection_timeout))
+
+    def get_offset(self) -> np.ndarray:
+        yaw_offset = self.yaw_offset.text()
+        pitch_offset = self.pitch_offset.text()
+        roll_offset = self.roll_offset.text()
+
+        return np.array([yaw_offset, pitch_offset, roll_offset])
+
+    def set_offset(self, offset: np.ndarray) -> None:
+        yaw_offset, pitch_offset, roll_offset = offset
+
+        self.yaw_offset.setText(str(yaw_offset))
+        self.pitch_offset.setText(str(pitch_offset))
+        self.roll_offset.setText(str(roll_offset))
+
 
 class CalibrationWidget(QWidget):
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
