@@ -44,8 +44,8 @@ SERIAL_ACC_GET_CALIB = 0x41
 SERIAL_GYRO_SET_CALIB = 0x50
 SERIAL_GYRO_GET_CALIB = 0x51
 
-SERIAL_SET_OFFSET = 0x70
-SERIAL_GET_OFFSET = 0x71
+SERIAL_MISC_SET_SETTINGS = 0x60
+SERIAL_MISC_GET_SETTINGS = 0x61
 
 SERIAL_RESET_KVSTORE = 0x75
 
@@ -118,6 +118,8 @@ class BoardCommunications(Protocol):
     def set_gyroscope_calibration(
         self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
     ) -> None: ...
+
+    def get_misc_settings(self) -> tuple[np.ndarray, np.ndarray]: ...
 
     def read_row(self) -> np.ndarray: ...
 
@@ -252,6 +254,11 @@ class Board2GUI(QObject):
                         self.board.get_accelerometer_calibration()
                     )
                     res = (misalignment, sensitivity, offset)
+
+                case "misc":
+                    id = "misc"
+                    output_offset, ahrs_settings = self.board.get_misc_settings()
+                    res = (output_offset, ahrs_settings)
 
                 case _:
                     self.to_log.emit("Wrong calibration type supplied")
@@ -608,6 +615,28 @@ class Nano33SerialComms(QObject):
         self.ser.reset_input_buffer()
         reply = self.ser.readline()
         log.info(f"Reply from board: {reply}")
+
+    def get_misc_settings(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_MISC_GET_SETTINGS, 0)
+        misc_struct_format = "<fffffff"  # xyz vector + 4 floats
+
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
+
+        try:
+            params = self.calibration_reply_helper(misc_struct_format)
+            output_offset = params[:3]
+            ahrs_settings = params[3:7]
+
+        except BoardCommsError as err:
+            log.info(f"Error receiving calibration values: {err}")
+
+            output_offset = np.array([-1, -1, -1])
+            ahrs_settings = np.array([-1, -1, -1, -1])
+
+        return output_offset, ahrs_settings
 
     def open(self) -> None:
         try:

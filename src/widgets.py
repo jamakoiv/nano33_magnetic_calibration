@@ -307,6 +307,9 @@ class MagneticCalibrationWidget(QWidget):
         self.hard_iron = CalibrationVectorWidget(parent=self)
         self.hard_iron_box = QGroupBox(title="Hard-iron offset", parent=self)
 
+        self.set_calibration_button = QPushButton("Set", parent=self)
+        self.get_calibration_button = QPushButton("Get", parent=self)
+
         for box, widget in (
             (self.soft_iron_box, self.soft_iron),
             (self.hard_iron_box, self.hard_iron),
@@ -316,9 +319,14 @@ class MagneticCalibrationWidget(QWidget):
             layout.addWidget(widget)
             box.setLayout(layout)
 
+        button_layout = QVBoxLayout()
+        button_layout.addWidget(self.get_calibration_button)
+        button_layout.addWidget(self.set_calibration_button)
+
         layout = QHBoxLayout()
         layout.addWidget(self.soft_iron_box)
         layout.addWidget(self.hard_iron_box)
+        layout.addLayout(button_layout)
         self.setLayout(layout)
 
 
@@ -343,6 +351,9 @@ class InertialCalibrationWidget(QWidget):
         self.offset_box = QGroupBox(title="Offset", parent=self)
         self.offset = CalibrationVectorWidget(parent=self)
 
+        self.set_calibration_button = QPushButton("Set", parent=self)
+        self.get_calibration_button = QPushButton("Get", parent=self)
+
         for box, widget in (
             (self.misalignment_box, self.misalignment),
             (self.sensitivity_box, self.sensitivity),
@@ -353,10 +364,16 @@ class InertialCalibrationWidget(QWidget):
             layout.addWidget(widget)
             box.setLayout(layout)
 
+        button_layout = QVBoxLayout()
+        button_layout.addWidget(self.get_calibration_button)
+        button_layout.addWidget(self.set_calibration_button)
+
         layout = QHBoxLayout()
         layout.addWidget(self.misalignment_box)
         layout.addWidget(self.sensitivity_box)
         layout.addWidget(self.offset_box)
+        layout.addLayout(button_layout)
+
         self.setLayout(layout)
 
 
@@ -408,9 +425,17 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout, 3, 1)
         self.ahrs_box.setLayout(self.ahrs_box_layout)
 
+        self.get_calibration_button = QPushButton("Get", parent=self)
+        self.set_calibration_button = QPushButton("Get", parent=self)
+
+        button_layout = QVBoxLayout()
+        button_layout.addWidget(self.get_calibration_button)
+        button_layout.addWidget(self.set_calibration_button)
+
         layout = QHBoxLayout()
         layout.addWidget(self.output_offset_box)
         layout.addWidget(self.ahrs_box)
+        layout.addLayout(button_layout)
         self.setLayout(layout)
 
     def get_ahrs_settings(self) -> np.ndarray:

@@ -246,7 +246,31 @@ class MainWindow(QMainWindow):
             self.board_comms.set_stop_flag, Qt.ConnectionType.DirectConnection
         )
 
+        # TODO: Connecting button callbacks here is very pastalicous.
+        self.calibration_widget.misc.get_calibration_button.pressed.connect(
+            self.button_get_misc_calibration_callback
+        )
+
         self.comms_thread.start()
+
+    def button_get_misc_calibration_callback(self) -> None:
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+
+            self.update_current_board()
+            self.start_calibration_get.emit("misc")
+
+    def button_get_gyroscope_calibration_callback(self) -> None:
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+            self.update_current_board()
+            self.start_calibration_get.emit("gyroscope")
+
+    def button_get_accelerometer_calibration_callback(self) -> None:
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+            self.update_current_board()
+            self.start_calibration_get.emit("accelerometer")
 
     def action_get_calibration_callback(self):
         if not self.board_comms.task_running:
@@ -300,6 +324,11 @@ class MainWindow(QMainWindow):
                 self.calibration_widget.accelerometer.misalignment.set(misalignment)
                 self.calibration_widget.accelerometer.sensitivity.set(sensitivity)
                 self.calibration_widget.accelerometer.offset.set(offset)
+
+            case "misc":
+                output_offset, ahrs_settings = data
+                self.calibration_widget.misc.set_offset(output_offset)
+                self.calibration_widget.misc.set_ahrs_settings(ahrs_settings)
 
             case _:
                 log.error(f"Wrong calibration id: {id}")
