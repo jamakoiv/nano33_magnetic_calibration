@@ -250,6 +250,9 @@ class MainWindow(QMainWindow):
         self.calibration_widget.misc.get_calibration_button.pressed.connect(
             self.button_get_misc_calibration_callback
         )
+        self.calibration_widget.misc.set_calibration_button.pressed.connect(
+            self.button_set_misc_calibration_callback
+        )
 
         self.comms_thread.start()
 
@@ -259,6 +262,15 @@ class MainWindow(QMainWindow):
 
             self.update_current_board()
             self.start_calibration_get.emit("misc")
+
+    def button_set_misc_calibration_callback(self) -> None:
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+            self.update_current_board()
+
+            output_offset = self.calibration_widget.misc.get_offset()
+            ahrs_settings = self.calibration_widget.misc.get_ahrs_settings()
+            self.start_calibration_set.emit("misc", (output_offset, ahrs_settings))
 
     def button_get_gyroscope_calibration_callback(self) -> None:
         if not self.board_comms.task_running:

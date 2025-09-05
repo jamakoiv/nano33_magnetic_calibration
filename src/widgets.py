@@ -457,9 +457,9 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_reject_timeout.setText(str(rejection_timeout))
 
     def get_offset(self) -> np.ndarray:
-        yaw_offset = self.yaw_offset.text()
-        pitch_offset = self.pitch_offset.text()
-        roll_offset = self.roll_offset.text()
+        yaw_offset = float(self.yaw_offset.text())
+        pitch_offset = float(self.pitch_offset.text())
+        roll_offset = float(self.roll_offset.text())
 
         return np.array([yaw_offset, pitch_offset, roll_offset])
 

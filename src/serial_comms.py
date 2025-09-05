@@ -121,6 +121,8 @@ class BoardCommunications(Protocol):
 
     def get_misc_settings(self) -> tuple[np.ndarray, np.ndarray]: ...
 
+    def set_misc_settings(self, output_offset, ahrs_settings) -> None: ...
+
     def read_row(self) -> np.ndarray: ...
 
 
@@ -305,6 +307,10 @@ class Board2GUI(QObject):
                     self.board.set_accelerometer_calibration(
                         misalignment, sensitivity, offset
                     )
+
+                case "misc":
+                    output_offset, ahrs_settings = data
+                    self.board.set_misc_settings(output_offset, ahrs_settings)
 
                 case _:
                     raise ValueError("Wrong calibration type supplied")
@@ -609,6 +615,22 @@ class Nano33SerialComms(QObject):
             *misalignment.flatten(),
             *sensitivity.flatten(),
             *offset.flatten(),
+        )
+
+        self.send_command(raw_header, raw_body)
+        self.ser.reset_input_buffer()
+        reply = self.ser.readline()
+        log.info(f"Reply from board: {reply}")
+
+    def set_misc_settings(
+        self, output_offset: np.ndarray, ahrs_settings: np.ndarray
+    ) -> None:
+        misc_struct_format = "<fffffff"  # xyz vector + 4 floats
+        raw_header = struct.pack(
+            "<BB", SERIAL_MISC_SET_SETTINGS, len(misc_struct_format) - 1
+        )
+        raw_body = struct.pack(
+            misc_struct_format, *output_offset.flatten(), *ahrs_settings.flatten()
         )
 
         self.send_command(raw_header, raw_body)
