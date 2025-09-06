@@ -6,6 +6,7 @@ import numpy as np
 
 from collections import OrderedDict
 from PySide6.QtCore import (
+    QLocale,
     Slot,
     Signal,
     QObject,
@@ -16,6 +17,7 @@ from PySide6.QtCore import (
     Qt,
 )
 from PySide6.QtWidgets import (
+    QStyledItemDelegate,
     QComboBox,
     QMainWindow,
     QApplication,
@@ -201,6 +203,15 @@ class CalibrationDataModel(QAbstractTableModel):
         log.info(
             f"sample coverage: {self.sampling.get_percentage()}, {self.sampling.get_count()} / {len(self.sampling.segments)}"
         )
+
+
+class CalibrationDataDelegate(QStyledItemDelegate):
+    def displayText(self, value: str, locale: QLocale | QLocale.Language) -> str:
+        try:
+            f = float(value)
+            return f"{f:.2f}"
+        except (ValueError, TypeError):
+            return str(value)
 
 
 class SerialPortsModel(QAbstractListModel):

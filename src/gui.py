@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 
 from canvas import MatplotlibCanvas
-from models import CalibrationDataModel
+from models import CalibrationDataModel, CalibrationDataDelegate
 from widgets import DeviceSelectWidget, CalibrationWidget
 from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 from ellipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
@@ -110,6 +110,8 @@ class MainWindow(QMainWindow):
         self.data_table_dock = QDockWidget("Data &table", parent=self)
         self.data_table_dock.setWidget(self.data_table_widget)
         self.data_table_widget.horizontalHeader().setDefaultSectionSize(85)
+        self.data_table_delegate = CalibrationDataDelegate()
+        self.data_table_widget.setItemDelegate(self.data_table_delegate)
         self.data_table_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         )
