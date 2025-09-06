@@ -109,7 +109,7 @@ class MainWindow(QMainWindow):
         self.data_table_widget = QTableView(parent=self)
         self.data_table_dock = QDockWidget("Data &table", parent=self)
         self.data_table_dock.setWidget(self.data_table_widget)
-        self.data_table_widget.horizontalHeader().setDefaultSectionSize(60)
+        self.data_table_widget.horizontalHeader().setDefaultSectionSize(85)
         self.data_table_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         )
@@ -428,6 +428,7 @@ class MainWindow(QMainWindow):
         log.info("Communication task done")
 
         self.restore_comms_buttons()
+        self.data_table_widget.resizeColumnsToContents()
         self.gui_logger("Board communication done.")
 
     def update_current_board(self) -> None:

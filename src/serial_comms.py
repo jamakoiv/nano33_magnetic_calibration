@@ -353,7 +353,7 @@ class TestSerialComms(QObject):
         self.gyroscope_sensitivity = self.rng.random(3)
         self.gyroscope_offset = self.rng.random(3)
 
-        self.data = makeEllipsoidXYZ(
+        self.magnetic_data = makeEllipsoidXYZ(
             20, 15, -12, 40, 35, 50, N=20, noise_scale=1, generator=self.rng
         )
 
@@ -407,8 +407,13 @@ class TestSerialComms(QObject):
 
     def read_row(self) -> np.ndarray:
         time.sleep(0.05)
-        row = np.random.randint(0, self.data.shape[1])
-        return self.data.transpose()[row].reshape(1, 3)
+        idx = np.random.randint(0, self.magnetic_data.shape[1])
+
+        mag = self.magnetic_data.transpose()[idx]
+        acc = np.zeros(3)
+        gyro = np.zeros(3)
+
+        return np.concat([mag, acc, gyro])
 
 
 class Nano33SerialComms(QObject):
