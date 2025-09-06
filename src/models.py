@@ -30,6 +30,7 @@ from ellipsoid import SphereSampling, fitEllipsoidNonRotated
 log = logging.getLogger(__name__)
 
 
+# TODO: Update rest of the model to better handle the fact that acceleration and gyroscope data are part of the model now.
 class CalibrationDataModel(QAbstractTableModel):
     _data: np.ndarray
     data_changed = Signal()
@@ -179,7 +180,7 @@ class CalibrationDataModel(QAbstractTableModel):
         return np.array([magX, magY, magZ])
 
     def update_offset(self) -> None:
-        magX, magY, magZ, _ = self.get_xyz_data(with_offset=False)
+        magX, magY, magZ = self.get_xyz_data(with_offset=False)
         res = fitEllipsoidNonRotated(magX, magY, magZ)
         self.ellipsoid_params = np.array(res[0])
         # print(self.ellipsoid_params)
