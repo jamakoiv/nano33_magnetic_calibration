@@ -174,7 +174,7 @@ class Board2GUI(QObject):
             self.read_sample_size = int(N)
 
     @Slot()
-    def read_magnetic_calibration_data(self) -> None:
+    def read_raw_data(self) -> None:
         with self.mutex:
             self.task_running = True
             self.stop = False
@@ -185,7 +185,7 @@ class Board2GUI(QObject):
             log.info("Start reading raw magnetometer data from board")
 
             self.board.open()
-            self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
+            self.board.set_output_mode(SERIAL_PRINT_MAG_ACC_GYRO_RAW)
             time.sleep(0.20)
 
             while i < self.read_sample_size and not self.stop:
@@ -409,11 +409,12 @@ class TestSerialComms(QObject):
         time.sleep(0.05)
         idx = np.random.randint(0, self.magnetic_data.shape[1])
 
+        t = np.ones(1)
         mag = self.magnetic_data.transpose()[idx]
         acc = np.zeros(3)
         gyro = np.zeros(3)
 
-        return np.concat([mag, acc, gyro])
+        return np.concat([t, mag, acc, gyro])
 
 
 class Nano33SerialComms(QObject):
@@ -688,18 +689,21 @@ class Nano33SerialComms(QObject):
         # Flush everything so we get the newest measurement value.
         self.ser.reset_input_buffer()
 
+        # TODO: Get rid of hardcoded number.
+        N_DATA = 10  # How many floats we except to receive.
+
         stop_byte = "\n".encode("ASCII")
         raw = self.ser.read_until(stop_byte).decode("utf8")
         log.info(f"Received data: {raw}")
 
         try:
-            str_floats = raw.split(sep=",")[:3]
+            str_floats = raw.split(sep=",")[:N_DATA]
             log.info(f"Split data: {str_floats}")
             row = np.array([float(d) for d in str_floats])
         except ValueError:  # if no data was received.
             raise NoDataReceived()
 
-        return row.reshape(1, 3)
+        return row
 
     @staticmethod
     def parse_outbound_bytes(d: bytes) -> bytes:

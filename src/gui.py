@@ -241,7 +241,7 @@ class MainWindow(QMainWindow):
         self.board_comms.error_signal.connect(self.exception2MessageBox)
         self.board_comms.task_done.connect(self.comms_task_done)
 
-        self.start_data_read.connect(self.board_comms.read_magnetic_calibration_data)
+        self.start_data_read.connect(self.board_comms.read_raw_data)
         self.start_calibration_get.connect(self.board_comms.get_calibration)
         self.start_calibration_set.connect(self.board_comms.set_calibration)
         self.stop_comms_task.connect(
@@ -466,6 +466,10 @@ class MainWindow(QMainWindow):
 
         except AttributeError:  # If board_thread does not exist.
             pass
+
+        f_csv = "data.csv"
+        log.info(f"Exporting table to csv: {f_csv}")
+        np.savetxt(f_csv, self.data_model._data, fmt="%f", delimiter=",")
 
         return super().closeEvent(event)
 

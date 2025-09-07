@@ -32,12 +32,10 @@ log = logging.getLogger(__name__)
 
 # TODO: Update rest of the model to better handle the fact that acceleration and gyroscope data are part of the model now.
 class CalibrationDataModel(QAbstractTableModel):
-    _data: np.ndarray
     data_changed = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         self.sampling = SphereSampling(N=10)
-
         super().__init__(parent=parent)
 
     def set_data(self, array: np.ndarray) -> None:
@@ -54,9 +52,7 @@ class CalibrationDataModel(QAbstractTableModel):
 
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 
-        # TODO: Too much babysitting the input shape.
         row = row.reshape(1, len(row))
-
         try:
             self._data = np.append(self._data, row, axis=0)
         except AttributeError:  # if self._data does not exists
@@ -113,15 +109,16 @@ class CalibrationDataModel(QAbstractTableModel):
         role: int = Qt.ItemDataRole.DisplayRole,
     ):
         columns = {
-            0: "B(X) [μT]",
-            1: "B(Y) [μT]",
-            2: "B(Z) [μT]",
-            3: "A(X) [g0]",
-            4: "A(Y) [g0]",
-            5: "A(Z) [g0]",
-            6: "ω(X) [deg/s]",
-            7: "ω(Y) [deg/s]",
-            8: "ω(Z) [deg/s]",
+            0: "t [s]",
+            1: "B(X) [μT]",
+            2: "B(Y) [μT]",
+            3: "B(Z) [μT]",
+            4: "A(X) [g0]",
+            5: "A(Y) [g0]",
+            6: "A(Z) [g0]",
+            7: "ω(X) [deg/s]",
+            8: "ω(Y) [deg/s]",
+            9: "ω(Z) [deg/s]",
         }
 
         match role:
@@ -162,7 +159,7 @@ class CalibrationDataModel(QAbstractTableModel):
 
     def get_xyz_data(self, with_offset: bool = False) -> np.ndarray:
         try:
-            magX, magY, magZ, accX, accY, accZ, gyroX, gyroY, gyroZ = (
+            t, magX, magY, magZ, accX, accY, accZ, gyroX, gyroY, gyroZ = (
                 self._data.copy().transpose()
             )
 
