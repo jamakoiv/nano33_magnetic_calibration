@@ -6,8 +6,26 @@ import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
 
+"""
+Solve ellipsoid parameters by fitting the ellipsoid general equation,
+as described in STMicroelectronics DT0059 -design tip.
+
+aX^2 + bY^2 + cZ^2 + d2XY + e2XZ + f2YZ + g2X + h2Y + i2Z = 1
+
+X, Y, and Z are measured by the sensor, from which you calculate the terms 
+X^2, etc. terms in the above equation. Coefficients a, b, ... are obtained
+by minimizing function aX^2 + ... + i2Z - 1 = 0.
+
+Calculation of the gain and offset for the different cases are explained in
+the DT0059.
+
+"""
+# TODO: Currently some return gain such that raw * gain = unit sphere,
+# and some raw / gain = unit sphere.
+
 
 def fit_sphere(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
+    # INFO:For sphere: a = b = c and d = e = f = 0.
     fit_data = np.array([x**2 + y**2 + z**2, 2 * x, 2 * y, 2 * z])
 
     def predict(params: np.ndarray) -> np.ndarray:
@@ -30,6 +48,7 @@ def fit_sphere(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
 
 
 def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
+    # INFO: For non-rotated ellipsoid: d = e = f = 0.
     fit_data = np.array([x**2, y**2, z**2, 2 * x, 2 * y, 2 * z])
 
     def predict(params: np.ndarray) -> np.ndarray:
