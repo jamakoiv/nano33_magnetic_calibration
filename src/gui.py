@@ -1,6 +1,7 @@
 import logging
 import datetime
 import numpy as np
+import scipy
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from PySide6.QtCore import Qt, Slot, Signal, QThread
@@ -19,7 +20,7 @@ from PySide6.QtWidgets import (
 
 
 from canvas import MatplotlibCanvas
-from models import CalibrationDataModel
+from models import CalibrationDataModel, CalibrationDataDelegate
 from widgets import DeviceSelectWidget, CalibrationWidget
 from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 from ellipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
@@ -37,7 +38,7 @@ class MainWindow(QMainWindow):
     comms_thread: QThread
     start_data_read = Signal()
     start_calibration_get = Signal(str)
-    start_calibration_set = Signal(str, object, object)
+    start_calibration_set = Signal(str, object)
     stop_comms_task = Signal()
 
     log_widget: QTextEdit
@@ -96,12 +97,6 @@ class MainWindow(QMainWindow):
         self.calibration_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         )
-        self.calibration_widget.fit_calibration.editingFinished.connect(
-            self.action_plot_ellipsoid_wireframe_callback
-        )
-        self.calibration_widget.fit_calibration.checkStateChange.connect(
-            self.action_plot_ellipsoid_wireframe_callback
-        )
 
         self.device_select_widget = DeviceSelectWidget(parent=self)
         self.device_select_widget.setSizePolicy(default_size_policy)
@@ -114,7 +109,9 @@ class MainWindow(QMainWindow):
         self.data_table_widget = QTableView(parent=self)
         self.data_table_dock = QDockWidget("Data &table", parent=self)
         self.data_table_dock.setWidget(self.data_table_widget)
-        self.data_table_widget.horizontalHeader().setDefaultSectionSize(60)
+        self.data_table_widget.horizontalHeader().setDefaultSectionSize(85)
+        self.data_table_delegate = CalibrationDataDelegate()
+        self.data_table_widget.setItemDelegate(self.data_table_delegate)
         self.data_table_dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         )
@@ -244,14 +241,50 @@ class MainWindow(QMainWindow):
         self.board_comms.error_signal.connect(self.exception2MessageBox)
         self.board_comms.task_done.connect(self.comms_task_done)
 
-        self.start_data_read.connect(self.board_comms.read_magnetic_calibration_data)
+        self.start_data_read.connect(self.board_comms.read_raw_data)
         self.start_calibration_get.connect(self.board_comms.get_calibration)
         self.start_calibration_set.connect(self.board_comms.set_calibration)
         self.stop_comms_task.connect(
             self.board_comms.set_stop_flag, Qt.ConnectionType.DirectConnection
         )
 
+        # TODO: Connecting button callbacks here is very pastalicous.
+        self.calibration_widget.misc.get_calibration_button.pressed.connect(
+            self.button_get_misc_calibration_callback
+        )
+        self.calibration_widget.misc.set_calibration_button.pressed.connect(
+            self.button_set_misc_calibration_callback
+        )
+
         self.comms_thread.start()
+
+    def button_get_misc_calibration_callback(self) -> None:
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+
+            self.update_current_board()
+            self.start_calibration_get.emit("misc")
+
+    def button_set_misc_calibration_callback(self) -> None:
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+            self.update_current_board()
+
+            output_offset = self.calibration_widget.misc.get_offset()
+            ahrs_settings = self.calibration_widget.misc.get_ahrs_settings()
+            self.start_calibration_set.emit("misc", (output_offset, ahrs_settings))
+
+    def button_get_gyroscope_calibration_callback(self) -> None:
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+            self.update_current_board()
+            self.start_calibration_get.emit("gyroscope")
+
+    def button_get_accelerometer_calibration_callback(self) -> None:
+        if not self.board_comms.task_running:
+            self.disable_comms_buttons()
+            self.update_current_board()
+            self.start_calibration_get.emit("accelerometer")
 
     def action_get_calibration_callback(self):
         if not self.board_comms.task_running:
@@ -267,36 +300,49 @@ class MainWindow(QMainWindow):
 
             self.action_set_calibration.setEnabled(False)
             self.update_current_board()
-            offset, gain = self.calibration_widget.get_device_calibration()
-            self.start_calibration_set.emit("magnetic", offset, gain)
+            soft_iron = self.calibration_widget.magnetic.soft_iron.get()
+            hard_iron = self.calibration_widget.magnetic.hard_iron.get()
+
+            self.start_calibration_set.emit("magnetic", (soft_iron, hard_iron))
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
-        if (
-            self.calibration_widget.fit_calibration.checkState()
-            == Qt.CheckState.Checked
-        ):
+        if True:
             print("plot")
-            offset, gain = self.calibration_widget.get_fit_calibration()
-            x, y, z = makeEllipsoidXYZ(*offset, *gain, as_mesh=True)
+            soft_iron = self.calibration_widget.magnetic.soft_iron.get()
+            hard_iron = self.calibration_widget.magnetic.hard_iron.get()
+
+            x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron), as_mesh=True)
             self.primary_canvas.update_wireframe(x, y, z)
         else:
             print("delete")
             self.primary_canvas.delete_wireframe()
 
     @Slot(object)  # pyright: ignore
-    def calibration_received_handler(self, return_tuple: tuple) -> None:
-        log.info(f"Calibration data received: {return_tuple}")
-        id, offset, gain = return_tuple
+    def calibration_received_handler(self, calibration_id: str, data: tuple) -> None:
+        log.info(f"Calibration data received: {calibration_id}, {data}")
 
-        match id.lower():
+        match calibration_id.lower():
             case "magnetometer" | "magnetic":
-                self.calibration_widget.set_device_calibration(offset, gain)
+                soft_iron, hard_iron = data
+                self.calibration_widget.magnetic.soft_iron.set(soft_iron)
+                self.calibration_widget.magnetic.hard_iron.set(hard_iron)
 
             case "gyroscope":
-                log.warning("Gyroscope calibration not implemented")
+                misalignment, sensitivity, offset = data
+                self.calibration_widget.gyroscope.misalignment.set(misalignment)
+                self.calibration_widget.gyroscope.sensitivity.set(sensitivity)
+                self.calibration_widget.gyroscope.offset.set(offset)
 
             case "accelerometer":
-                log.warning("Accelerometer calibration not implemented")
+                misalignment, sensitivity, offset = data
+                self.calibration_widget.accelerometer.misalignment.set(misalignment)
+                self.calibration_widget.accelerometer.sensitivity.set(sensitivity)
+                self.calibration_widget.accelerometer.offset.set(offset)
+
+            case "misc":
+                output_offset, ahrs_settings = data
+                self.calibration_widget.misc.set_offset(output_offset)
+                self.calibration_widget.misc.set_ahrs_settings(ahrs_settings)
 
             case _:
                 log.error(f"Wrong calibration id: {id}")
@@ -328,10 +374,24 @@ class MainWindow(QMainWindow):
             warnflag,
         ) = fitEllipsoidNonRotated(*data)
 
-        offset = params[:3]
-        gain = params[3:]
+        # INFO: Using notation from AN4246 page 7.
+        V = np.array(params[:3])
+        A = np.diag(params[3:])
 
-        self.calibration_widget.set_fit_calibration(offset, gain)
+        # INFO: Eqn. 20 in AN4246.
+        # BUG: Cannot figure out if we are supposed to use the soft_iron or inv_soft_iron in the board-side calibration
+        #
+        # inv_soft_iron = scipy.linalg.sqrtm(A)
+        # soft_iron = np.linalg.inv(inv_soft_iron)
+        # breakpoint()
+        #
+
+        # INFO: For now we just use the inverse of the ellipsoid fit-matrix parameters.
+        # That gives us a calibrated magnetic vector normalised to 1 (???).
+        soft_iron = np.linalg.inv(A)
+
+        self.calibration_widget.magnetic.soft_iron.set(soft_iron)
+        self.calibration_widget.magnetic.hard_iron.set(V)
 
         s_params = (
             "Fit parameters",
@@ -370,6 +430,7 @@ class MainWindow(QMainWindow):
         log.info("Communication task done")
 
         self.restore_comms_buttons()
+        self.data_table_widget.resizeColumnsToContents()
         self.gui_logger("Board communication done.")
 
     def update_current_board(self) -> None:
@@ -405,6 +466,10 @@ class MainWindow(QMainWindow):
 
         except AttributeError:  # If board_thread does not exist.
             pass
+
+        f_csv = "data.csv"
+        log.info(f"Exporting table to csv: {f_csv}")
+        np.savetxt(f_csv, self.data_model._data, fmt="%f", delimiter=",")
 
         return super().closeEvent(event)
 

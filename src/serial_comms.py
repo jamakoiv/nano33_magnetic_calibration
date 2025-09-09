@@ -1,5 +1,6 @@
 import logging
 import time
+import copy
 import unicodedata
 import struct
 import numpy as np
@@ -14,39 +15,67 @@ from ellipsoid import makeEllipsoidXYZ
 
 log = logging.getLogger(__name__)
 
+# TODO: The entire code for communication with the board is a horrible mess at the moment.
+# We need to rewrite significant parts to handle the fact that accelerometer/gyroscope
+# have different amount of calibration parameters than magnetometer.
+#
+# TODO: Should we just delete the entire Board2GUI and handle everything in each different board-type?
+# As if there ever will be more than Nano33..
+# Also the Nano33SerialComms still must inherit from QObject to be able to send it to another QThread...
+
 
 """
-    Control codes for controlling the serial output
-    and the magnetic calibration values of the Arduino NANO33.
+    Command IDs and parameters for controlling the board 
+    output and sending calibration values.
 
-    TODO:   Some are defined as string and some as integers.
-            Choose one and stick to it.
 """
-SERIAL_HANDSHAKE = "0x05"
-SERIAL_DONE = "0x06"
+#  TODO: Make into Enum or dictionary or something...
+#  TODO: Maybe also define valid amount of parameters for each command...
 
-SERIAL_PRINT_NOTHING = 0x10
-SERIAL_PRINT_MAG_RAW = 0x11
-SERIAL_PRINT_MAG_CALIB = 0x12
-SERIAL_PRINT_ACC_RAW = 0x13
-SERIAL_PRINT_ACC_CALIB = 0x14
-SERIAL_PRINT_GYRO_RAW = 0x15
-SERIAL_PRINT_GYRO_CALIB = 0x16
-SERIAL_PRINT_AHRS = 0x20
+# Commands
+SERIAL_SET_PRINT_MODE = 0x10
 
 SERIAL_MAG_SET_CALIB = 0x30
 SERIAL_MAG_GET_CALIB = 0x31
+
 SERIAL_ACC_SET_CALIB = 0x40
 SERIAL_ACC_GET_CALIB = 0x41
+
 SERIAL_GYRO_SET_CALIB = 0x50
 SERIAL_GYRO_GET_CALIB = 0x51
 
-SERIAL_RESET_FACTORY_DEFAULTS = 0x60
-SERIAL_RESET_KVSTORE = 0x70
+SERIAL_MISC_SET_SETTINGS = 0x60
+SERIAL_MISC_GET_SETTINGS = 0x61
 
-SERIAL_BAUDRATE = 57600  # NOTE: Baudrate should not matter with Arduino NANO33
-SERIAL_WAIT = 2.0  # seconds
-SERIAL_NO_OUTPUT = b""  # serial.readline returns b'' if read timeouts.
+SERIAL_RESET_KVSTORE = 0x75
+
+# Valid print modes.
+SERIAL_PRINT_NOTHING = 0x15
+SERIAL_PRINT_AHRS = 0x16
+SERIAL_PRINT_AHRS_DEBUG = 0x17
+
+SERIAL_PRINT_MAG_ACC_GYRO_RAW = 0x20
+SERIAL_PRINT_MAG_ACC_GYRO_CALIB = 0x21
+
+SERIAL_PRINT_MAG_RAW = 0x35
+SERIAL_PRINT_MAG_CALIB = 0x36
+SERIAL_PRINT_ACC_RAW = 0x45
+SERIAL_PRINT_ACC_CALIB = 0x46
+SERIAL_PRINT_GYRO_RAW = 0x55
+SERIAL_PRINT_GYRO_CALIB = 0x56
+
+"""
+    ASCII data transmit control characters.
+"""
+ASCII_NUL = 0x00
+ASCII_SOH = 0x01  # Start of header
+ASCII_STX = 0x02  # Start of data
+ASCII_ETX = 0x03  # End of data
+ASCII_EOT = 0x04  # End of transmission
+ASCII_ESC = 0x1B  # Escape next character
+ASCII_LF = 0x0A
+ASCII_CR = 0x0D
+ESCAPE_OFFSET = 0x20
 
 
 class BoardCommsError(Exception):
@@ -70,17 +99,31 @@ class BoardCommunications(Protocol):
 
     def set_output_mode(self, mode: int) -> None: ...
 
-    def get_magnetometer_calibration(self) -> np.ndarray: ...
+    def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]: ...
 
-    def set_magnetometer_calibration(self, data: np.ndarray) -> None: ...
+    def set_magnetometer_calibration(
+        self, soft_iron: np.ndarray, hard_iron: np.ndarray
+    ) -> None: ...
 
-    def get_accelerometer_calibration(self) -> np.ndarray: ...
+    def get_accelerometer_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
-    def set_accelerometer_calibration(self, data: np.ndarray) -> None: ...
+    def set_accelerometer_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None: ...
 
-    def get_gyroscope_calibration(self) -> np.ndarray: ...
+    def get_gyroscope_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
-    def set_gyroscope_calibration(self, data: np.ndarray) -> None: ...
+    def set_gyroscope_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None: ...
+
+    def get_misc_settings(self) -> tuple[np.ndarray, np.ndarray]: ...
+
+    def set_misc_settings(self, output_offset, ahrs_settings) -> None: ...
 
     def read_row(self) -> np.ndarray: ...
 
@@ -110,7 +153,7 @@ class Board2GUI(QObject):
     task_done = Signal()
 
     data_row_received = Signal(object)
-    calibration_received = Signal(object)
+    calibration_received = Signal(str, object)
     error_signal = Signal(object)
     to_log = Signal(str)
 
@@ -131,7 +174,7 @@ class Board2GUI(QObject):
             self.read_sample_size = int(N)
 
     @Slot()
-    def read_magnetic_calibration_data(self) -> None:
+    def read_raw_data(self) -> None:
         with self.mutex:
             self.task_running = True
             self.stop = False
@@ -142,7 +185,8 @@ class Board2GUI(QObject):
             log.info("Start reading raw magnetometer data from board")
 
             self.board.open()
-            self.board.set_output_mode(SERIAL_PRINT_MAG_RAW)
+            self.board.set_output_mode(SERIAL_PRINT_MAG_ACC_GYRO_RAW)
+            time.sleep(0.20)
 
             while i < self.read_sample_size and not self.stop:
                 # TODO: Retry code looks ugly and hard to read.
@@ -198,25 +242,36 @@ class Board2GUI(QObject):
             match calibration_type.lower():
                 case "magnetometer" | "magnetic":
                     id = "magnetometer"
-                    res = self.board.get_magnetometer_calibration()
+                    soft_iron, hard_iron = self.board.get_magnetometer_calibration()
+                    res = (soft_iron, hard_iron)
 
                 case "gyroscope":
                     id = "gyroscope"
-                    res = self.board.get_gyroscope_calibration()
+                    misalignment, sensitivity, offset = (
+                        self.board.get_gyroscope_calibration()
+                    )
+                    res = (misalignment, sensitivity, offset)
 
                 case "accelerometer":
                     id = "accelerometer"
-                    res = self.board.get_accelerometer_calibration()
+                    misalignment, sensitivity, offset = (
+                        self.board.get_accelerometer_calibration()
+                    )
+                    res = (misalignment, sensitivity, offset)
+
+                case "misc":
+                    id = "misc"
+                    output_offset, ahrs_settings = self.board.get_misc_settings()
+                    res = (output_offset, ahrs_settings)
 
                 case _:
                     self.to_log.emit("Wrong calibration type supplied")
                     raise ValueError("Wrong calibration type supplied")
 
-            offset, gain = res[:3], res[3:]
-            self.calibration_received.emit((id, offset, gain))
-            self.to_log.emit(
-                f"Received calibration data: {calibration_type}, offset {offset}, gain {gain}"
-            )
+            self.calibration_received.emit(id, res)
+            # self.to_log.emit(
+            #     f"Received calibration data: {calibration_type}, offset {offset}, gain {gain}"
+            # )
 
         finally:
             with self.mutex:
@@ -228,7 +283,7 @@ class Board2GUI(QObject):
 
     @Slot(str, object, object)  # pyright: ignore
     def set_calibration(
-        self, calibration_type: str, offset: np.ndarray, gain: np.ndarray
+        self, calibration_type: str, data: tuple[np.ndarray, ...]
     ) -> None:
         try:
             self.to_log.emit("Start setting calibration to board.")
@@ -238,17 +293,26 @@ class Board2GUI(QObject):
             with self.mutex:
                 self.task_running = True
 
-            calib = np.concatenate((offset, gain))
-
             match calibration_type.lower():
                 case "magnetometer" | "magnetic":
-                    self.board.set_magnetometer_calibration(calib)
+                    soft_iron, hard_iron = data
+                    self.board.set_magnetometer_calibration(soft_iron, hard_iron)
 
                 case "gyroscope":
-                    self.board.set_gyroscope_calibration(calib)
+                    misalignment, sensitivity, offset = data
+                    self.board.set_gyroscope_calibration(
+                        misalignment, sensitivity, offset
+                    )
 
                 case "accelerometer":
-                    self.board.set_accelerometer_calibration(calib)
+                    misalignment, sensitivity, offset = data
+                    self.board.set_accelerometer_calibration(
+                        misalignment, sensitivity, offset
+                    )
+
+                case "misc":
+                    output_offset, ahrs_settings = data
+                    self.board.set_misc_settings(output_offset, ahrs_settings)
 
                 case _:
                     raise ValueError("Wrong calibration type supplied")
@@ -260,7 +324,7 @@ class Board2GUI(QObject):
             self.task_done.emit()
             self.board.close()
 
-            msg = f"Set calibration data: {calibration_type}, offset {offset}, gain {gain}"
+            msg = f"Set calibration data: {calibration_type}, offset , gain "
             self.to_log.emit(msg)
             log.info(msg)
 
@@ -278,11 +342,18 @@ class TestSerialComms(QObject):
 
         self.rng = np.random.default_rng(seed=random_seed)
 
-        self.magnetic_calibration = self.rng.random(6) * 40
-        self.accelerometer_calibration = self.rng.random(6)
-        self.gyroscope_calibration = self.rng.random(6)
+        self.magnetic_soft_iron = self.rng.random((3, 3)) * 40
+        self.magnetic_hard_iron = self.rng.random(3) * 10
 
-        self.data = makeEllipsoidXYZ(
+        self.accelerometer_misalignment = self.rng.random((3, 3))
+        self.accelerometer_sensitivity = self.rng.random(3)
+        self.accelerometer_offset = self.rng.random(3)
+
+        self.gyroscope_misalignment = self.rng.random((3, 3))
+        self.gyroscope_sensitivity = self.rng.random(3)
+        self.gyroscope_offset = self.rng.random(3)
+
+        self.magnetic_data = makeEllipsoidXYZ(
             20, 15, -12, 40, 35, 50, N=20, noise_scale=1, generator=self.rng
         )
 
@@ -295,28 +366,55 @@ class TestSerialComms(QObject):
     def set_output_mode(self, mode: int) -> None:
         pass
 
-    def get_magnetometer_calibration(self) -> np.ndarray:
-        return self.magnetic_calibration
+    def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]:
+        return (self.magnetic_soft_iron, self.magnetic_hard_iron)
 
-    def set_magnetometer_calibration(self, data: np.ndarray) -> None:
-        self.magnetic_calibration = data
+    def get_accelerometer_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return (
+            self.accelerometer_misalignment,
+            self.accelerometer_sensitivity,
+            self.accelerometer_offset,
+        )
 
-    def get_accelerometer_calibration(self) -> np.ndarray:
-        return self.accelerometer_calibration
+    def get_gyroscope_calibration(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return (
+            self.gyroscope_misalignment,
+            self.gyroscope_sensitivity,
+            self.gyroscope_offset,
+        )
 
-    def set_accelerometer_calibration(self, data: np.ndarray) -> None:
-        self.accelerometer_calibration = data
+    def set_magnetometer_calibration(
+        self, soft_iron: np.ndarray, hard_iron: np.ndarray
+    ) -> None:
+        self.magnetic_soft_iron = soft_iron
+        self.magnetic_hard_iron = hard_iron
 
-    def get_gyroscope_calibration(self) -> np.ndarray:
-        return self.gyroscope_calibration
+    def set_accelerometer_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None:
+        self.accelerometer_misalignment = misalignment
+        self.accelerometer_sensitivity = sensitivity
+        self.accelerometer_offset = offset
 
-    def set_gyroscope_calibration(self, data: np.ndarray) -> None:
-        self.gyroscope_calibration = data
+    def set_gyroscope_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None:
+        self.gyroscope_misalignment = misalignment
+        self.gyroscope_sensitivity = sensitivity
+        self.gyroscope_offset = offset
 
     def read_row(self) -> np.ndarray:
         time.sleep(0.05)
-        row = np.random.randint(0, self.data.shape[1])
-        return self.data.transpose()[row].reshape(1, 3)
+        idx = np.random.randint(0, self.magnetic_data.shape[1])
+
+        t = np.ones(1)
+        mag = self.magnetic_data.transpose()[idx]
+        acc = np.zeros(3)
+        gyro = np.zeros(3)
+
+        return np.concat([t, mag, acc, gyro])
 
 
 class Nano33SerialComms(QObject):
@@ -334,20 +432,28 @@ class Nano33SerialComms(QObject):
         self,
         port: str,
         baudrate: int = 57600,
-        timeout: float = 5.0,
-        handshake_timeout: float = 5.0,
+        timeout: float = 3.0,
     ):
         super().__init__()
 
         self.serial_port = port
         self.serial_baudrate = baudrate
         self.serial_timeout = timeout
-        self.handshake_timeout = handshake_timeout
 
-    def send_command_bytes(self, cmd: bytes) -> None:
+    def send_command(self, raw_header: bytes, raw_body: bytes) -> None:
+        header = self.parse_outbound_bytes(raw_header)
+        body = self.parse_outbound_bytes(raw_body)
+        msg = (
+            bytes([ASCII_SOH])
+            + header
+            + bytes([ASCII_STX])
+            + body
+            + bytes([ASCII_ETX, ASCII_EOT])
+        )
+
         with self.mutex:
             try:
-                self.ser.write(cmd)
+                self.ser.write(msg)
 
             except SerialException as err:
                 raise BoardCommsError(err)
@@ -355,34 +461,212 @@ class Nano33SerialComms(QObject):
                 raise BoardCommsError(err)
 
     def reset_calibration(self) -> None:
-        cmd = struct.pack("<BB", SERIAL_RESET_KVSTORE, 2)
-        self.send_command_bytes(cmd)
+        raw_header = struct.pack("<BB", SERIAL_RESET_KVSTORE, 0)
+        self.send_command(raw_header, b"")
 
     def set_output_mode(self, mode: int) -> None:
-        cmd = struct.pack("<BB", mode, 2)
+        raw_header = struct.pack("<BB", SERIAL_SET_PRINT_MODE, 1)
+        raw_body = struct.pack("<f", float(mode))
 
         try:
-            self.send_command_bytes(cmd)
+            self.send_command(raw_header, raw_body)
         except SerialException as e:
             raise BoardCommsError(e)
 
-    def get_magnetometer_calibration(self) -> np.ndarray:
-        return np.array(self.get_calibration(SERIAL_MAG_GET_CALIB))
+    def calibration_reply_helper(self, struct_format: str) -> np.ndarray:
+        """
+        Helper function to handle read retries when receiving the calibration values from the board.
+        """
+        retry_number = 0
+        reply = ""
+        while retry_number != 30:
+            try:
+                reply = self.ser.readline()
+                print(reply)
+                _, reply_body = self.retrieve_header_and_body(reply)
+                params = struct.unpack(struct_format, reply_body)
+                # assert reply_header[1] == len(params)
 
-    def set_magnetometer_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_MAG_SET_CALIB, data.astype("float").tolist())
+                return np.array(params)
 
-    def get_accelerometer_calibration(self) -> np.ndarray:
-        return np.array(self.get_calibration(SERIAL_ACC_GET_CALIB))
+            except BoardCommsError as err:
+                log.info(f"Reply from board {reply} created error {err}")
+                retry_number += 1
 
-    def set_accelerometer_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_ACC_SET_CALIB, data.astype("float").tolist())
+            except struct.error as err:
+                log.info(f"Unpacking failed with error {err}")
+                retry_number += 1
+        else:
+            raise BoardCommsError(
+                "Could not extract calibration values from any board response."
+            )
 
-    def get_gyroscope_calibration(self) -> np.ndarray:
-        return np.array(self.get_calibration(SERIAL_GYRO_GET_CALIB))
+    def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_MAG_GET_CALIB, 0)
+        mag_struct_format = "<ffffffffffff"  # 3x3 matrix + xyz vector = 12 floats
 
-    def set_gyroscope_calibration(self, data: np.ndarray) -> None:
-        self.set_calibration(SERIAL_GYRO_SET_CALIB, data.astype("float").tolist())
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
+
+        try:
+            params = self.calibration_reply_helper(mag_struct_format)
+            soft_iron = np.array(params[:9])
+            soft_iron.resize(3, 3)
+            # soft_iron = np.linalg.inv(soft_iron)
+            hard_iron = np.array(params[9:])
+
+        except BoardCommsError as err:
+            log.info(f"Error receiving calibration values: {err}")
+
+            soft_iron = np.array([[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]])
+            hard_iron = np.array([-1, -1, -1])
+
+        return soft_iron, hard_iron
+
+    def set_magnetometer_calibration(
+        self, soft_iron: np.ndarray, hard_iron: np.ndarray
+    ) -> None:
+        raw_header = struct.pack("<BB", SERIAL_MAG_SET_CALIB, 9 + 3)
+
+        # soft_iron = np.linalg.inv(soft_iron)
+        raw_body = struct.pack("<ffffffffffff", *soft_iron.flatten(), *hard_iron)
+
+        self.send_command(raw_header, raw_body)
+        self.ser.reset_input_buffer()
+        reply = self.ser.readline()
+        log.info(f"Reply from board: {reply}")
+
+    def get_accelerometer_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_ACC_GET_CALIB, 0)
+        acc_struct_format = "<fffffffffffffff"  # 3x3 matrix + 2 xyz-vectors = 15 floats
+
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
+
+        try:
+            params = self.calibration_reply_helper(acc_struct_format)
+            misalignment = np.array(params[:9])
+            misalignment.resize(3, 3)
+            sensitivity = np.array(params[9:12])
+            offset = np.array(params[12:15])
+
+        except BoardCommsError as err:
+            log.info(f"Error receiving calibration values: {err}")
+
+            misalignment = np.array([[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]])
+            sensitivity = np.array([-1, -1, -1])
+            offset = np.array([-1, -1, -1])
+
+        return misalignment, sensitivity, offset
+
+    def set_accelerometer_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None:
+        acc_struct_format = "<fffffffffffffff"  # 3x3 matrix + 2 xyz-vectors = 15 floats
+
+        raw_header = struct.pack(
+            "<BB", SERIAL_ACC_SET_CALIB, len(acc_struct_format) - 1
+        )
+        raw_body = struct.pack(
+            acc_struct_format,
+            *misalignment.flatten(),
+            *sensitivity.flatten(),
+            *offset.flatten(),
+        )
+
+        self.send_command(raw_header, raw_body)
+        self.ser.reset_input_buffer()
+        reply = self.ser.readline()
+        log.info(f"Reply from board: {reply}")
+
+    def get_gyroscope_calibration(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_GYRO_GET_CALIB, 0)
+        gyro_struct_format = (
+            "<fffffffffffffff"  # 3x3 matrix + 2 xyz-vectors = 15 floats
+        )
+
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
+
+        try:
+            params = self.calibration_reply_helper(gyro_struct_format)
+            misalignment = np.array(params[:9])
+            misalignment.resize(3, 3)
+            sensitivity = np.array(params[9:12])
+            offset = np.array(params[12:15])
+
+        except BoardCommsError as err:
+            log.info(f"Error receiving calibration values: {err}")
+
+            misalignment = np.array([[-1, -1, -1], [-1, -1, -1], [-1, -1, -1]])
+            sensitivity = np.array([-1, -1, -1])
+            offset = np.array([-1, -1, -1])
+
+        return misalignment, sensitivity, offset
+
+    def set_gyroscope_calibration(
+        self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
+    ) -> None:
+        gyro_struct_format = (
+            "<fffffffffffffff"  # 3x3 matrix + 2 xyz-vectors = 15 floats
+        )
+
+        raw_header = struct.pack(
+            "<BB", SERIAL_GYRO_SET_CALIB, len(gyro_struct_format) - 1
+        )
+        raw_body = struct.pack(
+            gyro_struct_format,
+            *misalignment.flatten(),
+            *sensitivity.flatten(),
+            *offset.flatten(),
+        )
+
+        self.send_command(raw_header, raw_body)
+        self.ser.reset_input_buffer()
+        reply = self.ser.readline()
+        log.info(f"Reply from board: {reply}")
+
+    def set_misc_settings(
+        self, output_offset: np.ndarray, ahrs_settings: np.ndarray
+    ) -> None:
+        misc_struct_format = "<fffffff"  # xyz vector + 4 floats
+        raw_header = struct.pack(
+            "<BB", SERIAL_MISC_SET_SETTINGS, len(misc_struct_format) - 1
+        )
+        raw_body = struct.pack(
+            misc_struct_format, *output_offset.flatten(), *ahrs_settings.flatten()
+        )
+
+        self.send_command(raw_header, raw_body)
+        self.ser.reset_input_buffer()
+        reply = self.ser.readline()
+        log.info(f"Reply from board: {reply}")
+
+    def get_misc_settings(
+        self,
+    ) -> tuple[np.ndarray, np.ndarray]:
+        raw_header = struct.pack("<BB", SERIAL_MISC_GET_SETTINGS, 0)
+        misc_struct_format = "<fffffff"  # xyz vector + 4 floats
+
+        self.send_command(raw_header, b"")
+        self.ser.reset_input_buffer()
+
+        try:
+            params = self.calibration_reply_helper(misc_struct_format)
+            output_offset = params[:3]
+            ahrs_settings = params[3:7]
+
+        except BoardCommsError as err:
+            log.info(f"Error receiving calibration values: {err}")
+
+            output_offset = np.array([-1, -1, -1])
+            ahrs_settings = np.array([-1, -1, -1, -1])
+
+        return output_offset, ahrs_settings
 
     def open(self) -> None:
         try:
@@ -398,107 +682,95 @@ class Nano33SerialComms(QObject):
         try:
             self.ser.close()
         except AttributeError:
+            # TODO: Log error if ser does not exist.
             pass
 
     def read_row(self) -> np.ndarray:
         # Flush everything so we get the newest measurement value.
         self.ser.reset_input_buffer()
 
+        # TODO: Get rid of hardcoded number.
+        N_DATA = 10  # How many floats we except to receive.
+
         stop_byte = "\n".encode("ASCII")
         raw = self.ser.read_until(stop_byte).decode("utf8")
+        log.info(f"Received data: {raw}")
 
         try:
-            row = np.array([float(d) for d in raw.split(sep=",")])
-        except ValueError as e:  # if no data was received.
-            raise NoDataReceived(e)
+            str_floats = raw.split(sep=",")[:N_DATA]
+            log.info(f"Split data: {str_floats}")
+            row = np.array([float(d) for d in str_floats])
+        except ValueError:  # if no data was received.
+            raise NoDataReceived()
 
-        return row.reshape(1, 3)
-
-    def get_calibration(self, calibration_type: int) -> Iterable[float] | None:
-        """
-        Get calibration data from the board.
-
-        IN: calibration_type: One of the 'SERIAL_GET_...' constants.
-        """
-        response_format = "<BBffffff"
-        # response_size = struct.calcsize(response_format)
-        calib = [0, 0, 0, 1, 1, 1]
-
-        try:
-            # cmd_0 = struct.pack("<BB", SERIAL_PRINT_NOTHING, 2)
-            # self.ser.reset_output_buffer()
-            # self.ser.reset_input_buffer()
-            cmd_1 = struct.pack("<BB", calibration_type, 2)
-            # self.send_command_bytes(cmd_0 + b";" + cmd_1 + b";")
-            self.send_command_bytes(cmd_1 + b";")
-
-            for i in range(5):
-                response = self.ser.read_until(";".encode("UTF-8"))
-                # response = self.ser.readline()
-                log.info(f"Response from board: {response}")
-                # time.sleep(0.5) # Why is this here?
-
-                try:
-                    cmd_id, n_bytes, *calib = struct.unpack(
-                        response_format,
-                        response.strip(b";").strip(b"\n").strip(b"\r"),
-                        # TODO: Should use readline so we don't have to guard againts extra LFCR
-                    )
-                    log.info(f"Response unpacked: {cmd_id}, {n_bytes}, {calib}")
-                    if cmd_id != calibration_type:
-                        raise BoardCommsError(
-                            f"Received cmd_id 0x{cmd_id:02x} does not match the requested type 0x{calibration_type:02x}"
-                        )
-
-                    return calib
-
-                except (struct.error, BoardCommsError) as err:
-                    log.warning(
-                        f"Try number {i}: response from board {response} create error: {err}"
-                    )
-
-            log.error("Did not receive proper response after 5 tries")
-            raise BoardCommsError("Did not receive proper response after 5 tries")
-
-        except SerialException as err:
-            raise BoardCommsError(err)
-        finally:
-            ...
-
-    def set_calibration(
-        self, calibration_type: int, data: tuple[float] | list[float]
-    ) -> None:
-        """
-        Send calibration data to the board.
-
-        IN: calibration_type: One of the 'SERIAL_SET_...' constants.
-            data: list of calibration values.
-        """
-        try:
-            command_format = "<BBffffff"
-            command_size = struct.calcsize(command_format)
-            self.ser.reset_input_buffer()
-            log.info(
-                f"Sending to board: {calibration_type:02x}, {command_size}, {data}"
-            )
-
-            cmd = struct.pack(command_format, calibration_type, command_size, *data[:6])
-            self.send_command_bytes(cmd + b";")
-            log.info(f"Send command: {cmd}")
-
-            s = self.ser.readline()
-            log.info(f"Set calibration reply from board: {s}")
-
-        except SerialException as err:
-            raise BoardCommsError(err)
-        finally:
-            ...
+        return row
 
     @staticmethod
-    def remove_control_characters(input: str) -> str:
+    def parse_outbound_bytes(d: bytes) -> bytes:
+        """
+        Prepend all ASCII transmission control characters with escape byte
+        and offset the character with ESCAPE_OFFSET.
+        """
+        res = copy.deepcopy(d)  # Is this necessary?
+
+        # NOTE: ASCII_ESC must be first in list or we replace all the escapes
+        # created by escaping other control characters. This is fragile...
+        for c in (
+            ASCII_ESC,
+            ASCII_SOH,
+            ASCII_STX,
+            ASCII_ETX,
+            ASCII_EOT,
+            ASCII_NUL,
+            ASCII_CR,
+            ASCII_LF,
+        ):
+            res = res.replace(bytes([c]), bytes([ASCII_ESC, c + ESCAPE_OFFSET]))
+
+        return res
+
+    @staticmethod
+    def parse_inbound_bytes(d: bytes) -> bytes:
+        """
+        Remove all ASCII_ESC characters and restore the following character.
+        """
+
+        res = copy.deepcopy(d)
+        while True:
+            i = res.find(bytes([ASCII_ESC]))
+
+            if i == -1:
+                return res
+            else:
+                c_esc = res[i + 1]
+                c_real = c_esc - ESCAPE_OFFSET
+                res = res.replace(bytes([ASCII_ESC, c_esc]), bytes([c_real]))
+
+    @staticmethod
+    def retrieve_header_and_body(d: bytes, raw: bool = False) -> tuple[bytes, bytes]:
+        """
+        Split the received data into header and body.
+        """
         try:
-            return "".join(
-                char for char in input if unicodedata.category(char)[0] != "C"
-            )
-        except TypeError:
-            return ""
+            i_soh = d.index(bytes([ASCII_SOH]))
+            i_stx = d.index(bytes([ASCII_STX]))
+            i_etx = d.index(bytes([ASCII_ETX]))
+            i_eot = d.index(bytes([ASCII_EOT]))
+
+            if not (i_soh < i_stx < i_etx < i_eot):
+                raise BoardCommsError("Received data has invalid format")
+
+            raw_header = d[i_soh + 1 : i_stx]
+            raw_body = d[i_stx + 1 : i_etx]
+
+            if raw:
+                header = raw_header
+                body = raw_body
+            else:
+                header = Nano33SerialComms.parse_inbound_bytes(raw_header)
+                body = Nano33SerialComms.parse_inbound_bytes(raw_body)
+
+            return header, body
+
+        except ValueError as e:
+            raise BoardCommsError(f"Received data has invalid format: {e}")

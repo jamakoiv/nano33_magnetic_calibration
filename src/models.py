@@ -1,9 +1,12 @@
+# --coding: utf-8--
+
 import sys
 import logging
 import numpy as np
 
 from collections import OrderedDict
 from PySide6.QtCore import (
+    QLocale,
     Slot,
     Signal,
     QObject,
@@ -14,10 +17,9 @@ from PySide6.QtCore import (
     Qt,
 )
 from PySide6.QtWidgets import (
+    QStyledItemDelegate,
     QComboBox,
     QMainWindow,
-    QMessageBox,
-    QTableView,
     QApplication,
 )
 from PySide6.QtGui import QColor
@@ -28,13 +30,12 @@ from ellipsoid import SphereSampling, fitEllipsoidNonRotated
 log = logging.getLogger(__name__)
 
 
+# TODO: Update rest of the model to better handle the fact that acceleration and gyroscope data are part of the model now.
 class CalibrationDataModel(QAbstractTableModel):
-    _data: np.ndarray
     data_changed = Signal()
 
     def __init__(self, parent: QObject | None = None) -> None:
         self.sampling = SphereSampling(N=10)
-
         super().__init__(parent=parent)
 
     def set_data(self, array: np.ndarray) -> None:
@@ -51,10 +52,7 @@ class CalibrationDataModel(QAbstractTableModel):
 
         self.beginInsertRows(QModelIndex(), self.rowCount(), self.rowCount())
 
-        # TODO: Too much babysitting the input shape.
-        row = np.append(row, self.calculate_magnitude(row))
         row = row.reshape(1, len(row))
-
         try:
             self._data = np.append(self._data, row, axis=0)
         except AttributeError:  # if self._data does not exists
@@ -84,9 +82,6 @@ class CalibrationDataModel(QAbstractTableModel):
 
         return True
 
-    def calculate_magnitude(self, row: np.ndarray) -> float:
-        return np.sqrt((row**2).sum())
-
     def rowCount(
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
     ) -> int:
@@ -114,11 +109,16 @@ class CalibrationDataModel(QAbstractTableModel):
         role: int = Qt.ItemDataRole.DisplayRole,
     ):
         columns = {
-            0: "X [μT]",
-            1: "Y [μT]",
-            2: "Z [μT]",
-            3: "total [μT]",
-            4: "uguu [μT]",
+            0: "t [s]",
+            1: "B(X) [μT]",
+            2: "B(Y) [μT]",
+            3: "B(Z) [μT]",
+            4: "A(X) [g0]",
+            5: "A(Y) [g0]",
+            6: "A(Z) [g0]",
+            7: "ω(X) [deg/s]",
+            8: "ω(Y) [deg/s]",
+            9: "ω(Z) [deg/s]",
         }
 
         match role:
@@ -159,24 +159,26 @@ class CalibrationDataModel(QAbstractTableModel):
 
     def get_xyz_data(self, with_offset: bool = False) -> np.ndarray:
         try:
-            x, y, z, _ = self._data.copy().transpose()
+            t, magX, magY, magZ, accX, accY, accZ, gyroX, gyroY, gyroZ = (
+                self._data.copy().transpose()
+            )
 
             if with_offset:
                 x_offset, y_offset, z_offset = self.ellipsoid_params[:3]
-                x -= x_offset
-                y -= y_offset
-                z -= z_offset
+                magX -= x_offset
+                magY -= y_offset
+                magZ -= z_offset
 
         except AttributeError:
-            x = np.zeros(0)
-            y = np.zeros(0)
-            z = np.zeros(0)
+            magX = np.zeros(0)
+            magY = np.zeros(0)
+            magZ = np.zeros(0)
 
-        return np.array([x, y, z])
+        return np.array([magX, magY, magZ])
 
     def update_offset(self) -> None:
-        x, y, z = self.get_xyz_data(with_offset=False)
-        res = fitEllipsoidNonRotated(x, y, z)
+        magX, magY, magZ = self.get_xyz_data(with_offset=False)
+        res = fitEllipsoidNonRotated(magX, magY, magZ)
         self.ellipsoid_params = np.array(res[0])
         # print(self.ellipsoid_params)
 
@@ -199,6 +201,15 @@ class CalibrationDataModel(QAbstractTableModel):
         log.info(
             f"sample coverage: {self.sampling.get_percentage()}, {self.sampling.get_count()} / {len(self.sampling.segments)}"
         )
+
+
+class CalibrationDataDelegate(QStyledItemDelegate):
+    def displayText(self, value: str, locale: QLocale | QLocale.Language) -> str:
+        try:
+            f = float(value)
+            return f"{f:.2f}"
+        except (ValueError, TypeError):
+            return str(value)
 
 
 class SerialPortsModel(QAbstractListModel):
