@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
 
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel, CalibrationDataDelegate
-from widgets import DeviceSelectWidget, CalibrationWidget
+from widgets import DeviceSelectWidget, CalibrationWidget, FitWidget
 from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 from ellipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
 
@@ -187,18 +187,9 @@ class MainWindow(QMainWindow):
     def build_toolbars(self) -> None:
         log.info("Creating GUI toolbars")
 
-        self.toolbar_main = QToolBar("main_toolbar")
-
-        self.toolbar_main.addActions(
-            [
-                self.action_random_data,
-                self.action_get_calibration,
-                self.action_set_calibration,
-                self.action_fit_ellipsoid,
-                self.action_plot_ellipsoid_wireframe,
-                self.action_quit,
-            ]
-        )
+        self.toolbar_fit = QToolBar("main_toolbar")
+        self.fit_widget = FitWidget(parent=self)
+        self.toolbar_fit.addWidget(self.fit_widget)
 
         self.toolbar_mpl = QToolBar("matplotlib_default_tools")
         self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
@@ -215,7 +206,7 @@ class MainWindow(QMainWindow):
         self.toolbar_device.addWidget(self.device_select_widget)
 
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_device)
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_main)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_fit)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
 
     def build_menus(self) -> None:

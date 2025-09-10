@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 )
 
 from models import SerialPortsModel
+import fit_functions
 
 log = logging.getLogger(__name__)
 
@@ -106,6 +107,50 @@ class DeviceSelectWidget(QWidget):
             last_selected_index = 0
 
         self.device_selector.setCurrentIndex(last_selected_index)
+
+
+class FitWidget(QWidget):
+    functionChanged = Signal(object)
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent=parent)
+
+        self.select_function = QComboBox(parent=self)
+        self.select_function.setToolTip("Select function to fit to the data")
+        self.select_function.addItems(
+            [
+                "Sphere",
+                "Ellipsoid (non-rotated)",
+                "Ellipsoid (rotated)",
+                "Ellipsoid (rotated, alt)",
+            ]
+        )
+        self.select_function.currentIndexChanged.connect(self.get_selected_function)
+
+        self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "&Fit", self)
+        self.action_fit_ellipsoid.setToolTip(
+            "Fit the selected function to current data"
+        )
+        self.button_fit_ellipsoid = QToolButton(parent=self)
+        self.button_fit_ellipsoid.setDefaultAction(self.action_fit_ellipsoid)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.select_function)
+        layout.addWidget(self.button_fit_ellipsoid)
+        self.setLayout(layout)
+
+    def get_selected_function(self):
+        idx = self.select_function.currentIndex()
+        log.info(f"Function selector combobox index changed, currentIndex {idx}")
+        match idx:
+            case 0:
+                self.functionChanged.emit(fit_functions.fit_sphere)
+            case 1:
+                self.functionChanged.emit(fit_functions.fit_ellipsoid_nonrotated)
+            case 2:
+                self.functionChanged.emit(fit_functions.fit_ellipsoid_rotated)
+            case 3:
+                self.functionChanged.emit(fit_functions.fit_ellipsoid_rotated_alt)
 
 
 class CalibrationVectorWidget(QWidget):
