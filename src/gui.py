@@ -360,7 +360,6 @@ class MainWindow(QMainWindow):
     def action_fit_ellipsoid_callback(self):
         data = self.data_model.get_xyz_data()
 
-        breakpoint()
         gain, offset = self.fit_widget.fit_function(*data)
         soft_iron = np.diag(gain)
 
