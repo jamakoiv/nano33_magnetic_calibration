@@ -33,13 +33,14 @@ class test_calibrationDataModel(unittest.TestCase):
         return super().tearDown()
 
     def test_set_data(self) -> None:
-        data = np.arange(10 * 3).reshape(10, 3)
+        N = 50
+        data = np.arange(N * 10).reshape(10, N)
         self.model.set_data(data)
         self.assertTrue((self.model._data == data).all())
 
     def test_append_data_single(self) -> None:
-        correct = np.array([1, 2, 3, 3.741657]).reshape(1, 4)
-        self.model.append_data(np.array([1, 2, 3]))
+        correct = np.arange(10).reshape(1, 10)
+        self.model.append_data(np.arange(10))
 
         try:
             np.testing.assert_array_almost_equal(self.model._data, correct)
@@ -48,9 +49,10 @@ class test_calibrationDataModel(unittest.TestCase):
             self.assertTrue(False)
 
     def test_append_data_multiple(self) -> None:
-        correct = np.array([1, 2, 3, 3.741657, 10, 20, 30, 37.41657386]).reshape(2, 4)
-        self.model.append_data(np.array([1, 2, 3]))
-        self.model.append_data(np.array([10, 20, 30]))
+        correct = np.arange(30).reshape(3, 10)
+        self.model.append_data(np.arange(10))
+        self.model.append_data(np.arange(10, 20))
+        self.model.append_data(np.arange(20, 30))
 
         try:
             np.testing.assert_array_almost_equal(self.model._data, correct)
@@ -59,8 +61,8 @@ class test_calibrationDataModel(unittest.TestCase):
             self.assertTrue(False)
 
     def test_get_xyz_data(self) -> None:
-        self.model.append_data(np.array([1, 2, 3]))
-        self.model.append_data(np.array([10, 20, 30]))
+        self.model.append_data(np.array([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]))
+        self.model.append_data(np.array([0, 10, 20, 30, 40, 50, 60, 70, 80, 90]))
 
         x, y, z = self.model.get_xyz_data()
         try:
@@ -72,20 +74,20 @@ class test_calibrationDataModel(unittest.TestCase):
             self.assertTrue(False)
 
     def test_rowCount(self) -> None:
-        self.model.append_data(np.array([1, 2, 3]))
-        self.model.append_data(np.array([10, 20, 30]))
-        self.model.append_data(np.array([100, 200, 300]))
+        self.model.append_data(np.random.random(10))
+        self.model.append_data(np.random.random(10))
+        self.model.append_data(np.random.random(10))
 
         self.assertEqual(self.model.rowCount(), 3)
 
     def test_columnCount(self) -> None:
-        self.model.append_data(np.array([1, 2, 3]))
+        self.model.append_data(np.random.random(10))
 
-        self.assertEqual(self.model.columnCount(), 4)
+        self.assertEqual(self.model.columnCount(), 10)
 
     def test_data(self) -> None:
-        self.model.append_data(np.array([1, 2, 3]))
-        self.model.append_data(np.array([10, 20, 30]))
+        self.model.append_data(np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+        self.model.append_data(np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]))
 
         correct = self.model.data(
             self.model.createIndex(0, 1), Qt.ItemDataRole.DisplayRole
@@ -102,15 +104,15 @@ class test_calibrationDataModel(unittest.TestCase):
     def test_insert_row_signal(self) -> None:
         spy = QSignalSpy(self.model.rowsInserted)
         self.assertTrue(spy.isValid())
-        self.model.append_data(np.array([1, 2, 3]))
-        self.model.append_data(np.array([10, 20, 30]))
+        self.model.append_data(np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+        self.model.append_data(np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]))
         self.assertEqual(spy.count(), 2)
 
     def test_remove_row_signal(self) -> None:
         spy = QSignalSpy(self.model.rowsRemoved)
         self.assertTrue(spy.isValid())
-        self.model.append_data(np.array([1, 2, 3]))
-        self.model.append_data(np.array([10, 20, 30]))
+        self.model.append_data(np.array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
+        self.model.append_data(np.array([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]))
         self.model.removeRows(0, 2)
 
         self.assertEqual(spy.count(), 1)

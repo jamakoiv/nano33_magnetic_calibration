@@ -56,14 +56,14 @@ class test_Board2GUI(unittest.TestCase):
         spy = QSignalSpy(self.board_comms.data_row_received)
         self.assertTrue(spy.isValid())
 
-        self.board_comms.read_magnetic_calibration_data()
+        self.board_comms.read_raw_data()
         self.assertEqual(spy.count(), self.board_comms.read_sample_size)
 
         data = np.array([])
         for i in range(self.board_comms.read_sample_size):
             data = np.append(data, spy.at(i)[0])
 
-        self.assertEqual(data.shape, (self.board_comms.read_sample_size * 3,))
+        self.assertEqual(data.shape, (self.board_comms.read_sample_size * 10,))
 
     def test_read_magnetic_calibration_data_exceptions(self) -> None:
         self.board_comms.board = None  # pyright: ignore
@@ -74,7 +74,7 @@ class test_Board2GUI(unittest.TestCase):
 
         self.board_comms.get_calibration("magnetometer")
         self.assertEqual(spy.count(), 1)
-        id, offset, gain = spy.at(0)[0]
+        id, (offset, gain) = spy.at(0)[0]
 
         self.assertEqual(id, "magnetometer")
         try:
@@ -87,7 +87,7 @@ class test_Board2GUI(unittest.TestCase):
 
         self.board_comms.get_calibration("accelerometer")
         self.assertEqual(spy.count(), 2)
-        id, offset, gain = spy.at(1)[0]
+        id, (offset, gain) = spy.at(1)[0]
 
         self.assertEqual(id, "accelerometer")
         try:
@@ -100,7 +100,7 @@ class test_Board2GUI(unittest.TestCase):
 
         self.board_comms.get_calibration("gyroscope")
         self.assertEqual(spy.count(), 3)
-        id, offset, gain = spy.at(2)[0]
+        id, (offset, gain) = spy.at(2)[0]
 
         self.assertEqual(id, "gyroscope")
         try:
