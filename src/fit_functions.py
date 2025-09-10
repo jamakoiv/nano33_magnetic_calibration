@@ -22,6 +22,8 @@ the DT0059.
 """
 # TODO: Currently some return gain such that raw * gain = unit sphere,
 # and some raw / gain = unit sphere.
+#
+# TODO: Return same data from each fit function: offset, gain/soft-iron matrix, ellipsoid semi-axes, rotation matrix
 
 
 def fit_sphere(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
