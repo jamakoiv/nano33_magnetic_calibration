@@ -189,6 +189,9 @@ class MainWindow(QMainWindow):
 
         self.toolbar_fit = QToolBar("main_toolbar")
         self.fit_widget = FitWidget(parent=self)
+        self.fit_widget.button_fit_ellipsoid.pressed.connect(
+            self.action_fit_ellipsoid_callback
+        )
         self.toolbar_fit.addWidget(self.fit_widget)
 
         self.toolbar_mpl = QToolBar("matplotlib_default_tools")
@@ -357,47 +360,25 @@ class MainWindow(QMainWindow):
     def action_fit_ellipsoid_callback(self):
         data = self.data_model.get_xyz_data()
 
-        (
-            params,
-            fopt,
-            gopt,
-            bopt,
-            func_calls,
-            grad_calls,
-            warnflag,
-        ) = fitEllipsoidNonRotated(*data)
-
-        # INFO: Using notation from AN4246 page 7.
-        V = np.array(params[:3])
-        A = np.diag(params[3:])
-
-        # INFO: Eqn. 20 in AN4246.
-        # BUG: Cannot figure out if we are supposed to use the soft_iron or inv_soft_iron in the board-side calibration
-        #
-        # inv_soft_iron = scipy.linalg.sqrtm(A)
-        # soft_iron = np.linalg.inv(inv_soft_iron)
-        # breakpoint()
-        #
-
-        # INFO: For now we just use the inverse of the ellipsoid fit-matrix parameters.
-        # That gives us a calibrated magnetic vector normalised to 1 (???).
-        soft_iron = np.linalg.inv(A)
+        breakpoint()
+        gain, offset = self.fit_widget.fit_function(*data)
+        soft_iron = np.diag(gain)
 
         self.calibration_widget.magnetic.soft_iron.set(soft_iron)
-        self.calibration_widget.magnetic.hard_iron.set(V)
+        self.calibration_widget.magnetic.hard_iron.set(offset)
 
-        s_params = (
-            "Fit parameters",
-            f"x0={params[0]:.4f}, y0={params[1]:.4f}, z0={params[2]:.4f}, a={params[3]:.4f}, b={params[4]:.4f}, c={params[5]:.4f}",
-        )
-        s_fopt = ("Residual", f"{fopt:.4e}")
-        s_func = ("Function calls", f"{func_calls}")
-        s_grad = ("Gradient calls", f"{grad_calls}")
+        # s_params = (
+        #     "Fit parameters",
+        #     f"x0={params[0]:.4f}, y0={params[1]:.4f}, z0={params[2]:.4f}, a={params[3]:.4f}, b={params[4]:.4f}, c={params[5]:.4f}",
+        # )
+        # s_fopt = ("Residual", f"{fopt:.4e}")
+        # s_func = ("Function calls", f"{func_calls}")
+        # s_grad = ("Gradient calls", f"{grad_calls}")
 
-        self.gui_logger(f"Fit parameters:\t{s_params[1]}")
-        self.gui_logger(f"Residual: \t{s_fopt[1]}")
-        self.gui_logger(f"Function calls: \t{s_func[1]}")
-        self.gui_logger(f"Gradient calls: \t{s_grad[1]}")
+        # self.gui_logger(f"Fit parameters:\t{s_params[1]}")
+        # self.gui_logger(f"Residual: \t{s_fopt[1]}")
+        # self.gui_logger(f"Function calls: \t{s_func[1]}")
+        # self.gui_logger(f"Gradient calls: \t{s_grad[1]}")
 
     def add_random_data(self) -> None:
         self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))

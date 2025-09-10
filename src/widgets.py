@@ -110,10 +110,9 @@ class DeviceSelectWidget(QWidget):
 
 
 class FitWidget(QWidget):
-    functionChanged = Signal(object)
-
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
+        self.fit_function = fit_functions.fit_sphere
 
         self.select_function = QComboBox(parent=self)
         self.select_function.setToolTip("Select function to fit to the data")
@@ -125,7 +124,7 @@ class FitWidget(QWidget):
                 "Ellipsoid (rotated, alt)",
             ]
         )
-        self.select_function.currentIndexChanged.connect(self.get_selected_function)
+        self.select_function.currentIndexChanged.connect(self.set_fit_function)
 
         self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "&Fit", self)
         self.action_fit_ellipsoid.setToolTip(
@@ -139,18 +138,18 @@ class FitWidget(QWidget):
         layout.addWidget(self.button_fit_ellipsoid)
         self.setLayout(layout)
 
-    def get_selected_function(self):
+    def set_fit_function(self):
         idx = self.select_function.currentIndex()
         log.info(f"Function selector combobox index changed, currentIndex {idx}")
         match idx:
             case 0:
-                self.functionChanged.emit(fit_functions.fit_sphere)
+                self.fit_function = fit_functions.fit_sphere
             case 1:
-                self.functionChanged.emit(fit_functions.fit_ellipsoid_nonrotated)
+                self.fit_function = fit_functions.fit_ellipsoid_nonrotated
             case 2:
-                self.functionChanged.emit(fit_functions.fit_ellipsoid_rotated)
+                self.fit_function = fit_functions.fit_ellipsoid_rotated
             case 3:
-                self.functionChanged.emit(fit_functions.fit_ellipsoid_rotated_alt)
+                self.fit_function = fit_functions.fit_ellipsoid_rotated_alt
 
 
 class CalibrationVectorWidget(QWidget):
