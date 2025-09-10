@@ -98,13 +98,13 @@ class MainWindow(QMainWindow):
             QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         )
 
-        self.device_select_widget = DeviceSelectWidget(parent=self)
-        self.device_select_widget.setSizePolicy(default_size_policy)
-        self.device_select_dock = QDockWidget("&Device select", parent=self)
-        self.device_select_dock.setWidget(self.device_select_widget)
-        self.device_select_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
-        )
+        # self.device_select_widget = DeviceSelectWidget(parent=self)
+        # self.device_select_widget.setSizePolicy(default_size_policy)
+        # self.device_select_dock = QDockWidget("&Device select", parent=self)
+        # self.device_select_dock.setWidget(self.device_select_widget)
+        # self.device_select_dock.setFeatures(
+        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        # )
 
         self.data_table_widget = QTableView(parent=self)
         self.data_table_dock = QDockWidget("Data &table", parent=self)
@@ -120,9 +120,9 @@ class MainWindow(QMainWindow):
         self.log_dock = QDockWidget("&Log", parent=self)
         self.log_dock.setWidget(self.log_widget)
 
-        self.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, self.device_select_dock
-        )
+        # self.addDockWidget(
+        #     Qt.DockWidgetArea.LeftDockWidgetArea, self.device_select_dock
+        # )
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.calibration_dock)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_table_dock)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_dock)
@@ -204,6 +204,11 @@ class MainWindow(QMainWindow):
         self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
         self.toolbar_mpl.addWidget(self.mpl_default_tools)
 
+        self.toolbar_device = QToolBar("device_toolbar")
+        self.device_select_widget = DeviceSelectWidget(parent=self)
+        self.toolbar_device.addWidget(self.device_select_widget)
+
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_device)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_main)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
 
@@ -217,7 +222,7 @@ class MainWindow(QMainWindow):
 
         self.menu_view.addActions(
             [
-                self.device_select_dock.toggleViewAction(),
+                # self.device_select_dock.toggleViewAction(),
                 self.calibration_dock.toggleViewAction(),
                 self.menu_view.addSeparator(),
                 self.data_table_dock.toggleViewAction(),

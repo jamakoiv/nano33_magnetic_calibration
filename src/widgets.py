@@ -41,11 +41,11 @@ class DeviceSelectWidget(QWidget):
         self.scan_devices_action = QAction(
             QIcon.fromTheme("view-refresh"), "Scan", self
         )
-        self.scan_devices_action.setToolTip("Scan for connected devices")
+        self.scan_devices_action.setToolTip("Refresh device list")
         self.scan_devices_action.triggered.connect(self.refresh_serial_ports)
         self.scan_devices_button.setDefaultAction(self.scan_devices_action)
 
-        self.data_label = QLabel(parent=self, text="N: ")
+        # self.data_label = QLabel(parent=self, text="N: ")
         self.data_button = QToolButton(parent=self)
         self.data_button_action = QAction(
             QIcon.fromTheme("media-playback-start"), "Get data", self
@@ -54,10 +54,12 @@ class DeviceSelectWidget(QWidget):
         self.data_button.setDefaultAction(self.data_button_action)
 
         self.device_selector = QComboBox(parent=self)
+        self.device_selector.setToolTip("Selected serial device")
         self.serial_ports_model = SerialPortsModel(parent=self)
         self.device_selector.setModel(self.serial_ports_model)
 
         self.data_points = QSpinBox(parent=self)
+        self.data_points.setToolTip("Number of data points to get")
         self.data_points.setRange(10, 500)
         self.data_points.setSingleStep(10)
         self.data_points.setValue(20)
