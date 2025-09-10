@@ -206,6 +206,12 @@ class MainWindow(QMainWindow):
 
         self.toolbar_device = QToolBar("device_toolbar")
         self.device_select_widget = DeviceSelectWidget(parent=self)
+        self.device_select_widget.device_selector.currentIndexChanged.connect(
+            self.update_current_board
+        )
+        self.device_select_widget.data_points.valueChanged.connect(
+            self.update_current_board
+        )
         self.toolbar_device.addWidget(self.device_select_widget)
 
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_device)
@@ -266,15 +272,11 @@ class MainWindow(QMainWindow):
     def button_get_misc_calibration_callback(self) -> None:
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
-
-            self.update_current_board()
             self.start_calibration_get.emit("misc")
 
     def button_set_misc_calibration_callback(self) -> None:
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
-            self.update_current_board()
-
             output_offset = self.calibration_widget.misc.get_offset()
             ahrs_settings = self.calibration_widget.misc.get_ahrs_settings()
             self.start_calibration_set.emit("misc", (output_offset, ahrs_settings))
@@ -282,13 +284,11 @@ class MainWindow(QMainWindow):
     def button_get_gyroscope_calibration_callback(self) -> None:
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
-            self.update_current_board()
             self.start_calibration_get.emit("gyroscope")
 
     def button_get_accelerometer_calibration_callback(self) -> None:
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
-            self.update_current_board()
             self.start_calibration_get.emit("accelerometer")
 
     def action_get_calibration_callback(self):
@@ -296,7 +296,6 @@ class MainWindow(QMainWindow):
             self.disable_comms_buttons()
 
             self.action_get_calibration.setEnabled(False)
-            self.update_current_board()
             self.start_calibration_get.emit("magnetic")
 
     def action_set_calibration_callback(self):
@@ -304,7 +303,6 @@ class MainWindow(QMainWindow):
             self.disable_comms_buttons()
 
             self.action_set_calibration.setEnabled(False)
-            self.update_current_board()
             soft_iron = self.calibration_widget.magnetic.soft_iron.get()
             hard_iron = self.calibration_widget.magnetic.hard_iron.get()
 
@@ -355,7 +353,6 @@ class MainWindow(QMainWindow):
 
     def data_read_callback(self) -> None:
         log.info("Data read callback triggered")
-        self.update_current_board()
 
         if not self.board_comms.task_running:
             log.info("Starting data read task")
