@@ -525,9 +525,24 @@ class CalibrationWidget(QWidget):
         self.misc = CalibrationMiscWidget(parent=self.tabs)
 
         self.tabs.addTab(self.magnetic, "Mag")
+        self.icon_magnetic = QIcon()
+        self.icon_magnetic.addFile("src/assets/compass.svg")
+        self.tabs.setTabIcon(0, self.icon_magnetic)
+
         self.tabs.addTab(self.gyroscope, "Gyro")
+        self.icon_gyro = QIcon()
+        self.icon_gyro.addFile("src/assets/gyroscope.svg")
+        self.tabs.setTabIcon(1, self.icon_gyro)
+
         self.tabs.addTab(self.accelerometer, "Acc")
+        self.icon_acc = QIcon()
+        self.icon_acc.addFile("src/assets/accelerometer.svg")
+        self.tabs.setTabIcon(2, self.icon_acc)
+
         self.tabs.addTab(self.misc, "Misc")
+        self.icon_misc = QIcon()
+        self.icon_misc.addFile("src/assets/settings.svg")
+        self.tabs.setTabIcon(3, self.icon_misc)
 
         layout = QVBoxLayout()
         layout.addWidget(self.tabs)
