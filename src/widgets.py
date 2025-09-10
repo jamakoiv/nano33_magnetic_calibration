@@ -2,30 +2,31 @@ import sys
 import logging
 import numpy as np
 
-from typing import Tuple
 from collections import OrderedDict
 from serial.tools import list_ports
 from PySide6.QtCore import Qt, Slot, Signal
-from PySide6.QtGui import QDoubleValidator
+from PySide6.QtGui import QDoubleValidator, QAction, QIcon
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
     QFormLayout,
+    QFrame,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
     QWidget,
     QComboBox,
     QPushButton,
+    QToolButton,
 )
 
 from models import SerialPortsModel
+
+log = logging.getLogger(__name__)
 
 
 class DeviceSelectWidget(QWidget):
@@ -33,20 +34,25 @@ class DeviceSelectWidget(QWidget):
     Widget for selecting device and getting raw data from the device.
     """
 
-    scan_devices_button: QPushButton
-    device_selector: QComboBox
-
-    data_points: QSpinBox
-    data_label: QLabel
-    data_button: QPushButton
-
-    serial_ports_model: SerialPortsModel
-
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
-        self.scan_devices_button = QPushButton("Scan devices", parent=self)
-        self.scan_devices_button.clicked.connect(self.refresh_serial_ports)
+        self.scan_devices_button = QToolButton(parent=self)
+        self.scan_devices_action = QAction(
+            QIcon.fromTheme("view-refresh"), "Scan", self
+        )
+        self.scan_devices_action.setToolTip("Scan for connected devices")
+        self.scan_devices_action.triggered.connect(self.refresh_serial_ports)
+        self.scan_devices_button.setDefaultAction(self.scan_devices_action)
+
+        self.data_label = QLabel(parent=self, text="N: ")
+        self.data_button = QToolButton(parent=self)
+        self.data_button_action = QAction(
+            QIcon.fromTheme("media-playback-start"), "Get data", self
+        )
+        self.data_button_action.setToolTip("Get raw data from the device")
+        self.data_button.setDefaultAction(self.data_button_action)
+
         self.device_selector = QComboBox(parent=self)
         self.serial_ports_model = SerialPortsModel(parent=self)
         self.device_selector.setModel(self.serial_ports_model)
@@ -56,25 +62,15 @@ class DeviceSelectWidget(QWidget):
         self.data_points.setSingleStep(10)
         self.data_points.setValue(20)
 
-        self.data_label = QLabel(parent=self, text="Calibration points: ")
-        self.data_button = QPushButton("Read data", parent=self)
+        self.separator = QFrame()
+        self.separator.setFrameShape(QFrame.Shape.VLine)
 
-        self.device_box = QGroupBox(title="", parent=self)
-        self.device_layout = QHBoxLayout()
-        self.device_layout.addWidget(self.device_selector)
-        self.device_layout.addWidget(self.scan_devices_button)
-        self.device_box.setLayout(self.device_layout)
-
-        self.data_box = QGroupBox(title="", parent=self)
-        self.data_layout = QHBoxLayout()
-        self.data_layout.addWidget(self.data_label)
-        self.data_layout.addWidget(self.data_points)
-        self.data_layout.addWidget(self.data_button)
-        self.data_box.setLayout(self.data_layout)
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.device_box)
-        layout.addWidget(self.data_box)
+        layout = QHBoxLayout()
+        layout.addWidget(self.device_selector)
+        layout.addWidget(self.scan_devices_button)
+        layout.addWidget(self.separator)
+        layout.addWidget(self.data_points)
+        layout.addWidget(self.data_button)
         self.setLayout(layout)
 
     def refresh_serial_ports(self) -> None:
