@@ -46,6 +46,13 @@ class DeviceSelectWidget(QWidget):
         self.scan_devices_action.triggered.connect(self.refresh_serial_ports)
         self.scan_devices_button.setDefaultAction(self.scan_devices_action)
 
+        self.get_calibration_button = QToolButton(parent=self)
+        self.get_calibration_action = QAction(QIcon.fromTheme("go-first"), "Get", self)
+        self.get_calibration_action.setToolTip(
+            "Get current calibration values from device"
+        )
+        self.get_calibration_button.setDefaultAction(self.get_calibration_action)
+
         # self.data_label = QLabel(parent=self, text="N: ")
         self.data_button = QToolButton(parent=self)
         self.data_button_action = QAction(
@@ -74,6 +81,7 @@ class DeviceSelectWidget(QWidget):
         layout.addWidget(self.separator)
         layout.addWidget(self.data_points)
         layout.addWidget(self.data_button)
+        layout.addWidget(self.get_calibration_button)
         self.setLayout(layout)
 
     def refresh_serial_ports(self) -> None:

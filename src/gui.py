@@ -94,9 +94,9 @@ class MainWindow(QMainWindow):
         self.calibration_widget.setSizePolicy(default_size_policy)
         self.calibration_dock = QDockWidget("&Calibration values", parent=self)
         self.calibration_dock.setWidget(self.calibration_widget)
-        self.calibration_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
-        )
+        # self.calibration_dock.setFeatures(
+        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        # )
 
         # self.device_select_widget = DeviceSelectWidget(parent=self)
         # self.device_select_widget.setSizePolicy(default_size_policy)
@@ -112,9 +112,9 @@ class MainWindow(QMainWindow):
         self.data_table_widget.horizontalHeader().setDefaultSectionSize(85)
         self.data_table_delegate = CalibrationDataDelegate()
         self.data_table_widget.setItemDelegate(self.data_table_delegate)
-        self.data_table_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
-        )
+        # self.data_table_dock.setFeatures(
+        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        # )
 
         self.log_widget = QTextEdit(parent=self)
         self.log_dock = QDockWidget("&Log", parent=self)
@@ -153,39 +153,21 @@ class MainWindow(QMainWindow):
         self.action_quit.setShortcut(QKeySequence("Ctrl+Q"))
         self.action_quit.triggered.connect(self.close)
 
-        self.action_get_calibration = QAction(
-            QIcon.fromTheme("go-first"),
-            "Get calibration from currently selected device.",
-            self,
-        )
-        self.action_get_calibration.triggered.connect(
-            self.action_get_calibration_callback
-        )
-        self.action_set_calibration = QAction(
-            QIcon.fromTheme("go-last"),
-            "Send calibration to currently selected device.",
-            self,
-        )
-        self.action_set_calibration.triggered.connect(
-            self.action_set_calibration_callback
-        )
-
-        self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "Fit ellipsoid.", self)
-        self.action_fit_ellipsoid.triggered.connect(self.action_fit_ellipsoid_callback)
-
-        self.action_plot_ellipsoid_wireframe = QAction(
-            QIcon.fromTheme(""), "Wireframe", self
-        )
-        self.action_plot_ellipsoid_wireframe.triggered.connect(
-            self.action_plot_ellipsoid_wireframe_callback
-        )
-
-        self.action_random_data = QAction(text="Add random data")
-        self.action_random_data.setShortcut(QKeySequence("Ctrl+D"))
-        self.action_random_data.triggered.connect(self.add_random_data)
-
     def build_toolbars(self) -> None:
         log.info("Creating GUI toolbars")
+
+        self.toolbar_device = QToolBar("device_toolbar")
+        self.device_select_widget = DeviceSelectWidget(parent=self)
+        self.device_select_widget.device_selector.currentIndexChanged.connect(
+            self.update_current_board
+        )
+        self.device_select_widget.data_points.valueChanged.connect(
+            self.update_current_board
+        )
+        self.device_select_widget.get_calibration_action.triggered.connect(
+            self.action_get_calibration_callback
+        )
+        self.toolbar_device.addWidget(self.device_select_widget)
 
         self.toolbar_fit = QToolBar("main_toolbar")
         self.fit_widget = FitWidget(parent=self)
@@ -197,16 +179,6 @@ class MainWindow(QMainWindow):
         self.toolbar_mpl = QToolBar("matplotlib_default_tools")
         self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
         self.toolbar_mpl.addWidget(self.mpl_default_tools)
-
-        self.toolbar_device = QToolBar("device_toolbar")
-        self.device_select_widget = DeviceSelectWidget(parent=self)
-        self.device_select_widget.device_selector.currentIndexChanged.connect(
-            self.update_current_board
-        )
-        self.device_select_widget.data_points.valueChanged.connect(
-            self.update_current_board
-        )
-        self.toolbar_device.addWidget(self.device_select_widget)
 
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_device)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_fit)
@@ -289,14 +261,17 @@ class MainWindow(QMainWindow):
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
 
-            self.action_get_calibration.setEnabled(False)
+            self.device_select_widget.get_calibration_action.setEnabled(False)
             self.start_calibration_get.emit("magnetic")
+            self.start_calibration_get.emit("gyroscope")
+            self.start_calibration_get.emit("accelerometer")
+            self.start_calibration_get.emit("misc")
 
     def action_set_calibration_callback(self):
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
 
-            self.action_set_calibration.setEnabled(False)
+            self.device_select_widget.get_calibration_action.setEnabled(False)
             soft_iron = self.calibration_widget.magnetic.soft_iron.get()
             hard_iron = self.calibration_widget.magnetic.hard_iron.get()
 
@@ -379,22 +354,17 @@ class MainWindow(QMainWindow):
         # self.gui_logger(f"Function calls: \t{s_func[1]}")
         # self.gui_logger(f"Gradient calls: \t{s_grad[1]}")
 
-    def add_random_data(self) -> None:
-        self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))
-
     def disable_comms_buttons(self) -> None:
         log.info("Disabling communication buttons")
 
         self.device_select_widget.data_button.setText("Stop")
-        self.action_get_calibration.setDisabled(True)
-        self.action_set_calibration.setDisabled(True)
+        self.device_select_widget.get_calibration_action.setDisabled(True)
 
     def restore_comms_buttons(self) -> None:
         log.info("Restoring communication buttons")
 
         self.device_select_widget.data_button.setText("Start")
-        self.action_get_calibration.setEnabled(True)
-        self.action_set_calibration.setEnabled(True)
+        self.device_select_widget.get_calibration_action.setEnabled(True)
 
     # End of Controller ----------------
 
