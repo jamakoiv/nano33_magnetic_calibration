@@ -79,6 +79,10 @@ def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tup
     return gain, offset
 
 
+# INFO: from rotation matrix R to soft-iron matrix:
+# soft_iron = np.matmul(np.diag(gain), R)
+
+
 def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     fit_data = np.array(
         [x**2, y**2, z**2, 2 * x * y, 2 * x * z, 2 * y * z, 2 * x, 2 * y, 2 * z]
@@ -140,6 +144,9 @@ def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
 
 
 def fit_ellipsoid_rotated_alt(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
+    """
+    The proposed scheme for improving fit-quality for slightly rotated ellipsoid.
+    """
     D = np.array(
         [
             x**2 + y**2 - 2 * z**2,
