@@ -1,7 +1,6 @@
 import logging
 import datetime
 import numpy as np
-import scipy
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from PySide6.QtCore import Qt, Slot, Signal, QThread
@@ -23,7 +22,7 @@ from canvas import MatplotlibCanvas
 from models import CalibrationDataModel, CalibrationDataDelegate
 from widgets import DeviceSelectWidget, CalibrationWidget, FitWidget
 from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
-from ellipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
+from ellipsoid import makeEllipsoidXYZ
 
 log = logging.getLogger(__name__)
 
@@ -81,6 +80,7 @@ class MainWindow(QMainWindow):
         self.build_actions()
         self.build_toolbars()
         self.build_menus()
+        self.connect_signals()
 
     def build_dock_widgets(self) -> None:
         log.info("Creating GUI dock widgets")
@@ -202,9 +202,52 @@ class MainWindow(QMainWindow):
             ]
         )
 
+    def connect_signals(self) -> None:
+        self.calibration_widget.magnetic.send_to_board_action.triggered.connect(
+            self.set_magnetic_calibration_callback
+        )
+        self.calibration_widget.accelerometer.send_to_board_action.triggered.connect(
+            self.set_accelerometer_calibration_callback
+        )
+        self.calibration_widget.gyroscope.send_to_board_action.triggered.connect(
+            self.set_gyroscope_calibration_callback
+        )
+
     # End of UI -----------------
 
     # Controller -----------------------
+
+    def set_magnetic_calibration_callback(self) -> None:
+        data = (
+            self.calibration_widget.magnetic.soft_iron.get(),
+            self.calibration_widget.magnetic.hard_iron.get(),
+        )
+        log.info(f"Magnetic calibration data to send: {data}")
+
+        self.start_calibration_set.emit("magnetic", data)
+
+    def set_accelerometer_calibration_callback(self) -> None:
+        data = (
+            self.calibration_widget.accelerometer.misalignment.get(),
+            self.calibration_widget.accelerometer.sensitivity.get(),
+            self.calibration_widget.accelerometer.offset.get(),
+        )
+        log.info(f"Accelerometer calibration data to send: {data}")
+
+        self.start_calibration_set.emit("accelerometer", data)
+
+    def set_gyroscope_calibration_callback(self) -> None:
+        data = (
+            self.calibration_widget.gyroscope.misalignment.get(),
+            self.calibration_widget.gyroscope.sensitivity.get(),
+            self.calibration_widget.gyroscope.offset.get(),
+        )
+        log.info(f"Gyroscope calibration data to send: {data}")
+
+        self.start_calibration_set.emit("gyroscope", data)
+
+    def set_misc_settings_callback(self) -> None: ...
+
     def start_comms_thread(self) -> None:
         log.info("Starting communication thread")
 
@@ -225,37 +268,13 @@ class MainWindow(QMainWindow):
             self.board_comms.set_stop_flag, Qt.ConnectionType.DirectConnection
         )
 
-        # TODO: Connecting button callbacks here is very pastalicous.
-        self.calibration_widget.misc.get_calibration_button.pressed.connect(
-            self.button_get_misc_calibration_callback
-        )
-        self.calibration_widget.misc.set_calibration_button.pressed.connect(
-            self.button_set_misc_calibration_callback
-        )
-
         self.comms_thread.start()
 
-    def button_get_misc_calibration_callback(self) -> None:
+    def set_calibration_callback_template(self, id: str, data: tuple) -> None:
+        log.info(f"Set calibration callback triggered: {id}, {data}")
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
-            self.start_calibration_get.emit("misc")
-
-    def button_set_misc_calibration_callback(self) -> None:
-        if not self.board_comms.task_running:
-            self.disable_comms_buttons()
-            output_offset = self.calibration_widget.misc.get_offset()
-            ahrs_settings = self.calibration_widget.misc.get_ahrs_settings()
-            self.start_calibration_set.emit("misc", (output_offset, ahrs_settings))
-
-    def button_get_gyroscope_calibration_callback(self) -> None:
-        if not self.board_comms.task_running:
-            self.disable_comms_buttons()
-            self.start_calibration_get.emit("gyroscope")
-
-    def button_get_accelerometer_calibration_callback(self) -> None:
-        if not self.board_comms.task_running:
-            self.disable_comms_buttons()
-            self.start_calibration_get.emit("accelerometer")
+            self.start_calibration_set.emit(id, data)
 
     def action_get_calibration_callback(self):
         if not self.board_comms.task_running:
@@ -266,16 +285,6 @@ class MainWindow(QMainWindow):
             self.start_calibration_get.emit("gyroscope")
             self.start_calibration_get.emit("accelerometer")
             self.start_calibration_get.emit("misc")
-
-    def action_set_calibration_callback(self):
-        if not self.board_comms.task_running:
-            self.disable_comms_buttons()
-
-            self.device_select_widget.get_calibration_action.setEnabled(False)
-            soft_iron = self.calibration_widget.magnetic.soft_iron.get()
-            hard_iron = self.calibration_widget.magnetic.hard_iron.get()
-
-            self.start_calibration_set.emit("magnetic", (soft_iron, hard_iron))
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
         if True:

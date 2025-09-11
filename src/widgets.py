@@ -357,8 +357,10 @@ class MagneticCalibrationWidget(QWidget):
         self.hard_iron = CalibrationVectorWidget(parent=self)
         self.hard_iron_box = QGroupBox(title="Hard-iron offset", parent=self)
 
-        self.set_calibration_button = QPushButton("Set", parent=self)
-        self.get_calibration_button = QPushButton("Get", parent=self)
+        self.send_to_board_button = QToolButton(parent=self)
+        self.send_to_board_action = QAction(QIcon.fromTheme("go-last"), "Set", self)
+        self.send_to_board_action.setToolTip("Send current calibration to board")
+        self.send_to_board_button.setDefaultAction(self.send_to_board_action)
 
         for box, widget in (
             (self.soft_iron_box, self.soft_iron),
@@ -370,8 +372,7 @@ class MagneticCalibrationWidget(QWidget):
             box.setLayout(layout)
 
         button_layout = QVBoxLayout()
-        button_layout.addWidget(self.get_calibration_button)
-        button_layout.addWidget(self.set_calibration_button)
+        button_layout.addWidget(self.send_to_board_button)
 
         layout = QHBoxLayout()
         layout.addWidget(self.soft_iron_box)
@@ -401,8 +402,10 @@ class InertialCalibrationWidget(QWidget):
         self.offset_box = QGroupBox(title="Offset", parent=self)
         self.offset = CalibrationVectorWidget(parent=self)
 
-        self.set_calibration_button = QPushButton("Set", parent=self)
-        self.get_calibration_button = QPushButton("Get", parent=self)
+        self.send_to_board_button = QToolButton(parent=self)
+        self.send_to_board_action = QAction(QIcon.fromTheme("go-last"), "Set", self)
+        self.send_to_board_action.setToolTip("Send current calibration to board")
+        self.send_to_board_button.setDefaultAction(self.send_to_board_action)
 
         for box, widget in (
             (self.misalignment_box, self.misalignment),
@@ -415,8 +418,7 @@ class InertialCalibrationWidget(QWidget):
             box.setLayout(layout)
 
         button_layout = QVBoxLayout()
-        button_layout.addWidget(self.get_calibration_button)
-        button_layout.addWidget(self.set_calibration_button)
+        button_layout.addWidget(self.send_to_board_button)
 
         layout = QHBoxLayout()
         layout.addWidget(self.misalignment_box)
@@ -475,12 +477,13 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout, 3, 1)
         self.ahrs_box.setLayout(self.ahrs_box_layout)
 
-        self.get_calibration_button = QPushButton("Get", parent=self)
-        self.set_calibration_button = QPushButton("Get", parent=self)
+        self.send_to_board_button = QToolButton(parent=self)
+        self.send_to_board_action = QAction(QIcon.fromTheme("go-last"), "Set", self)
+        self.send_to_board_action.setToolTip("Send current calibration to board")
+        self.send_to_board_button.setDefaultAction(self.send_to_board_action)
 
         button_layout = QVBoxLayout()
-        button_layout.addWidget(self.get_calibration_button)
-        button_layout.addWidget(self.set_calibration_button)
+        button_layout.addWidget(self.send_to_board_button)
 
         layout = QHBoxLayout()
         layout.addWidget(self.output_offset_box)
