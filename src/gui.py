@@ -29,28 +29,10 @@ log = logging.getLogger(__name__)
 
 # TODO: This is becoming a god-class.
 class MainWindow(QMainWindow):
-    primary_canvas: MatplotlibCanvas
-    secondary_canvas: MatplotlibCanvas
-    data_model: CalibrationDataModel
-
-    board_comms: Board2GUI
-    comms_thread: QThread
     start_data_read = Signal()
     start_calibration_get = Signal(str)
     start_calibration_set = Signal(str, object)
     stop_comms_task = Signal()
-
-    log_widget: QTextEdit
-    log_dock: QDockWidget
-
-    data_table_widget: QTableView
-    data_table_dock: QDockWidget
-
-    device_select_widget: DeviceSelectWidget
-    device_select_dock: QDockWidget
-
-    calibration_widget: CalibrationWidget
-    calibration_dock: QDockWidget
 
     def __init__(self, parent: QWidget | None = None):
         log.info("Creating main window.")
