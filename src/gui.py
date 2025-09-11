@@ -334,25 +334,15 @@ class MainWindow(QMainWindow):
 
     def action_fit_ellipsoid_callback(self):
         data = self.data_model.get_xyz_data()
+        soft_iron, offset, semi_axes, rotation = self.fit_widget.fit_function(*data)
 
-        gain, offset = self.fit_widget.fit_function(*data)
-        soft_iron = np.diag(gain)
+        self.gui_logger(f"soft-iron matrix: {soft_iron}")
+        self.gui_logger(f"offset vector: {offset}")
+        self.gui_logger(f"semi-axes: {semi_axes}")
+        self.gui_logger(f"rotation matrix: {rotation}")
 
         self.calibration_widget.magnetic.soft_iron.set(soft_iron)
         self.calibration_widget.magnetic.hard_iron.set(offset)
-
-        # s_params = (
-        #     "Fit parameters",
-        #     f"x0={params[0]:.4f}, y0={params[1]:.4f}, z0={params[2]:.4f}, a={params[3]:.4f}, b={params[4]:.4f}, c={params[5]:.4f}",
-        # )
-        # s_fopt = ("Residual", f"{fopt:.4e}")
-        # s_func = ("Function calls", f"{func_calls}")
-        # s_grad = ("Gradient calls", f"{grad_calls}")
-
-        # self.gui_logger(f"Fit parameters:\t{s_params[1]}")
-        # self.gui_logger(f"Residual: \t{s_fopt[1]}")
-        # self.gui_logger(f"Function calls: \t{s_func[1]}")
-        # self.gui_logger(f"Gradient calls: \t{s_grad[1]}")
 
     def disable_comms_buttons(self) -> None:
         log.info("Disabling communication buttons")

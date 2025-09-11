@@ -21,6 +21,10 @@ the DT0059.
 
 """
 
+# TODO: Should add the rotation matrix optimization routine.
+# Currently the fit returns rotation matrices which are not always optimal.
+# e.g. [[0, -1, 0], [-1,0,0], [0,0,1]] which looks ugly.
+
 
 def fit_sphere(
     x: np.ndarray, y: np.ndarray, z: np.ndarray
@@ -145,9 +149,9 @@ def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
 
     semi_axes = np.sqrt(1 / eigenvalues)
     rotation = eigenvectors.transpose()
+    semi_axes, rotation = refine_rotation_matrix(semi_axes, rotation)
     soft_iron = np.matmul(np.diag(1 / semi_axes), rotation)
 
-    breakpoint()
     return soft_iron, offset, semi_axes, rotation
 
 
@@ -234,10 +238,51 @@ def fit_ellipsoid_rotated_alt(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tu
 
     semi_axes = np.sqrt(1 / eigenvalues)
     rotation = eigenvectors.transpose()
+    semi_axes, rotation = refine_rotation_matrix(semi_axes, rotation)
     soft_iron = np.matmul(np.diag(1 / semi_axes), rotation)
 
-    breakpoint()
     return soft_iron, offset, semi_axes, rotation
+
+
+def refine_rotation_matrix(
+    gain: np.ndarray, rot: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    assert rot.shape == (3, 3), "Rotation matrix must be 3x3 shaped matrix."
+
+    rm, cm = np.where(np.abs(rot) == np.abs(rot).max())
+    if rm != cm:
+        rot[:, [cm, rm]] = rot[:, [rm, cm]]
+        gain[cm], gain[rm] = gain[rm], gain[cm]
+
+    breakpoint()
+
+    # NOTE: i must be list, or the aux_gain = gain[i] breaks.
+    if rm == 0:
+        i = [1, 2]
+    elif rm == 1:
+        i = [0, 2]
+    else:  # rm == 2
+        i = [0, 1]
+    aux_rot = rot[:, i]
+    aux_gain = gain[i]
+
+    rm, cm = np.where(np.abs(aux_rot) == np.abs(aux_rot).max())
+    breakpoint()
+    if rm != cm:
+        aux_rot[:, [cm, rm]] = aux_rot[:, [rm, cm]]
+        aux_gain[cm], aux_gain[rm] = aux_gain[rm], aux_gain[cm]
+
+    rot[:, i] = aux_rot
+    gain[i] = aux_gain
+
+    if rot[0, 0] < 0:
+        rot[:, 0] = -rot[:, 0]
+    if rot[1, 1] < 0:
+        rot[:, 1] = -rot[:, 1]
+    if rot[2, 2] < 0:
+        rot[:, 2] = -rot[:, 2]
+
+    return gain, rot
 
 
 if __name__ == "__main__":
