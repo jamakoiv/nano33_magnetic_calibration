@@ -20,13 +20,11 @@ Calculation of the gain and offset for the different cases are explained in
 the DT0059.
 
 """
-# TODO: Currently some return gain such that raw * gain = unit sphere,
-# and some raw / gain = unit sphere.
-#
-# TODO: Return same data from each fit function: offset, gain/soft-iron matrix, ellipsoid semi-axes, rotation matrix
 
 
-def fit_sphere(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
+def fit_sphere(
+    x: np.ndarray, y: np.ndarray, z: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     # INFO:For sphere: a = b = c and d = e = f = 0.
     fit_data = np.array([x**2 + y**2 + z**2, 2 * x, 2 * y, 2 * z])
 
@@ -46,7 +44,11 @@ def fit_sphere(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     G = 1 + g**2 / a + h**2 / a + i**2 / a
     gain = np.array([np.sqrt(a / G), np.sqrt(a / G), np.sqrt(a / G)])
 
-    return gain, offset
+    soft_iron = np.diag(gain)
+    semi_axes = 1 / gain
+    no_rotation = np.diag(np.ones(3))
+
+    return soft_iron, offset, semi_axes, no_rotation
 
 
 def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
@@ -78,7 +80,11 @@ def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tup
     G = 1 + g**2 / a + h**2 / b + i**2 / c
     gain = np.array([np.sqrt(a / G), np.sqrt(b / G), np.sqrt(c / G)])
 
-    return gain, offset
+    soft_iron = np.diag(gain)
+    semi_axes = 1 / gain
+    no_rotation = np.diag(np.ones(3))
+
+    return soft_iron, offset, semi_axes, no_rotation
 
 
 # INFO: from rotation matrix R to soft-iron matrix:
@@ -137,12 +143,12 @@ def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     # INFO: For some reason in numpy eig returns the eigenvectors so that
     # eigenvectors[:,i] is the eigenvector corresponding to eigenvalues[i].
 
-    gain = np.sqrt(1 / eigenvalues)
+    semi_axes = np.sqrt(1 / eigenvalues)
     rotation = eigenvectors.transpose()
+    soft_iron = np.matmul(np.diag(1 / semi_axes), rotation)
 
     breakpoint()
-
-    return gain, offset, rotation
+    return soft_iron, offset, semi_axes, rotation
 
 
 def fit_ellipsoid_rotated_alt(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
@@ -226,12 +232,12 @@ def fit_ellipsoid_rotated_alt(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tu
     # INFO: For some reason in numpy eig returns the eigenvectors so that
     # eigenvectors[:,i] is the eigenvector corresponding to eigenvalues[i].
 
-    gain = np.sqrt(1 / eigenvalues)
+    semi_axes = np.sqrt(1 / eigenvalues)
     rotation = eigenvectors.transpose()
+    soft_iron = np.matmul(np.diag(1 / semi_axes), rotation)
 
     breakpoint()
-
-    return gain, offset, rotation
+    return soft_iron, offset, semi_axes, rotation
 
 
 if __name__ == "__main__":
