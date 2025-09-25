@@ -334,7 +334,7 @@ class CalibrationMatrixWidget(QWidget):
         self.zy_edit.setText(str(values[7]))
         self.zz_edit.setText(str(values[8]))
 
-        # NOTE: Emit signal manually so we only have to connect editingChanged,
+        # NOTE: Emit signal manually so we only have to connect editingFinished,
         # rather than all the possible QLineEdit signals.
         self.editingFinished.emit()
 
@@ -379,6 +379,9 @@ class MagneticCalibrationWidget(QWidget):
         layout.addWidget(self.hard_iron_box)
         layout.addLayout(button_layout)
         self.setLayout(layout)
+
+        self.soft_iron.set(np.eye(3))
+        self.hard_iron.set(np.zeros(3))
 
 
 class InertialCalibrationWidget(QWidget):
@@ -427,6 +430,10 @@ class InertialCalibrationWidget(QWidget):
         layout.addLayout(button_layout)
 
         self.setLayout(layout)
+
+        self.misalignment.set(np.eye(3))
+        self.sensitivity.set(np.ones(3))
+        self.offset.set(np.zeros(3))
 
 
 class CalibrationMiscWidget(QWidget):
