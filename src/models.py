@@ -164,7 +164,7 @@ class CalibrationDataModel(QAbstractTableModel):
     def get_xyz_data(self, with_offset: bool = False) -> np.ndarray:
         try:
             # t, magX, magY, magZ, accX, accY, accZ, gyroX, gyroY, gyroZ
-            _, magX, magY, magZ, _ = self._data.copy().transpose()
+            _, magX, magY, magZ, _, _, _, _, _, _ = self._data.copy().transpose()
 
             if with_offset:
                 x_offset, y_offset, z_offset = self.ellipsoid_params[:3]
