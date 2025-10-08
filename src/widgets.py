@@ -4,7 +4,7 @@ import numpy as np
 
 from collections import OrderedDict
 from serial.tools import list_ports
-from PySide6.QtCore import Qt, Slot, Signal
+from PySide6.QtCore import Signal
 from PySide6.QtGui import QDoubleValidator, QAction, QIcon
 from PySide6.QtWidgets import (
     QApplication,
@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
     QComboBox,
-    QPushButton,
     QToolButton,
 )
 

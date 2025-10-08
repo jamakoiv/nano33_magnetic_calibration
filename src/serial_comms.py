@@ -1,15 +1,14 @@
 import logging
 import time
 import copy
-import unicodedata
 import struct
 import numpy as np
 
-from typing import Iterable, Protocol
+from typing import Protocol
 from serial import Serial, SerialException
 from threading import Lock
 from enum import Enum
-from PySide6.QtCore import QObject, Signal, Slot, Qt
+from PySide6.QtCore import QObject, Signal, Slot
 
 from ellipsoid import makeEllipsoidXYZ
 
