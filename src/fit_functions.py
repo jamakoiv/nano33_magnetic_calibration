@@ -254,8 +254,6 @@ def refine_rotation_matrix(
         rot[:, [cm, rm]] = rot[:, [rm, cm]]
         gain[cm], gain[rm] = gain[rm], gain[cm]
 
-    breakpoint()
-
     # NOTE: i must be list, or the aux_gain = gain[i] breaks.
     if rm == 0:
         i = [1, 2]
@@ -267,7 +265,6 @@ def refine_rotation_matrix(
     aux_gain = gain[i]
 
     rm, cm = np.where(np.abs(aux_rot) == np.abs(aux_rot).max())
-    breakpoint()
     if rm != cm:
         aux_rot[:, [cm, rm]] = aux_rot[:, [rm, cm]]
         aux_gain[cm], aux_gain[rm] = aux_gain[rm], aux_gain[cm]
