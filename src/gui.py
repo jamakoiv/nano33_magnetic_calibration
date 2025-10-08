@@ -269,16 +269,11 @@ class MainWindow(QMainWindow):
             self.start_calibration_get.emit("misc")
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
-        if True:
-            print("plot")
-            soft_iron = self.calibration_widget.magnetic.soft_iron.get()
-            hard_iron = self.calibration_widget.magnetic.hard_iron.get()
+        soft_iron = self.calibration_widget.magnetic.soft_iron.get()
+        hard_iron = self.calibration_widget.magnetic.hard_iron.get()
 
-            x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron), as_mesh=True)
-            self.primary_canvas.update_wireframe(x, y, z)
-        else:
-            print("delete")
-            self.primary_canvas.delete_wireframe()
+        x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron), as_mesh=True)
+        self.primary_canvas.update_wireframe(x, y, z)
 
     @Slot(object)  # pyright: ignore
     def calibration_received_handler(self, calibration_id: str, data: tuple) -> None:

@@ -363,7 +363,7 @@ class TestSerialComms(QObject):
     def reset_calibration(self) -> None: ...
 
     def set_output_mode(self, mode: int) -> None:
-        pass
+        self.output_mode = mode  # Not actually used at the moment.
 
     def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]:
         return (self.magnetic_soft_iron, self.magnetic_hard_iron)
