@@ -1,11 +1,11 @@
 import logging
 import datetime
-from PySide6 import QtWidgets
 import numpy as np
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from PySide6.QtCore import Qt, Slot, Signal, QThread
 from PySide6.QtGui import QAction, QKeySequence, QIcon
+from PySide6 import QtWidgets
 from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
@@ -82,6 +82,14 @@ class MainWindow(QMainWindow):
         #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         # )
 
+        self.orientation_window = OrientationWindow()
+        self.orientation_widget = QWidget.createWindowContainer(
+            self.orientation_window, parent=self
+        )
+        # self.orientation_widget.setSizePolicy(default_size_policy)
+        self.orientation_dock = QDockWidget("&Board Orientation", parent=self)
+        self.orientation_dock.setWidget(self.orientation_widget)
+
         # self.device_select_widget = DeviceSelectWidget(parent=self)
         # self.device_select_widget.setSizePolicy(default_size_policy)
         # self.device_select_dock = QDockWidget("&Device select", parent=self)
@@ -110,21 +118,19 @@ class MainWindow(QMainWindow):
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.calibration_dock)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_table_dock)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_dock)
+        self.addDockWidget(
+            Qt.DockWidgetArea.BottomDockWidgetArea, self.orientation_dock
+        )
 
     def build_canvases(self) -> None:
         log.info("Creating plot canvases")
 
         self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
         self.secondary_canvas = MatplotlibCanvas(5, 5, 96, projection="2d")
-        self.orientation_window = OrientationWindow()
-        self.orientation_widget = QtWidgets.QWidget.createWindowContainer(
-            self.orientation_window, parent=self
-        )
 
         splitter = QSplitter(Qt.Orientation.Horizontal, parent=self)
         splitter.addWidget(self.primary_canvas)
         # splitter.addWidget(self.secondary_canvas)
-        splitter.addWidget(self.orientation_widget)
 
         size = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         splitter.setSizePolicy(size)
@@ -188,6 +194,7 @@ class MainWindow(QMainWindow):
                 self.menu_view.addSeparator(),
                 self.data_table_dock.toggleViewAction(),
                 self.log_dock.toggleViewAction(),
+                self.orientation_dock.toggleViewAction(),
             ]
         )
 

@@ -1,3 +1,4 @@
+from PySide6 import QtWidgets
 import pygame
 
 import sys
@@ -119,11 +120,13 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
         super().__init__()
 
         self.i = 0
+
+        # TODO: Supply joystick as argument, or just callable returning the angles.
         self.joystick = Joystick(0)
 
         # Camera
         self.camera().lens().setPerspectiveProjection(45, 16 / 9, 0.1, 1000)
-        self.camera().setPosition(QVector3D(15, 15, -40))
+        self.camera().setPosition(QVector3D(10, 10, -15))
         self.camera().setViewCenter(QVector3D(0, 0, 0))
 
         # For camera controls

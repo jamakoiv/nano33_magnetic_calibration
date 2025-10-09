@@ -1,5 +1,6 @@
 import sys
 import logging
+from PySide6 import QtWidgets
 import numpy as np
 
 from collections import OrderedDict
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 
 from models import SerialPortsModel
 import fit_functions
+from orientation_window import OrientationWindow
 
 log = logging.getLogger(__name__)
 
@@ -568,7 +570,8 @@ class CalibrationWidget(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    widget = CalibrationWidget(parent=None)
+    window = OrientationWindow()
+    widget = QtWidgets.QWidget.createWindowContainer(window, None)
     widget.show()
 
     sys.exit(app.exec())
