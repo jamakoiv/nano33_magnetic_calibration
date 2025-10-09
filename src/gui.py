@@ -1,5 +1,6 @@
 import logging
 import datetime
+from PySide6 import QtWidgets
 import numpy as np
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
@@ -21,6 +22,7 @@ from PySide6.QtWidgets import (
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel, CalibrationDataDelegate
 from widgets import DeviceSelectWidget, CalibrationWidget, FitWidget
+from orientation_window import OrientationWindow
 from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
 from ellipsoid import makeEllipsoidXYZ
 
@@ -114,10 +116,15 @@ class MainWindow(QMainWindow):
 
         self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
         self.secondary_canvas = MatplotlibCanvas(5, 5, 96, projection="2d")
+        self.orientation_window = OrientationWindow()
+        self.orientation_widget = QtWidgets.QWidget.createWindowContainer(
+            self.orientation_window, parent=self
+        )
 
-        splitter = QSplitter(Qt.Orientation.Vertical, parent=self)
+        splitter = QSplitter(Qt.Orientation.Horizontal, parent=self)
         splitter.addWidget(self.primary_canvas)
-        splitter.addWidget(self.secondary_canvas)
+        # splitter.addWidget(self.secondary_canvas)
+        splitter.addWidget(self.orientation_widget)
 
         size = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         splitter.setSizePolicy(size)
