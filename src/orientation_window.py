@@ -63,7 +63,7 @@ class Joystick:
         return (pitch, roll, yaw)
 
     @staticmethod
-    def guess_joystick_id(serial_name: str) -> int:
+    def guess_joystick_id(serial_name: str) -> tuple:
         # INFO: We match serial-port to joystick only by simple similarity of the joystick device names.
         # This very much less rigorous than e.g. matching USB PID/VID via pyudev.
         # TODO: Probably should change to pyudev...
@@ -84,7 +84,7 @@ class Joystick:
         res = sorted(res, reverse=True, key=lambda item: item[2])
         breakpoint()
 
-        return res[0][0]
+        return res[0]
 
 
 class Arrow3D(Qt3DCore.QEntity):
@@ -166,7 +166,8 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
 
         self.i = 0
         # TODO: Hardcoded string
-        self.joystick = Joystick(Joystick.guess_joystick_id("arduino"))
+        joy_id, joy_name, _ = Joystick.guess_joystick_id("arduino")
+        self.joystick = Joystick(joy_id)
 
         self.updateTimer = QTimer()
         self.updateTimer.timeout.connect(self.update)
