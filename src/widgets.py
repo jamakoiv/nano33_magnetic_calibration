@@ -1,31 +1,34 @@
 import sys
 import logging
+from PySide6 import QtWidgets
 import numpy as np
 
-from typing import Tuple
 from collections import OrderedDict
 from serial.tools import list_ports
-from PySide6.QtCore import Qt, Slot, Signal
-from PySide6.QtGui import QDoubleValidator
+from PySide6.QtCore import Signal
+from PySide6.QtGui import QDoubleValidator, QAction, QIcon
 from PySide6.QtWidgets import (
     QApplication,
-    QCheckBox,
     QFormLayout,
+    QFrame,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QSpinBox,
     QTabWidget,
     QVBoxLayout,
     QWidget,
     QComboBox,
-    QPushButton,
+    QToolButton,
 )
 
 from models import SerialPortsModel
+import fit_functions
+from orientation_window import OrientationWindow
+
+log = logging.getLogger(__name__)
 
 
 class DeviceSelectWidget(QWidget):
@@ -33,48 +36,53 @@ class DeviceSelectWidget(QWidget):
     Widget for selecting device and getting raw data from the device.
     """
 
-    scan_devices_button: QPushButton
-    device_selector: QComboBox
-
-    data_points: QSpinBox
-    data_label: QLabel
-    data_button: QPushButton
-
-    serial_ports_model: SerialPortsModel
-
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent=parent)
 
-        self.scan_devices_button = QPushButton("Scan devices", parent=self)
-        self.scan_devices_button.clicked.connect(self.refresh_serial_ports)
+        self.scan_devices_button = QToolButton(parent=self)
+        self.scan_devices_action = QAction(
+            QIcon.fromTheme("view-refresh"), "Scan", self
+        )
+        self.scan_devices_action.setToolTip("Refresh device list")
+        self.scan_devices_action.triggered.connect(self.refresh_serial_ports)
+        self.scan_devices_button.setDefaultAction(self.scan_devices_action)
+
+        self.get_calibration_button = QToolButton(parent=self)
+        self.get_calibration_action = QAction(QIcon.fromTheme("go-first"), "Get", self)
+        self.get_calibration_action.setToolTip(
+            "Get current calibration values from device"
+        )
+        self.get_calibration_button.setDefaultAction(self.get_calibration_action)
+
+        # self.data_label = QLabel(parent=self, text="N: ")
+        self.data_button = QToolButton(parent=self)
+        self.data_button_action = QAction(
+            QIcon.fromTheme("media-playback-start"), "Get data", self
+        )
+        self.data_button_action.setToolTip("Get raw data from the device")
+        self.data_button.setDefaultAction(self.data_button_action)
+
         self.device_selector = QComboBox(parent=self)
+        self.device_selector.setToolTip("Selected serial device")
         self.serial_ports_model = SerialPortsModel(parent=self)
         self.device_selector.setModel(self.serial_ports_model)
 
         self.data_points = QSpinBox(parent=self)
+        self.data_points.setToolTip("Number of data points to get")
         self.data_points.setRange(10, 500)
         self.data_points.setSingleStep(10)
         self.data_points.setValue(20)
 
-        self.data_label = QLabel(parent=self, text="Calibration points: ")
-        self.data_button = QPushButton("Read data", parent=self)
+        self.separator = QFrame()
+        self.separator.setFrameShape(QFrame.Shape.VLine)
 
-        self.device_box = QGroupBox(title="", parent=self)
-        self.device_layout = QHBoxLayout()
-        self.device_layout.addWidget(self.device_selector)
-        self.device_layout.addWidget(self.scan_devices_button)
-        self.device_box.setLayout(self.device_layout)
-
-        self.data_box = QGroupBox(title="", parent=self)
-        self.data_layout = QHBoxLayout()
-        self.data_layout.addWidget(self.data_label)
-        self.data_layout.addWidget(self.data_points)
-        self.data_layout.addWidget(self.data_button)
-        self.data_box.setLayout(self.data_layout)
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.device_box)
-        layout.addWidget(self.data_box)
+        layout = QHBoxLayout()
+        layout.addWidget(self.device_selector)
+        layout.addWidget(self.scan_devices_button)
+        layout.addWidget(self.separator)
+        layout.addWidget(self.data_points)
+        layout.addWidget(self.data_button)
+        layout.addWidget(self.get_calibration_button)
         self.setLayout(layout)
 
     def refresh_serial_ports(self) -> None:
@@ -108,6 +116,49 @@ class DeviceSelectWidget(QWidget):
             last_selected_index = 0
 
         self.device_selector.setCurrentIndex(last_selected_index)
+
+
+class FitWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent=parent)
+        self.fit_function = fit_functions.fit_sphere
+
+        self.select_function = QComboBox(parent=self)
+        self.select_function.setToolTip("Select function to fit to the data")
+        self.select_function.addItems(
+            [
+                "Sphere",
+                "Ellipsoid (non-rotated)",
+                "Ellipsoid (rotated)",
+                "Ellipsoid (rotated, alt)",
+            ]
+        )
+        self.select_function.currentIndexChanged.connect(self.set_fit_function)
+
+        self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "&Fit", self)
+        self.action_fit_ellipsoid.setToolTip(
+            "Fit the selected function to current data"
+        )
+        self.button_fit_ellipsoid = QToolButton(parent=self)
+        self.button_fit_ellipsoid.setDefaultAction(self.action_fit_ellipsoid)
+
+        layout = QHBoxLayout()
+        layout.addWidget(self.select_function)
+        layout.addWidget(self.button_fit_ellipsoid)
+        self.setLayout(layout)
+
+    def set_fit_function(self):
+        idx = self.select_function.currentIndex()
+        log.info(f"Function selector combobox index changed, currentIndex {idx}")
+        match idx:
+            case 0:
+                self.fit_function = fit_functions.fit_sphere
+            case 1:
+                self.fit_function = fit_functions.fit_ellipsoid_nonrotated
+            case 2:
+                self.fit_function = fit_functions.fit_ellipsoid_rotated
+            case 3:
+                self.fit_function = fit_functions.fit_ellipsoid_rotated_alt
 
 
 class CalibrationVectorWidget(QWidget):
@@ -284,7 +335,7 @@ class CalibrationMatrixWidget(QWidget):
         self.zy_edit.setText(str(values[7]))
         self.zz_edit.setText(str(values[8]))
 
-        # NOTE: Emit signal manually so we only have to connect editingChanged,
+        # NOTE: Emit signal manually so we only have to connect editingFinished,
         # rather than all the possible QLineEdit signals.
         self.editingFinished.emit()
 
@@ -307,8 +358,10 @@ class MagneticCalibrationWidget(QWidget):
         self.hard_iron = CalibrationVectorWidget(parent=self)
         self.hard_iron_box = QGroupBox(title="Hard-iron offset", parent=self)
 
-        self.set_calibration_button = QPushButton("Set", parent=self)
-        self.get_calibration_button = QPushButton("Get", parent=self)
+        self.send_to_board_button = QToolButton(parent=self)
+        self.send_to_board_action = QAction(QIcon.fromTheme("go-last"), "Set", self)
+        self.send_to_board_action.setToolTip("Send current calibration to board")
+        self.send_to_board_button.setDefaultAction(self.send_to_board_action)
 
         for box, widget in (
             (self.soft_iron_box, self.soft_iron),
@@ -320,14 +373,16 @@ class MagneticCalibrationWidget(QWidget):
             box.setLayout(layout)
 
         button_layout = QVBoxLayout()
-        button_layout.addWidget(self.get_calibration_button)
-        button_layout.addWidget(self.set_calibration_button)
+        button_layout.addWidget(self.send_to_board_button)
 
         layout = QHBoxLayout()
         layout.addWidget(self.soft_iron_box)
         layout.addWidget(self.hard_iron_box)
         layout.addLayout(button_layout)
         self.setLayout(layout)
+
+        self.soft_iron.set(np.eye(3))
+        self.hard_iron.set(np.zeros(3))
 
 
 class InertialCalibrationWidget(QWidget):
@@ -351,8 +406,10 @@ class InertialCalibrationWidget(QWidget):
         self.offset_box = QGroupBox(title="Offset", parent=self)
         self.offset = CalibrationVectorWidget(parent=self)
 
-        self.set_calibration_button = QPushButton("Set", parent=self)
-        self.get_calibration_button = QPushButton("Get", parent=self)
+        self.send_to_board_button = QToolButton(parent=self)
+        self.send_to_board_action = QAction(QIcon.fromTheme("go-last"), "Set", self)
+        self.send_to_board_action.setToolTip("Send current calibration to board")
+        self.send_to_board_button.setDefaultAction(self.send_to_board_action)
 
         for box, widget in (
             (self.misalignment_box, self.misalignment),
@@ -365,8 +422,7 @@ class InertialCalibrationWidget(QWidget):
             box.setLayout(layout)
 
         button_layout = QVBoxLayout()
-        button_layout.addWidget(self.get_calibration_button)
-        button_layout.addWidget(self.set_calibration_button)
+        button_layout.addWidget(self.send_to_board_button)
 
         layout = QHBoxLayout()
         layout.addWidget(self.misalignment_box)
@@ -375,6 +431,10 @@ class InertialCalibrationWidget(QWidget):
         layout.addLayout(button_layout)
 
         self.setLayout(layout)
+
+        self.misalignment.set(np.eye(3))
+        self.sensitivity.set(np.ones(3))
+        self.offset.set(np.zeros(3))
 
 
 class CalibrationMiscWidget(QWidget):
@@ -425,12 +485,13 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout, 3, 1)
         self.ahrs_box.setLayout(self.ahrs_box_layout)
 
-        self.get_calibration_button = QPushButton("Get", parent=self)
-        self.set_calibration_button = QPushButton("Get", parent=self)
+        self.send_to_board_button = QToolButton(parent=self)
+        self.send_to_board_action = QAction(QIcon.fromTheme("go-last"), "Set", self)
+        self.send_to_board_action.setToolTip("Send current calibration to board")
+        self.send_to_board_button.setDefaultAction(self.send_to_board_action)
 
         button_layout = QVBoxLayout()
-        button_layout.addWidget(self.get_calibration_button)
-        button_layout.addWidget(self.set_calibration_button)
+        button_layout.addWidget(self.send_to_board_button)
 
         layout = QHBoxLayout()
         layout.addWidget(self.output_offset_box)
@@ -483,9 +544,24 @@ class CalibrationWidget(QWidget):
         self.misc = CalibrationMiscWidget(parent=self.tabs)
 
         self.tabs.addTab(self.magnetic, "Mag")
+        self.icon_magnetic = QIcon()
+        self.icon_magnetic.addFile("src/assets/compass.svg")
+        self.tabs.setTabIcon(0, self.icon_magnetic)
+
         self.tabs.addTab(self.gyroscope, "Gyro")
+        self.icon_gyro = QIcon()
+        self.icon_gyro.addFile("src/assets/gyroscope.svg")
+        self.tabs.setTabIcon(1, self.icon_gyro)
+
         self.tabs.addTab(self.accelerometer, "Acc")
+        self.icon_acc = QIcon()
+        self.icon_acc.addFile("src/assets/accelerometer.svg")
+        self.tabs.setTabIcon(2, self.icon_acc)
+
         self.tabs.addTab(self.misc, "Misc")
+        self.icon_misc = QIcon()
+        self.icon_misc.addFile("src/assets/settings.svg")
+        self.tabs.setTabIcon(3, self.icon_misc)
 
         layout = QVBoxLayout()
         layout.addWidget(self.tabs)
@@ -494,7 +570,8 @@ class CalibrationWidget(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    widget = CalibrationWidget(parent=None)
+    window = OrientationWindow()
+    widget = QtWidgets.QWidget.createWindowContainer(window, None)
     widget.show()
 
     sys.exit(app.exec())

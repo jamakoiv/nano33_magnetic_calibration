@@ -6,8 +6,30 @@ import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
 
+"""
+Solve ellipsoid parameters by fitting the ellipsoid general equation,
+as described in STMicroelectronics DT0059 -design tip.
 
-def fit_sphere(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
+aX^2 + bY^2 + cZ^2 + d2XY + e2XZ + f2YZ + g2X + h2Y + i2Z = 1
+
+X, Y, and Z are measured by the sensor, from which you calculate the terms 
+X^2, etc. terms in the above equation. Coefficients a, b, ... are obtained
+by minimizing function aX^2 + ... + i2Z - 1 = 0.
+
+Calculation of the gain and offset for the different cases are explained in
+the DT0059.
+
+"""
+
+# TODO: Should add the rotation matrix optimization routine.
+# Currently the fit returns rotation matrices which are not always optimal.
+# e.g. [[0, -1, 0], [-1,0,0], [0,0,1]] which looks ugly.
+
+
+def fit_sphere(
+    x: np.ndarray, y: np.ndarray, z: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    # INFO:For sphere: a = b = c and d = e = f = 0.
     fit_data = np.array([x**2 + y**2 + z**2, 2 * x, 2 * y, 2 * z])
 
     def predict(params: np.ndarray) -> np.ndarray:
@@ -26,10 +48,15 @@ def fit_sphere(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     G = 1 + g**2 / a + h**2 / a + i**2 / a
     gain = np.array([np.sqrt(a / G), np.sqrt(a / G), np.sqrt(a / G)])
 
-    return gain, offset
+    soft_iron = np.diag(gain)
+    semi_axes = 1 / gain
+    no_rotation = np.diag(np.ones(3))
+
+    return soft_iron, offset, semi_axes, no_rotation
 
 
 def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
+    # INFO: For non-rotated ellipsoid: d = e = f = 0.
     fit_data = np.array([x**2, y**2, z**2, 2 * x, 2 * y, 2 * z])
 
     def predict(params: np.ndarray) -> np.ndarray:
@@ -57,7 +84,15 @@ def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tup
     G = 1 + g**2 / a + h**2 / b + i**2 / c
     gain = np.array([np.sqrt(a / G), np.sqrt(b / G), np.sqrt(c / G)])
 
-    return gain, offset
+    soft_iron = np.diag(gain)
+    semi_axes = 1 / gain
+    no_rotation = np.diag(np.ones(3))
+
+    return soft_iron, offset, semi_axes, no_rotation
+
+
+# INFO: from rotation matrix R to soft-iron matrix:
+# soft_iron = np.matmul(np.diag(gain), R)
 
 
 def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
@@ -112,15 +147,18 @@ def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     # INFO: For some reason in numpy eig returns the eigenvectors so that
     # eigenvectors[:,i] is the eigenvector corresponding to eigenvalues[i].
 
-    gain = np.sqrt(1 / eigenvalues)
+    semi_axes = np.sqrt(1 / eigenvalues)
     rotation = eigenvectors.transpose()
+    semi_axes, rotation = refine_rotation_matrix(semi_axes, rotation)
+    soft_iron = np.matmul(np.diag(1 / semi_axes), rotation)
 
-    breakpoint()
-
-    return gain, offset, rotation
+    return soft_iron, offset, semi_axes, rotation
 
 
 def fit_ellipsoid_rotated_alt(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
+    """
+    The proposed scheme for improving fit-quality for slightly rotated ellipsoid.
+    """
     D = np.array(
         [
             x**2 + y**2 - 2 * z**2,
@@ -198,12 +236,50 @@ def fit_ellipsoid_rotated_alt(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tu
     # INFO: For some reason in numpy eig returns the eigenvectors so that
     # eigenvectors[:,i] is the eigenvector corresponding to eigenvalues[i].
 
-    gain = np.sqrt(1 / eigenvalues)
+    semi_axes = np.sqrt(1 / eigenvalues)
     rotation = eigenvectors.transpose()
+    semi_axes, rotation = refine_rotation_matrix(semi_axes, rotation)
+    soft_iron = np.matmul(np.diag(1 / semi_axes), rotation)
 
-    breakpoint()
+    return soft_iron, offset, semi_axes, rotation
 
-    return gain, offset, rotation
+
+def refine_rotation_matrix(
+    gain: np.ndarray, rot: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    assert rot.shape == (3, 3), "Rotation matrix must be 3x3 shaped matrix."
+
+    rm, cm = np.where(np.abs(rot) == np.abs(rot).max())
+    if rm != cm:
+        rot[:, [cm, rm]] = rot[:, [rm, cm]]
+        gain[cm], gain[rm] = gain[rm], gain[cm]
+
+    # NOTE: i must be list, or the aux_gain = gain[i] breaks.
+    if rm == 0:
+        i = [1, 2]
+    elif rm == 1:
+        i = [0, 2]
+    else:  # rm == 2
+        i = [0, 1]
+    aux_rot = rot[:, i]
+    aux_gain = gain[i]
+
+    rm, cm = np.where(np.abs(aux_rot) == np.abs(aux_rot).max())
+    if rm != cm:
+        aux_rot[:, [cm, rm]] = aux_rot[:, [rm, cm]]
+        aux_gain[cm], aux_gain[rm] = aux_gain[rm], aux_gain[cm]
+
+    rot[:, i] = aux_rot
+    gain[i] = aux_gain
+
+    if rot[0, 0] < 0:
+        rot[:, 0] = -rot[:, 0]
+    if rot[1, 1] < 0:
+        rot[:, 1] = -rot[:, 1]
+    if rot[2, 2] < 0:
+        rot[:, 2] = -rot[:, 2]
+
+    return gain, rot
 
 
 if __name__ == "__main__":

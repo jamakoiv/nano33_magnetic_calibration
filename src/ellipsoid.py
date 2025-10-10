@@ -192,3 +192,31 @@ class SphereSampling:
 
     def get_segments(self) -> Tuple:
         return self.segments, self.sampled
+
+
+def rotation(alpha: float, beta: float, gamma: float) -> np.ndarray:
+    Rz = np.array(  # Yaw
+        [
+            [np.cos(alpha), -1 * np.sin(alpha), 0],
+            [np.sin(alpha), np.cos(alpha), 0],
+            [0, 0, 1],
+        ]
+    )
+
+    Ry = np.array(
+        [  # Pitch
+            [np.cos(beta), 0, np.sin(beta)],
+            [0, 1, 0],
+            [-1 * np.sin(beta), 0, np.cos(beta)],
+        ]
+    )
+
+    Rx = np.array(  # Roll
+        [
+            [1, 0, 0],
+            [0, np.cos(gamma), -1 * np.sin(gamma)],
+            [0, np.sin(gamma), np.cos(gamma)],
+        ]
+    )
+
+    return np.linalg.matmul(np.linalg.matmul(Rz, Ry), Rx)

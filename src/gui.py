@@ -1,11 +1,11 @@
 import logging
 import datetime
 import numpy as np
-import scipy
 
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from PySide6.QtCore import Qt, Slot, Signal, QThread
 from PySide6.QtGui import QAction, QKeySequence, QIcon
+from PySide6 import QtWidgets
 from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
@@ -21,37 +21,20 @@ from PySide6.QtWidgets import (
 
 from canvas import MatplotlibCanvas
 from models import CalibrationDataModel, CalibrationDataDelegate
-from widgets import DeviceSelectWidget, CalibrationWidget
+from widgets import DeviceSelectWidget, CalibrationWidget, FitWidget
+from orientation_window import OrientationWindow
 from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
-from ellipsoid import fitEllipsoidNonRotated, makeEllipsoidXYZ
+from ellipsoid import makeEllipsoidXYZ
 
 log = logging.getLogger(__name__)
 
 
 # TODO: This is becoming a god-class.
 class MainWindow(QMainWindow):
-    primary_canvas: MatplotlibCanvas
-    secondary_canvas: MatplotlibCanvas
-    data_model: CalibrationDataModel
-
-    board_comms: Board2GUI
-    comms_thread: QThread
     start_data_read = Signal()
     start_calibration_get = Signal(str)
     start_calibration_set = Signal(str, object)
     stop_comms_task = Signal()
-
-    log_widget: QTextEdit
-    log_dock: QDockWidget
-
-    data_table_widget: QTableView
-    data_table_dock: QDockWidget
-
-    device_select_widget: DeviceSelectWidget
-    device_select_dock: QDockWidget
-
-    calibration_widget: CalibrationWidget
-    calibration_dock: QDockWidget
 
     def __init__(self, parent: QWidget | None = None):
         log.info("Creating main window.")
@@ -81,6 +64,7 @@ class MainWindow(QMainWindow):
         self.build_actions()
         self.build_toolbars()
         self.build_menus()
+        self.connect_signals()
 
     def build_dock_widgets(self) -> None:
         log.info("Creating GUI dock widgets")
@@ -94,17 +78,25 @@ class MainWindow(QMainWindow):
         self.calibration_widget.setSizePolicy(default_size_policy)
         self.calibration_dock = QDockWidget("&Calibration values", parent=self)
         self.calibration_dock.setWidget(self.calibration_widget)
-        self.calibration_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
-        )
+        # self.calibration_dock.setFeatures(
+        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        # )
 
-        self.device_select_widget = DeviceSelectWidget(parent=self)
-        self.device_select_widget.setSizePolicy(default_size_policy)
-        self.device_select_dock = QDockWidget("&Device select", parent=self)
-        self.device_select_dock.setWidget(self.device_select_widget)
-        self.device_select_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        self.orientation_window = OrientationWindow()
+        self.orientation_widget = QWidget.createWindowContainer(
+            self.orientation_window, parent=self
         )
+        # self.orientation_widget.setSizePolicy(default_size_policy)
+        self.orientation_dock = QDockWidget("&Board Orientation", parent=self)
+        self.orientation_dock.setWidget(self.orientation_widget)
+
+        # self.device_select_widget = DeviceSelectWidget(parent=self)
+        # self.device_select_widget.setSizePolicy(default_size_policy)
+        # self.device_select_dock = QDockWidget("&Device select", parent=self)
+        # self.device_select_dock.setWidget(self.device_select_widget)
+        # self.device_select_dock.setFeatures(
+        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        # )
 
         self.data_table_widget = QTableView(parent=self)
         self.data_table_dock = QDockWidget("Data &table", parent=self)
@@ -112,20 +104,23 @@ class MainWindow(QMainWindow):
         self.data_table_widget.horizontalHeader().setDefaultSectionSize(85)
         self.data_table_delegate = CalibrationDataDelegate()
         self.data_table_widget.setItemDelegate(self.data_table_delegate)
-        self.data_table_dock.setFeatures(
-            QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
-        )
+        # self.data_table_dock.setFeatures(
+        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
+        # )
 
         self.log_widget = QTextEdit(parent=self)
         self.log_dock = QDockWidget("&Log", parent=self)
         self.log_dock.setWidget(self.log_widget)
 
-        self.addDockWidget(
-            Qt.DockWidgetArea.LeftDockWidgetArea, self.device_select_dock
-        )
+        # self.addDockWidget(
+        #     Qt.DockWidgetArea.LeftDockWidgetArea, self.device_select_dock
+        # )
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.calibration_dock)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.data_table_dock)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_dock)
+        self.addDockWidget(
+            Qt.DockWidgetArea.BottomDockWidgetArea, self.orientation_dock
+        )
 
     def build_canvases(self) -> None:
         log.info("Creating plot canvases")
@@ -133,9 +128,9 @@ class MainWindow(QMainWindow):
         self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
         self.secondary_canvas = MatplotlibCanvas(5, 5, 96, projection="2d")
 
-        splitter = QSplitter(Qt.Orientation.Vertical, parent=self)
+        splitter = QSplitter(Qt.Orientation.Horizontal, parent=self)
         splitter.addWidget(self.primary_canvas)
-        splitter.addWidget(self.secondary_canvas)
+        # splitter.addWidget(self.secondary_canvas)
 
         size = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         splitter.setSizePolicy(size)
@@ -153,58 +148,35 @@ class MainWindow(QMainWindow):
         self.action_quit.setShortcut(QKeySequence("Ctrl+Q"))
         self.action_quit.triggered.connect(self.close)
 
-        self.action_get_calibration = QAction(
-            QIcon.fromTheme("go-first"),
-            "Get calibration from currently selected device.",
-            self,
-        )
-        self.action_get_calibration.triggered.connect(
-            self.action_get_calibration_callback
-        )
-        self.action_set_calibration = QAction(
-            QIcon.fromTheme("go-last"),
-            "Send calibration to currently selected device.",
-            self,
-        )
-        self.action_set_calibration.triggered.connect(
-            self.action_set_calibration_callback
-        )
-
-        self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "Fit ellipsoid.", self)
-        self.action_fit_ellipsoid.triggered.connect(self.action_fit_ellipsoid_callback)
-
-        self.action_plot_ellipsoid_wireframe = QAction(
-            QIcon.fromTheme(""), "Wireframe", self
-        )
-        self.action_plot_ellipsoid_wireframe.triggered.connect(
-            self.action_plot_ellipsoid_wireframe_callback
-        )
-
-        self.action_random_data = QAction(text="Add random data")
-        self.action_random_data.setShortcut(QKeySequence("Ctrl+D"))
-        self.action_random_data.triggered.connect(self.add_random_data)
-
     def build_toolbars(self) -> None:
         log.info("Creating GUI toolbars")
 
-        self.toolbar_main = QToolBar("main_toolbar")
-
-        self.toolbar_main.addActions(
-            [
-                self.action_random_data,
-                self.action_get_calibration,
-                self.action_set_calibration,
-                self.action_fit_ellipsoid,
-                self.action_plot_ellipsoid_wireframe,
-                self.action_quit,
-            ]
+        self.toolbar_device = QToolBar("device_toolbar")
+        self.device_select_widget = DeviceSelectWidget(parent=self)
+        self.device_select_widget.device_selector.currentIndexChanged.connect(
+            self.update_current_board
         )
+        self.device_select_widget.data_points.valueChanged.connect(
+            self.update_current_board
+        )
+        self.device_select_widget.get_calibration_action.triggered.connect(
+            self.action_get_calibration_callback
+        )
+        self.toolbar_device.addWidget(self.device_select_widget)
+
+        self.toolbar_fit = QToolBar("main_toolbar")
+        self.fit_widget = FitWidget(parent=self)
+        self.fit_widget.button_fit_ellipsoid.pressed.connect(
+            self.action_fit_ellipsoid_callback
+        )
+        self.toolbar_fit.addWidget(self.fit_widget)
 
         self.toolbar_mpl = QToolBar("matplotlib_default_tools")
         self.mpl_default_tools = NavigationToolbar2QT(self.primary_canvas, self)
         self.toolbar_mpl.addWidget(self.mpl_default_tools)
 
-        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_main)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_device)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_fit)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.toolbar_mpl)
 
     def build_menus(self) -> None:
@@ -217,17 +189,61 @@ class MainWindow(QMainWindow):
 
         self.menu_view.addActions(
             [
-                self.device_select_dock.toggleViewAction(),
+                # self.device_select_dock.toggleViewAction(),
                 self.calibration_dock.toggleViewAction(),
                 self.menu_view.addSeparator(),
                 self.data_table_dock.toggleViewAction(),
                 self.log_dock.toggleViewAction(),
+                self.orientation_dock.toggleViewAction(),
             ]
+        )
+
+    def connect_signals(self) -> None:
+        self.calibration_widget.magnetic.send_to_board_action.triggered.connect(
+            self.set_magnetic_calibration_callback
+        )
+        self.calibration_widget.accelerometer.send_to_board_action.triggered.connect(
+            self.set_accelerometer_calibration_callback
+        )
+        self.calibration_widget.gyroscope.send_to_board_action.triggered.connect(
+            self.set_gyroscope_calibration_callback
         )
 
     # End of UI -----------------
 
     # Controller -----------------------
+
+    def set_magnetic_calibration_callback(self) -> None:
+        data = (
+            self.calibration_widget.magnetic.soft_iron.get(),
+            self.calibration_widget.magnetic.hard_iron.get(),
+        )
+        log.info(f"Magnetic calibration data to send: {data}")
+
+        self.start_calibration_set.emit("magnetic", data)
+
+    def set_accelerometer_calibration_callback(self) -> None:
+        data = (
+            self.calibration_widget.accelerometer.misalignment.get(),
+            self.calibration_widget.accelerometer.sensitivity.get(),
+            self.calibration_widget.accelerometer.offset.get(),
+        )
+        log.info(f"Accelerometer calibration data to send: {data}")
+
+        self.start_calibration_set.emit("accelerometer", data)
+
+    def set_gyroscope_calibration_callback(self) -> None:
+        data = (
+            self.calibration_widget.gyroscope.misalignment.get(),
+            self.calibration_widget.gyroscope.sensitivity.get(),
+            self.calibration_widget.gyroscope.offset.get(),
+        )
+        log.info(f"Gyroscope calibration data to send: {data}")
+
+        self.start_calibration_set.emit("gyroscope", data)
+
+    def set_misc_settings_callback(self) -> None: ...
+
     def start_comms_thread(self) -> None:
         log.info("Starting communication thread")
 
@@ -248,74 +264,30 @@ class MainWindow(QMainWindow):
             self.board_comms.set_stop_flag, Qt.ConnectionType.DirectConnection
         )
 
-        # TODO: Connecting button callbacks here is very pastalicous.
-        self.calibration_widget.misc.get_calibration_button.pressed.connect(
-            self.button_get_misc_calibration_callback
-        )
-        self.calibration_widget.misc.set_calibration_button.pressed.connect(
-            self.button_set_misc_calibration_callback
-        )
-
         self.comms_thread.start()
 
-    def button_get_misc_calibration_callback(self) -> None:
+    def set_calibration_callback_template(self, id: str, data: tuple) -> None:
+        log.info(f"Set calibration callback triggered: {id}, {data}")
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
-
-            self.update_current_board()
-            self.start_calibration_get.emit("misc")
-
-    def button_set_misc_calibration_callback(self) -> None:
-        if not self.board_comms.task_running:
-            self.disable_comms_buttons()
-            self.update_current_board()
-
-            output_offset = self.calibration_widget.misc.get_offset()
-            ahrs_settings = self.calibration_widget.misc.get_ahrs_settings()
-            self.start_calibration_set.emit("misc", (output_offset, ahrs_settings))
-
-    def button_get_gyroscope_calibration_callback(self) -> None:
-        if not self.board_comms.task_running:
-            self.disable_comms_buttons()
-            self.update_current_board()
-            self.start_calibration_get.emit("gyroscope")
-
-    def button_get_accelerometer_calibration_callback(self) -> None:
-        if not self.board_comms.task_running:
-            self.disable_comms_buttons()
-            self.update_current_board()
-            self.start_calibration_get.emit("accelerometer")
+            self.start_calibration_set.emit(id, data)
 
     def action_get_calibration_callback(self):
         if not self.board_comms.task_running:
             self.disable_comms_buttons()
 
-            self.action_get_calibration.setEnabled(False)
-            self.update_current_board()
+            self.device_select_widget.get_calibration_action.setEnabled(False)
             self.start_calibration_get.emit("magnetic")
-
-    def action_set_calibration_callback(self):
-        if not self.board_comms.task_running:
-            self.disable_comms_buttons()
-
-            self.action_set_calibration.setEnabled(False)
-            self.update_current_board()
-            soft_iron = self.calibration_widget.magnetic.soft_iron.get()
-            hard_iron = self.calibration_widget.magnetic.hard_iron.get()
-
-            self.start_calibration_set.emit("magnetic", (soft_iron, hard_iron))
+            self.start_calibration_get.emit("gyroscope")
+            self.start_calibration_get.emit("accelerometer")
+            self.start_calibration_get.emit("misc")
 
     def action_plot_ellipsoid_wireframe_callback(self) -> None:
-        if True:
-            print("plot")
-            soft_iron = self.calibration_widget.magnetic.soft_iron.get()
-            hard_iron = self.calibration_widget.magnetic.hard_iron.get()
+        soft_iron = self.calibration_widget.magnetic.soft_iron.get()
+        hard_iron = self.calibration_widget.magnetic.hard_iron.get()
 
-            x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron), as_mesh=True)
-            self.primary_canvas.update_wireframe(x, y, z)
-        else:
-            print("delete")
-            self.primary_canvas.delete_wireframe()
+        x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron), as_mesh=True)
+        self.primary_canvas.update_wireframe(x, y, z)
 
     @Slot(object)  # pyright: ignore
     def calibration_received_handler(self, calibration_id: str, data: tuple) -> None:
@@ -350,7 +322,6 @@ class MainWindow(QMainWindow):
 
     def data_read_callback(self) -> None:
         log.info("Data read callback triggered")
-        self.update_current_board()
 
         if not self.board_comms.task_running:
             log.info("Starting data read task")
@@ -363,65 +334,27 @@ class MainWindow(QMainWindow):
 
     def action_fit_ellipsoid_callback(self):
         data = self.data_model.get_xyz_data()
+        soft_iron, offset, semi_axes, rotation = self.fit_widget.fit_function(*data)
 
-        (
-            params,
-            fopt,
-            gopt,
-            bopt,
-            func_calls,
-            grad_calls,
-            warnflag,
-        ) = fitEllipsoidNonRotated(*data)
-
-        # INFO: Using notation from AN4246 page 7.
-        V = np.array(params[:3])
-        A = np.diag(params[3:])
-
-        # INFO: Eqn. 20 in AN4246.
-        # BUG: Cannot figure out if we are supposed to use the soft_iron or inv_soft_iron in the board-side calibration
-        #
-        # inv_soft_iron = scipy.linalg.sqrtm(A)
-        # soft_iron = np.linalg.inv(inv_soft_iron)
-        # breakpoint()
-        #
-
-        # INFO: For now we just use the inverse of the ellipsoid fit-matrix parameters.
-        # That gives us a calibrated magnetic vector normalised to 1 (???).
-        soft_iron = np.linalg.inv(A)
+        self.gui_logger(f"soft-iron matrix: {soft_iron}")
+        self.gui_logger(f"offset vector: {offset}")
+        self.gui_logger(f"semi-axes: {semi_axes}")
+        self.gui_logger(f"rotation matrix: {rotation}")
 
         self.calibration_widget.magnetic.soft_iron.set(soft_iron)
-        self.calibration_widget.magnetic.hard_iron.set(V)
-
-        s_params = (
-            "Fit parameters",
-            f"x0={params[0]:.4f}, y0={params[1]:.4f}, z0={params[2]:.4f}, a={params[3]:.4f}, b={params[4]:.4f}, c={params[5]:.4f}",
-        )
-        s_fopt = ("Residual", f"{fopt:.4e}")
-        s_func = ("Function calls", f"{func_calls}")
-        s_grad = ("Gradient calls", f"{grad_calls}")
-
-        self.gui_logger(f"Fit parameters:\t{s_params[1]}")
-        self.gui_logger(f"Residual: \t{s_fopt[1]}")
-        self.gui_logger(f"Function calls: \t{s_func[1]}")
-        self.gui_logger(f"Gradient calls: \t{s_grad[1]}")
-
-    def add_random_data(self) -> None:
-        self.data_model.append_data(np.random.randint(0, 50, size=(1, 3)))
+        self.calibration_widget.magnetic.hard_iron.set(offset)
 
     def disable_comms_buttons(self) -> None:
         log.info("Disabling communication buttons")
 
         self.device_select_widget.data_button.setText("Stop")
-        self.action_get_calibration.setDisabled(True)
-        self.action_set_calibration.setDisabled(True)
+        self.device_select_widget.get_calibration_action.setDisabled(True)
 
     def restore_comms_buttons(self) -> None:
         log.info("Restoring communication buttons")
 
         self.device_select_widget.data_button.setText("Start")
-        self.action_get_calibration.setEnabled(True)
-        self.action_set_calibration.setEnabled(True)
+        self.device_select_widget.get_calibration_action.setEnabled(True)
 
     # End of Controller ----------------
 
@@ -436,7 +369,7 @@ class MainWindow(QMainWindow):
     def update_current_board(self) -> None:
         log.info("Updating current board")
 
-        device = self.device_select_widget.device_selector.currentData()
+        device, name = self.device_select_widget.device_selector.currentData()
 
         if device == "debug":
             self.board = TestSerialComms()
@@ -447,8 +380,11 @@ class MainWindow(QMainWindow):
         self.board_comms.set_board(self.board)
         self.board_comms.set_sample_size(self.device_select_widget.data_points.value())
 
+        joy_id, joy_name, _ = self.orientation_window.joystick.guess_joystick_id(name)
+        self.orientation_window.setJoystick(joy_id)
+
         log.info(
-            f"Current board set to: {device}, N={self.board_comms.read_sample_size}"
+            f"Current board set to: {device}, N={self.board_comms.read_sample_size}; Joystick ID: {joy_id}, {joy_name}"
         )
 
     def closeEvent(self, event):

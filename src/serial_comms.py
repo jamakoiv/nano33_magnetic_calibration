@@ -1,15 +1,14 @@
 import logging
 import time
 import copy
-import unicodedata
 import struct
 import numpy as np
 
-from typing import Iterable, Protocol
+from typing import Protocol
 from serial import Serial, SerialException
 from threading import Lock
 from enum import Enum
-from PySide6.QtCore import QObject, Signal, Slot, Qt
+from PySide6.QtCore import QObject, Signal, Slot
 
 from ellipsoid import makeEllipsoidXYZ
 
@@ -342,16 +341,19 @@ class TestSerialComms(QObject):
 
         self.rng = np.random.default_rng(seed=random_seed)
 
-        self.magnetic_soft_iron = self.rng.random((3, 3)) * 40
+        self.magnetic_soft_iron = np.diag(self.rng.random(3) * 40)
         self.magnetic_hard_iron = self.rng.random(3) * 10
 
-        self.accelerometer_misalignment = self.rng.random((3, 3))
+        self.accelerometer_misalignment = np.diag(self.rng.random(3))
         self.accelerometer_sensitivity = self.rng.random(3)
         self.accelerometer_offset = self.rng.random(3)
 
-        self.gyroscope_misalignment = self.rng.random((3, 3))
+        self.gyroscope_misalignment = np.diag(self.rng.random(3))
         self.gyroscope_sensitivity = self.rng.random(3)
         self.gyroscope_offset = self.rng.random(3)
+
+        self.ahrs_settings = self.rng.random(4)
+        self.output_offset = self.rng.random(3)
 
         self.magnetic_data = makeEllipsoidXYZ(
             20, 15, -12, 40, 35, 50, N=20, noise_scale=1, generator=self.rng
@@ -364,7 +366,7 @@ class TestSerialComms(QObject):
     def reset_calibration(self) -> None: ...
 
     def set_output_mode(self, mode: int) -> None:
-        pass
+        self.output_mode = mode  # Not actually used at the moment.
 
     def get_magnetometer_calibration(self) -> tuple[np.ndarray, np.ndarray]:
         return (self.magnetic_soft_iron, self.magnetic_hard_iron)
@@ -404,6 +406,13 @@ class TestSerialComms(QObject):
         self.gyroscope_misalignment = misalignment
         self.gyroscope_sensitivity = sensitivity
         self.gyroscope_offset = offset
+
+    def get_misc_settings(self) -> tuple[np.ndarray, np.ndarray]:
+        return self.output_offset, self.ahrs_settings
+
+    def set_misc_settings(self, output_offset, ahrs_settings) -> None:
+        self.ahrs_settings = ahrs_settings
+        self.output_offset = output_offset
 
     def read_row(self) -> np.ndarray:
         time.sleep(0.05)

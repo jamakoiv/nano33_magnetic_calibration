@@ -68,6 +68,8 @@ class CalibrationDataModel(QAbstractTableModel):
         /,
         parent: QModelIndex | QPersistentModelIndex | None = None,
     ) -> bool:
+        del parent
+
         log.info(f"Removing rows {row} to {row + count} from model.")
         self.beginRemoveRows(QModelIndex(), row, row + count)
 
@@ -85,6 +87,7 @@ class CalibrationDataModel(QAbstractTableModel):
     def rowCount(
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
     ) -> int:
+        del parent
         try:
             assert len(self._data) == self._data.shape[0], (
                 "Error with data shape: 'len' and np.ndarray.shape[0] do not match."
@@ -97,6 +100,7 @@ class CalibrationDataModel(QAbstractTableModel):
     def columnCount(
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
     ) -> int:
+        del parent
         try:
             return self._data.shape[1]
         except AttributeError:
@@ -159,9 +163,8 @@ class CalibrationDataModel(QAbstractTableModel):
 
     def get_xyz_data(self, with_offset: bool = False) -> np.ndarray:
         try:
-            t, magX, magY, magZ, accX, accY, accZ, gyroX, gyroY, gyroZ = (
-                self._data.copy().transpose()
-            )
+            # t, magX, magY, magZ, accX, accY, accZ, gyroX, gyroY, gyroZ
+            _, magX, magY, magZ, _, _, _, _, _, _ = self._data.copy().transpose()
 
             if with_offset:
                 x_offset, y_offset, z_offset = self.ellipsoid_params[:3]
@@ -204,7 +207,7 @@ class CalibrationDataModel(QAbstractTableModel):
 
 
 class CalibrationDataDelegate(QStyledItemDelegate):
-    def displayText(self, value: str, locale: QLocale | QLocale.Language) -> str:
+    def displayText(self, value: str, _: QLocale | QLocale.Language) -> str:
         try:
             f = float(value)
             return f"{f:.2f}"
@@ -241,7 +244,7 @@ class SerialPortsModel(QAbstractListModel):
 
                 return res
             case Qt.ItemDataRole.UserRole:
-                return device
+                return (device, name)
             case Qt.ItemDataRole.BackgroundRole:
                 return QColor(Qt.GlobalColor.white)
             case Qt.ItemDataRole.TextAlignmentRole:
@@ -260,6 +263,7 @@ class SerialPortsModel(QAbstractListModel):
     def rowCount(
         self, parent: QModelIndex | QPersistentModelIndex = QModelIndex()
     ) -> int:
+        del parent
         return len(self.ports)
 
 
