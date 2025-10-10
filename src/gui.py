@@ -208,6 +208,9 @@ class MainWindow(QMainWindow):
         self.calibration_widget.gyroscope.send_to_board_action.triggered.connect(
             self.set_gyroscope_calibration_callback
         )
+        self.calibration_widget.misc.send_to_board_action.triggered.connect(
+            self.set_misc_settings_callback
+        )
 
     # End of UI -----------------
 
@@ -242,7 +245,14 @@ class MainWindow(QMainWindow):
 
         self.start_calibration_set.emit("gyroscope", data)
 
-    def set_misc_settings_callback(self) -> None: ...
+    def set_misc_settings_callback(self) -> None:
+        data = (
+            self.calibration_widget.misc.get_offset(),
+            self.calibration_widget.misc.get_ahrs_settings(),
+        )
+        log.info(f"Offset and AHRS settings to send: {data}")
+
+        self.start_calibration_set.emit("misc", data)
 
     def start_comms_thread(self) -> None:
         log.info("Starting communication thread")
