@@ -33,7 +33,7 @@ class Joystick:
             self.joystick.init()
 
         # self.axis_mappings = {"pitch": 1, "yaw": 5, "roll": 0} # VKB Gladiator
-        self.axis_mappings = {"pitch": 2, "yaw": 0, "roll": 1}  # NANO 33 BLE
+        self.axis_mappings = {"pitch": 1, "yaw": 0, "roll": 2}  # NANO 33 BLE
         self.axis_inverts = {"pitch": -1, "yaw": -1, "roll": 1}
 
         # INFO: get_axis() outputs float in range [-1, 1].
@@ -151,7 +151,7 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
 
         # Camera
         self.camera().lens().setPerspectiveProjection(45, 16 / 9, 0.1, 1000)
-        self.camera().setPosition(QVector3D(0, 0, -20))
+        self.camera().setPosition(QVector3D(0, 6, -20))
         self.camera().setViewCenter(QVector3D(0, 0, 0))
 
         # For camera controls
