@@ -244,7 +244,7 @@ class SerialPortsModel(QAbstractListModel):
 
                 return res
             case Qt.ItemDataRole.UserRole:
-                return device
+                return (device, name)
             case Qt.ItemDataRole.BackgroundRole:
                 return QColor(Qt.GlobalColor.white)
             case Qt.ItemDataRole.TextAlignmentRole:

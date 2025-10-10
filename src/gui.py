@@ -369,7 +369,7 @@ class MainWindow(QMainWindow):
     def update_current_board(self) -> None:
         log.info("Updating current board")
 
-        device = self.device_select_widget.device_selector.currentData()
+        device, name = self.device_select_widget.device_selector.currentData()
 
         if device == "debug":
             self.board = TestSerialComms()
@@ -380,8 +380,11 @@ class MainWindow(QMainWindow):
         self.board_comms.set_board(self.board)
         self.board_comms.set_sample_size(self.device_select_widget.data_points.value())
 
+        joy_id, joy_name, _ = self.orientation_window.joystick.guess_joystick_id(name)
+        self.orientation_window.setJoystick(joy_id)
+
         log.info(
-            f"Current board set to: {device}, N={self.board_comms.read_sample_size}"
+            f"Current board set to: {device}, N={self.board_comms.read_sample_size}; Joystick ID: {joy_id}, {joy_name}"
         )
 
     def closeEvent(self, event):
