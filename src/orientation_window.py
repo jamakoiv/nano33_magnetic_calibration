@@ -1,7 +1,9 @@
+import sys
+import difflib
+
 from PySide6 import QtWidgets
 import pygame
 
-import sys
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QColor, QGuiApplication, QQuaternion, QVector3D
 from PySide6.Qt3DCore import Qt3DCore
@@ -10,8 +12,11 @@ from PySide6.Qt3DExtras import Qt3DExtras
 
 class Joystick:
     def __init__(self, id: int) -> None:
-        pygame.init()
-        pygame.joystick.init()
+        if not pygame.get_init():
+            pygame.init()
+
+        if not pygame.joystick.get_init():
+            pygame.joystick.init()
 
         joystick_count = pygame.joystick.get_count()
         if joystick_count == 0:
@@ -23,7 +28,9 @@ class Joystick:
             )
 
         self.joystick = pygame.joystick.Joystick(id)
-        self.joystick.init()
+
+        if not self.joystick.get_init():
+            self.joystick.init()
 
         self.axis_mappings = {"pitch": 1, "yaw": 5, "roll": 0}
         self.axis_inverts = {"pitch": -1, "yaw": -1, "roll": 1}
@@ -54,6 +61,30 @@ class Joystick:
         print(f"pitch {pitch}, yaw {yaw}, roll {roll}")
 
         return (pitch, roll, yaw)
+
+    @staticmethod
+    def guess_joystick_id(serial_name: str) -> int:
+        # INFO: We match serial-port to joystick only by simple similarity of the joystick device names.
+        # This very much less rigorous than e.g. matching USB PID/VID via pyudev.
+        # TODO: Probably should change to pyudev...
+        if not pygame.init():
+            pygame.init()
+        if not pygame.joystick.get_init():
+            pygame.joystick.init()
+
+        res = []
+        for i in range(pygame.joystick.get_count()):
+            pygame_name = pygame.joystick.Joystick(i).get_name()
+            score = difflib.SequenceMatcher(
+                None, serial_name.lower(), pygame_name.lower()
+            ).ratio()
+
+            res.append((i, pygame_name, score))
+
+        res = sorted(res, reverse=True, key=lambda item: item[2])
+        breakpoint()
+
+        return res[0][0]
 
 
 class Arrow3D(Qt3DCore.QEntity):
@@ -119,11 +150,6 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
     def __init__(self):
         super().__init__()
 
-        self.i = 0
-
-        # TODO: Supply joystick as argument, or just callable returning the angles.
-        self.joystick = Joystick(0)
-
         # Camera
         self.camera().lens().setPerspectiveProjection(45, 16 / 9, 0.1, 1000)
         self.camera().setPosition(QVector3D(10, 10, -15))
@@ -138,9 +164,16 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
 
         self.setRootEntity(self.rootEntity)
 
+        self.i = 0
+        # TODO: Hardcoded string
+        self.joystick = Joystick(Joystick.guess_joystick_id("arduino"))
+
+        self.updateTimer = QTimer()
+        self.updateTimer.timeout.connect(self.update)
+        self.updateTimer.start(10)
+
     def createScene(self):
         self.rootEntity = Qt3DCore.QEntity()
-
         self.material = Qt3DExtras.QPhongMaterial(self.rootEntity)
 
         self.boardEntity = Qt3DCore.QEntity(self.rootEntity)
@@ -157,9 +190,8 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
         self.axes = AxisArrows(self.boardEntity)
         self.axes.transform.setScale(0.5)
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update)
-        self.timer.start(10)
+    def setJoystick(self, id: int) -> None:
+        self.joystick = Joystick(id)
 
     def update(self):
         # # NOTE: QVector for fromEulerAngles is (pitch, yaw, roll).
