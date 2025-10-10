@@ -32,7 +32,8 @@ class Joystick:
         if not self.joystick.get_init():
             self.joystick.init()
 
-        self.axis_mappings = {"pitch": 1, "yaw": 5, "roll": 0}
+        # self.axis_mappings = {"pitch": 1, "yaw": 5, "roll": 0} # VKB Gladiator
+        self.axis_mappings = {"pitch": 2, "yaw": 0, "roll": 1}  # NANO 33 BLE
         self.axis_inverts = {"pitch": -1, "yaw": -1, "roll": 1}
 
         # INFO: get_axis() outputs float in range [-1, 1].
@@ -58,7 +59,6 @@ class Joystick:
             * self.axis_ranges["yaw"]
             * self.axis_inverts["yaw"]
         )
-        print(f"pitch {pitch}, yaw {yaw}, roll {roll}")
 
         return (pitch, roll, yaw)
 
@@ -82,7 +82,6 @@ class Joystick:
             res.append((i, pygame_name, score))
 
         res = sorted(res, reverse=True, key=lambda item: item[2])
-        breakpoint()
 
         return res[0]
 
@@ -152,7 +151,7 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
 
         # Camera
         self.camera().lens().setPerspectiveProjection(45, 16 / 9, 0.1, 1000)
-        self.camera().setPosition(QVector3D(10, 10, -15))
+        self.camera().setPosition(QVector3D(0, 0, -20))
         self.camera().setViewCenter(QVector3D(0, 0, 0))
 
         # For camera controls
@@ -198,7 +197,7 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
         # # NOTE: QVector for fromEulerAngles is (pitch, yaw, roll).
 
         pitch, roll, yaw = self.joystick.get_euler()
-        print(f"update {self.i}: pitch {pitch}, yaw {yaw}, roll {roll}")
+        # print(f"update {self.i}: pitch {pitch}, yaw {yaw}, roll {roll}")
 
         self.boardTransform.setRotation(QQuaternion.fromEulerAngles(pitch, yaw, roll))
 
