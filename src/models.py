@@ -24,8 +24,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtGui import QColor
 
-from ellipsoid import SphereSampling, fitEllipsoidNonRotated
-
+from ellipsoid import SphereSampling
+from fit_functions import fit_sphere
 
 log = logging.getLogger(__name__)
 
@@ -167,10 +167,13 @@ class CalibrationDataModel(QAbstractTableModel):
             _, magX, magY, magZ, _, _, _, _, _, _ = self._data.copy().transpose()
 
             if with_offset:
-                x_offset, y_offset, z_offset = self.ellipsoid_params[:3]
-                magX -= x_offset
-                magY -= y_offset
-                magZ -= z_offset
+                try:
+                    x_offset, y_offset, z_offset = self.offset
+                    magX -= x_offset
+                    magY -= y_offset
+                    magZ -= z_offset
+                except ValueError:
+                    breakpoint()
 
         except AttributeError:
             magX = np.zeros(0)
@@ -181,9 +184,7 @@ class CalibrationDataModel(QAbstractTableModel):
 
     def update_offset(self) -> None:
         magX, magY, magZ = self.get_xyz_data(with_offset=False)
-        res = fitEllipsoidNonRotated(magX, magY, magZ)
-        self.ellipsoid_params = np.array(res[0])
-        # print(self.ellipsoid_params)
+        _, self.offset, _, _ = fit_sphere(magX, magY, magZ)
 
     def update_sampling(self) -> None:
         if self.rowCount() % 10 == 0:

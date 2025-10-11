@@ -9,7 +9,6 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QSizePolicy,
-    QSplitter,
     QTableView,
     QToolBar,
     QDockWidget,
