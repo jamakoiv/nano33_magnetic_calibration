@@ -1,7 +1,5 @@
 import sys
 import difflib
-
-from PySide6 import QtWidgets
 import pygame
 
 from PySide6.QtCore import QTimer
@@ -41,7 +39,7 @@ class Joystick:
         # TODO: Should use map in case we want non-symmetrical outputs.
         self.axis_ranges = {"pitch": 180, "yaw": 180, "roll": 180}
 
-    def get_euler(self) -> tuple:
+    def get_euler(self) -> tuple[float, float, float]:
         pygame.event.pump()
 
         pitch = (
@@ -146,7 +144,7 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
     Display board orientation as 3D-model.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
         # Camera
@@ -165,14 +163,14 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
 
         self.i = 0
         # TODO: Hardcoded string
-        joy_id, joy_name, _ = Joystick.guess_joystick_id("arduino")
+        joy_id, _, _ = Joystick.guess_joystick_id("arduino")
         self.joystick = Joystick(joy_id)
 
         self.updateTimer = QTimer()
         self.updateTimer.timeout.connect(self.update)
-        self.updateTimer.start(10)
+        # self.updateTimer.start(10)
 
-    def createScene(self):
+    def createScene(self) -> None:
         self.rootEntity = Qt3DCore.QEntity()
         self.material = Qt3DExtras.QPhongMaterial(self.rootEntity)
 
@@ -194,14 +192,17 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
         self.joystick = Joystick(id)
 
     def update(self):
-        # # NOTE: QVector for fromEulerAngles is (pitch, yaw, roll).
-
         pitch, roll, yaw = self.joystick.get_euler()
-        # print(f"update {self.i}: pitch {pitch}, yaw {yaw}, roll {roll}")
-
+        print(f"update {self.i}: pitch {pitch}, yaw {yaw}, roll {roll}")
         self.boardTransform.setRotation(QQuaternion.fromEulerAngles(pitch, yaw, roll))
 
         self.i += 1
+
+    def setUpdateTimerRunning(self, run: bool) -> None:
+        if run:
+            self.updateTimer.start(10)  # 10 milliseconds.
+        else:
+            self.updateTimer.stop()
 
 
 if __name__ == "__main__":

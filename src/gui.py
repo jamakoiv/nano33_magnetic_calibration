@@ -5,7 +5,6 @@ import numpy as np
 from matplotlib.backends.backend_qt import NavigationToolbar2QT
 from PySide6.QtCore import Qt, Slot, Signal, QThread
 from PySide6.QtGui import QAction, QKeySequence, QIcon
-from PySide6 import QtWidgets
 from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
@@ -41,7 +40,13 @@ class MainWindow(QMainWindow):
 
         super().__init__(parent=parent)
 
-        self.build_ui()
+        # NOTE: These must be called in this order.
+        # E.g. Actions must be created before they can be added to toolbar.
+        self.build_canvases()
+        self.build_dock_widgets()
+        self.build_actions()
+        self.build_toolbars()
+        self.build_menus()
 
         self.data_model = CalibrationDataModel(parent=self)
         self.data_table_widget.setModel(self.data_model)
@@ -56,16 +61,6 @@ class MainWindow(QMainWindow):
         self.device_select_widget.refresh_serial_ports()
 
     # UI ------------------------
-    def build_ui(self) -> None:
-        # NOTE: These must be called in this order.
-        # E.g. Actions must be created before they can be added to toolbar.
-        self.build_canvases()
-        self.build_dock_widgets()
-        self.build_actions()
-        self.build_toolbars()
-        self.build_menus()
-        self.connect_signals()
-
     def build_dock_widgets(self) -> None:
         log.info("Creating GUI dock widgets")
 
@@ -81,6 +76,18 @@ class MainWindow(QMainWindow):
         # self.calibration_dock.setFeatures(
         #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
         # )
+        self.calibration_widget.magnetic.send_to_board_action.triggered.connect(
+            self.set_magnetic_calibration_callback
+        )
+        self.calibration_widget.accelerometer.send_to_board_action.triggered.connect(
+            self.set_accelerometer_calibration_callback
+        )
+        self.calibration_widget.gyroscope.send_to_board_action.triggered.connect(
+            self.set_gyroscope_calibration_callback
+        )
+        self.calibration_widget.misc.send_to_board_action.triggered.connect(
+            self.set_misc_settings_callback
+        )
 
         self.orientation_window = OrientationWindow()
         self.orientation_widget = QWidget.createWindowContainer(
@@ -89,14 +96,9 @@ class MainWindow(QMainWindow):
         # self.orientation_widget.setSizePolicy(default_size_policy)
         self.orientation_dock = QDockWidget("&Board Orientation", parent=self)
         self.orientation_dock.setWidget(self.orientation_widget)
-
-        # self.device_select_widget = DeviceSelectWidget(parent=self)
-        # self.device_select_widget.setSizePolicy(default_size_policy)
-        # self.device_select_dock = QDockWidget("&Device select", parent=self)
-        # self.device_select_dock.setWidget(self.device_select_widget)
-        # self.device_select_dock.setFeatures(
-        #     QDockWidget.DockWidgetFeature.DockWidgetVerticalTitleBar
-        # )
+        self.orientation_dock.visibilityChanged.connect(
+            self.orientation_window.setUpdateTimerRunning
+        )
 
         self.data_table_widget = QTableView(parent=self)
         self.data_table_dock = QDockWidget("Data &table", parent=self)
@@ -191,25 +193,11 @@ class MainWindow(QMainWindow):
             [
                 # self.device_select_dock.toggleViewAction(),
                 self.calibration_dock.toggleViewAction(),
+                self.orientation_dock.toggleViewAction(),
                 self.menu_view.addSeparator(),
                 self.data_table_dock.toggleViewAction(),
                 self.log_dock.toggleViewAction(),
-                self.orientation_dock.toggleViewAction(),
             ]
-        )
-
-    def connect_signals(self) -> None:
-        self.calibration_widget.magnetic.send_to_board_action.triggered.connect(
-            self.set_magnetic_calibration_callback
-        )
-        self.calibration_widget.accelerometer.send_to_board_action.triggered.connect(
-            self.set_accelerometer_calibration_callback
-        )
-        self.calibration_widget.gyroscope.send_to_board_action.triggered.connect(
-            self.set_gyroscope_calibration_callback
-        )
-        self.calibration_widget.misc.send_to_board_action.triggered.connect(
-            self.set_misc_settings_callback
         )
 
     # End of UI -----------------
