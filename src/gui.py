@@ -42,7 +42,8 @@ class MainWindow(QMainWindow):
 
         # NOTE: These must be called in this order.
         # E.g. Actions must be created before they can be added to toolbar.
-        self.build_canvases()
+        self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
+        self.setCentralWidget(self.primary_canvas)
         self.build_dock_widgets()
         self.build_actions()
         self.build_toolbars()
@@ -53,7 +54,6 @@ class MainWindow(QMainWindow):
         self.data_model.rowsInserted.connect(self.data_table_widget.scrollToBottom)
 
         self.primary_canvas.setModel(self.data_model)
-        self.secondary_canvas.setModel(self.data_model)
 
         self.device_select_widget.data_button.pressed.connect(self.data_read_callback)
 
@@ -123,25 +123,6 @@ class MainWindow(QMainWindow):
         self.addDockWidget(
             Qt.DockWidgetArea.BottomDockWidgetArea, self.orientation_dock
         )
-
-    def build_canvases(self) -> None:
-        log.info("Creating plot canvases")
-
-        self.primary_canvas = MatplotlibCanvas(5, 5, 96, projection="3d")
-        self.secondary_canvas = MatplotlibCanvas(5, 5, 96, projection="2d")
-
-        splitter = QSplitter(Qt.Orientation.Horizontal, parent=self)
-        splitter.addWidget(self.primary_canvas)
-        # splitter.addWidget(self.secondary_canvas)
-
-        size = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        splitter.setSizePolicy(size)
-
-        # Main canvas should get 2/3 of the main window
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 1)
-
-        self.setCentralWidget(splitter)
 
     def build_actions(self) -> None:
         log.info("Creating GUI-actions")
