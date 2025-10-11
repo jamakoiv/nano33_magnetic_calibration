@@ -167,13 +167,10 @@ class CalibrationDataModel(QAbstractTableModel):
             _, magX, magY, magZ, _, _, _, _, _, _ = self._data.copy().transpose()
 
             if with_offset:
-                try:
-                    x_offset, y_offset, z_offset = self.offset
-                    magX -= x_offset
-                    magY -= y_offset
-                    magZ -= z_offset
-                except ValueError:
-                    breakpoint()
+                x_offset, y_offset, z_offset = self.offset
+                magX -= x_offset
+                magY -= y_offset
+                magZ -= z_offset
 
         except AttributeError:
             magX = np.zeros(0)
