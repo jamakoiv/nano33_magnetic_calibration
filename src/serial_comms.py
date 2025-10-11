@@ -14,13 +14,10 @@ from ellipsoid import makeEllipsoidXYZ
 
 log = logging.getLogger(__name__)
 
-# TODO: The entire code for communication with the board is a horrible mess at the moment.
-# We need to rewrite significant parts to handle the fact that accelerometer/gyroscope
-# have different amount of calibration parameters than magnetometer.
-#
 # TODO: Should we just delete the entire Board2GUI and handle everything in each different board-type?
 # As if there ever will be more than Nano33..
 # Also the Nano33SerialComms still must inherit from QObject to be able to send it to another QThread...
+# TODO: Should get rid of threading and just use QTimer.
 
 
 """
@@ -140,17 +137,7 @@ class Board2GUI(QObject):
     Low-level comms should be handled by the 'board'-object.
     """
 
-    board: BoardCommunications
-
-    read_sample_size: int
-    read_retries: int
-    read_wait: float
-    stop: bool
-    mutex: Lock
-
-    task_running: bool
     task_done = Signal()
-
     data_row_received = Signal(object)
     calibration_received = Signal(str, object)
     error_signal = Signal(object)
@@ -427,16 +414,6 @@ class TestSerialComms(QObject):
 
 
 class Nano33SerialComms(QObject):
-    ser: Serial
-
-    calibration_sample_size: int
-    serial_port: str
-    serial_baudrate: int
-    serial_timeout: float
-    handshake_timeout: float
-
-    mutex: Lock = Lock()
-
     def __init__(
         self,
         port: str,
@@ -445,6 +422,7 @@ class Nano33SerialComms(QObject):
     ):
         super().__init__()
 
+        self.mutex = Lock()
         self.serial_port = port
         self.serial_baudrate = baudrate
         self.serial_timeout = timeout
@@ -765,21 +743,22 @@ class Nano33SerialComms(QObject):
             i_stx = d.index(bytes([ASCII_STX]))
             i_etx = d.index(bytes([ASCII_ETX]))
             i_eot = d.index(bytes([ASCII_EOT]))
-
-            if not (i_soh < i_stx < i_etx < i_eot):
-                raise BoardCommsError("Received data has invalid format")
-
-            raw_header = d[i_soh + 1 : i_stx]
-            raw_body = d[i_stx + 1 : i_etx]
-
-            if raw:
-                header = raw_header
-                body = raw_body
-            else:
-                header = Nano33SerialComms.parse_inbound_bytes(raw_header)
-                body = Nano33SerialComms.parse_inbound_bytes(raw_body)
-
-            return header, body
-
         except ValueError as e:
-            raise BoardCommsError(f"Received data has invalid format: {e}")
+            raise BoardCommsError(
+                f"Received data does not contain required control characters: {e}"
+            )
+
+        if not (i_soh < i_stx < i_etx < i_eot):
+            raise BoardCommsError("Control characters are in invalid order.")
+
+        raw_header = d[i_soh + 1 : i_stx]
+        raw_body = d[i_stx + 1 : i_etx]
+
+        if raw:
+            header = raw_header
+            body = raw_body
+        else:
+            header = Nano33SerialComms.parse_inbound_bytes(raw_header)
+            body = Nano33SerialComms.parse_inbound_bytes(raw_body)
+
+        return header, body
