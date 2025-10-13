@@ -176,7 +176,7 @@ class CalibrationVectorWidget(QWidget):
 
         # NOTE: Hard coded, but the raw data is in microteslas
         # and should be in the range of 20-100 uT.
-        validator = QDoubleValidator(-999, 999, 2, parent=self)
+        validator = QDoubleValidator(-999, 999, 5, parent=self)
         validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
         self.x_edit = QLineEdit(parent=self)
@@ -239,7 +239,7 @@ class CalibrationMatrixWidget(QWidget):
 
         # NOTE: Hard coded, but the raw data is in microteslas
         # and should be in the range of 20-100 uT.
-        validator = QDoubleValidator(-999, 999, 2, parent=self)
+        validator = QDoubleValidator(-999, 999, 5, parent=self)
         validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
         self.xx_edit = QLineEdit(parent=self)
@@ -447,9 +447,15 @@ class CalibrationMiscWidget(QWidget):
 
         self.output_offset_box = QGroupBox(title="Output offset", parent=self)
 
+        offset_validator = QDoubleValidator(-999, 999, 2, parent=self)
+        offset_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+
         self.yaw_offset = QLineEdit(parent=self)
         self.pitch_offset = QLineEdit(parent=self)
         self.roll_offset = QLineEdit(parent=self)
+        self.yaw_offset.setValidator(offset_validator)
+        self.pitch_offset.setValidator(offset_validator)
+        self.roll_offset.setValidator(offset_validator)
         self.yaw_label = QLabel(text="Yaw:", parent=self)
         self.pitch_label = QLabel(text="Pitch:", parent=self)
         self.roll_label = QLabel(text="Roll:", parent=self)
@@ -465,10 +471,18 @@ class CalibrationMiscWidget(QWidget):
 
         self.ahrs_box = QGroupBox(title="AHRS settings", parent=self)
 
+        ahrs_validator = QDoubleValidator(0, 9999, 2, parent=self)
+        ahrs_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+
         self.ahrs_gain = QLineEdit(parent=self)
         self.ahrs_acc_reject = QLineEdit(parent=self)
         self.ahrs_mag_reject = QLineEdit(parent=self)
         self.ahrs_reject_timeout = QLineEdit(parent=self)
+        self.ahrs_gain.setValidator(ahrs_validator)
+        self.ahrs_acc_reject.setValidator(ahrs_validator)
+        self.ahrs_mag_reject.setValidator(ahrs_validator)
+        self.ahrs_reject_timeout.setValidator(ahrs_validator)
+
         self.ahrs_gain_label = QLabel(text="Gain:", parent=self)
         self.ahrs_acc_reject_label = QLabel(text="Acceleration rejection:", parent=self)
         self.ahrs_mag_reject_label = QLabel(text="Magnetic rejection:", parent=self)
@@ -498,6 +512,9 @@ class CalibrationMiscWidget(QWidget):
         layout.addWidget(self.ahrs_box)
         layout.addLayout(button_layout)
         self.setLayout(layout)
+
+        self.set_offset(np.zeros(3))
+        self.set_ahrs_settings(np.array([0.50, 10.0, 10.0, 500]))
 
     def get_ahrs_settings(self) -> np.ndarray:
         gain = float(self.ahrs_gain.text())
