@@ -171,7 +171,13 @@ class CalibrationVectorWidget(QWidget):
     textChanged = Signal(str)
     checkStateChange = Signal(object)
 
-    def __init__(self, parent: QWidget | None = None, *args, **kwargs):
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        labels: list = ["X", "Y", "Z"],
+        *args,
+        **kwargs,
+    ):
         super().__init__(parent=parent, *args, **kwargs)
 
         # NOTE: Hard coded, but the raw data is in microteslas
@@ -182,9 +188,9 @@ class CalibrationVectorWidget(QWidget):
         self.x_edit = QLineEdit(parent=self)
         self.y_edit = QLineEdit(parent=self)
         self.z_edit = QLineEdit(parent=self)
-        self.x_label = QLabel(parent=self, text="X: ")
-        self.y_label = QLabel(parent=self, text="Y: ")
-        self.z_label = QLabel(parent=self, text="Z: ")
+        self.x_label = QLabel(parent=self, text=f"{labels[0]}: ")
+        self.y_label = QLabel(parent=self, text=f"{labels[1]}: ")
+        self.z_label = QLabel(parent=self, text=f"{labels[2]}: ")
 
         for edit in [
             self.x_edit,
@@ -442,32 +448,19 @@ class CalibrationMiscWidget(QWidget):
     Calibration widget for displaying and setting output offsets and AHRS settings.
     """
 
+    editingFinished = Signal()
+
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
         self.output_offset_box = QGroupBox(title="Output offset", parent=self)
-
-        offset_validator = QDoubleValidator(-999, 999, 2, parent=self)
-        offset_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
-
-        self.yaw_offset = QLineEdit(parent=self)
-        self.pitch_offset = QLineEdit(parent=self)
-        self.roll_offset = QLineEdit(parent=self)
-        self.yaw_offset.setValidator(offset_validator)
-        self.pitch_offset.setValidator(offset_validator)
-        self.roll_offset.setValidator(offset_validator)
-        self.yaw_label = QLabel(text="Yaw:", parent=self)
-        self.pitch_label = QLabel(text="Pitch:", parent=self)
-        self.roll_label = QLabel(text="Roll:", parent=self)
-
-        self.offset_box_layout = QGridLayout()
-        self.offset_box_layout.addWidget(self.yaw_label, 0, 0)
-        self.offset_box_layout.addWidget(self.yaw_offset, 0, 1)
-        self.offset_box_layout.addWidget(self.pitch_label, 1, 0)
-        self.offset_box_layout.addWidget(self.pitch_offset, 1, 1)
-        self.offset_box_layout.addWidget(self.roll_label, 2, 0)
-        self.offset_box_layout.addWidget(self.roll_offset, 2, 1)
-        self.output_offset_box.setLayout(self.offset_box_layout)
+        self.output_offset = CalibrationVectorWidget(
+            parent=self, labels=["Yaw", "Pitch", "Roll"]
+        )
+        self.output_offset.editingFinished.connect(self.editingFinished.emit)
+        self.output_offset_box_layout = QVBoxLayout()
+        self.output_offset_box_layout.addWidget(self.output_offset)
+        self.output_offset_box.setLayout(self.output_offset_box_layout)
 
         self.ahrs_box = QGroupBox(title="AHRS settings", parent=self)
 
@@ -513,7 +506,7 @@ class CalibrationMiscWidget(QWidget):
         layout.addLayout(button_layout)
         self.setLayout(layout)
 
-        self.set_offset(np.zeros(3))
+        self.output_offset.set(np.zeros(3))
         self.set_ahrs_settings(np.array([0.50, 10.0, 10.0, 500]))
 
     def get_ahrs_settings(self) -> np.ndarray:
@@ -533,20 +526,6 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_acc_reject.setText(str(acceleration_rejection))
         self.ahrs_mag_reject.setText(str(magnetic_rejection))
         self.ahrs_reject_timeout.setText(str(rejection_timeout))
-
-    def get_offset(self) -> np.ndarray:
-        yaw_offset = float(self.yaw_offset.text())
-        pitch_offset = float(self.pitch_offset.text())
-        roll_offset = float(self.roll_offset.text())
-
-        return np.array([yaw_offset, pitch_offset, roll_offset])
-
-    def set_offset(self, offset: np.ndarray) -> None:
-        yaw_offset, pitch_offset, roll_offset = offset
-
-        self.yaw_offset.setText(str(yaw_offset))
-        self.pitch_offset.setText(str(pitch_offset))
-        self.roll_offset.setText(str(roll_offset))
 
 
 class CalibrationWidget(QWidget):
