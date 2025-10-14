@@ -453,14 +453,23 @@ class CalibrationMiscWidget(QWidget):
     def __init__(self, parent: QWidget | None = None, *args, **kwargs):
         super().__init__(parent=parent, *args, **kwargs)
 
-        self.output_offset_box = QGroupBox(title="Output offset", parent=self)
         self.output_offset = CalibrationVectorWidget(
             parent=self, labels=["Yaw", "Pitch", "Roll"]
         )
+        self.output_offset_box = QGroupBox(title="Output offset", parent=self)
         self.output_offset.editingFinished.connect(self.editingFinished.emit)
         self.output_offset_box_layout = QVBoxLayout()
         self.output_offset_box_layout.addWidget(self.output_offset)
         self.output_offset_box.setLayout(self.output_offset_box_layout)
+
+        self.filter_time_constant = CalibrationVectorWidget(
+            parent=self, labels=["Gyroscope", "Accelerometer", "Magnetometer"]
+        )
+        self.filter_box = QGroupBox(title="Filter time constant", parent=self)
+        self.filter_time_constant.editingFinished.connect(self.editingFinished)
+        self.filter_box_layout = QVBoxLayout()
+        self.filter_box_layout.addWidget(self.filter_time_constant)
+        self.filter_box.setLayout(self.filter_box_layout)
 
         self.ahrs_box = QGroupBox(title="AHRS settings", parent=self)
 
@@ -502,6 +511,7 @@ class CalibrationMiscWidget(QWidget):
 
         layout = QHBoxLayout()
         layout.addWidget(self.output_offset_box)
+        layout.addWidget(self.filter_box)
         layout.addWidget(self.ahrs_box)
         layout.addLayout(button_layout)
         self.setLayout(layout)

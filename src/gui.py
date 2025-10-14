@@ -216,6 +216,7 @@ class MainWindow(QMainWindow):
     def set_misc_settings_callback(self) -> None:
         data = (
             self.calibration_widget.misc.output_offset.get(),
+            self.calibration_widget.misc.filter_time_constant.get(),
             self.calibration_widget.misc.get_ahrs_settings(),
         )
         log.info(f"Offset and AHRS settings to send: {data}")
@@ -290,8 +291,9 @@ class MainWindow(QMainWindow):
                 self.calibration_widget.accelerometer.offset.set(offset)
 
             case "misc":
-                output_offset, ahrs_settings = data
+                output_offset, filter_constant, ahrs_settings = data
                 self.calibration_widget.misc.output_offset.set(output_offset)
+                self.calibration_widget.misc.filter_time_constant.set(filter_constant)
                 self.calibration_widget.misc.set_ahrs_settings(ahrs_settings)
 
             case _:

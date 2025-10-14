@@ -117,7 +117,7 @@ class BoardCommunications(Protocol):
         self, misalignment: np.ndarray, sensitivity: np.ndarray, offset: np.ndarray
     ) -> None: ...
 
-    def get_misc_settings(self) -> tuple[np.ndarray, np.ndarray]: ...
+    def get_misc_settings(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]: ...
 
     def set_misc_settings(self, output_offset, ahrs_settings) -> None: ...
 
@@ -247,8 +247,10 @@ class Board2GUI(QObject):
 
                 case "misc":
                     id = "misc"
-                    output_offset, ahrs_settings = self.board.get_misc_settings()
-                    res = (output_offset, ahrs_settings)
+                    output_offset, filter_constant, ahrs_settings = (
+                        self.board.get_misc_settings()
+                    )
+                    res = (output_offset, filter_constant, ahrs_settings)
 
                 case _:
                     self.to_log.emit("Wrong calibration type supplied")
@@ -341,6 +343,7 @@ class TestSerialComms(QObject):
 
         self.ahrs_settings = self.rng.random(4)
         self.output_offset = self.rng.random(3)
+        self.filter_time_constant = self.rng.random(3)
 
         self.magnetic_data = makeEllipsoidXYZ(
             20, 15, -12, 40, 35, 50, N=20, noise_scale=1, generator=self.rng
@@ -394,8 +397,8 @@ class TestSerialComms(QObject):
         self.gyroscope_sensitivity = sensitivity
         self.gyroscope_offset = offset
 
-    def get_misc_settings(self) -> tuple[np.ndarray, np.ndarray]:
-        return self.output_offset, self.ahrs_settings
+    def get_misc_settings(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        return self.output_offset, self.filter_time_constant, self.ahrs_settings
 
     def set_misc_settings(self, output_offset, ahrs_settings) -> None:
         self.ahrs_settings = ahrs_settings
@@ -618,14 +621,20 @@ class Nano33SerialComms(QObject):
         log.info(f"Reply from board: {reply}")
 
     def set_misc_settings(
-        self, output_offset: np.ndarray, ahrs_settings: np.ndarray
+        self,
+        output_offset: np.ndarray,
+        filter_constant: np.ndarray,
+        ahrs_settings: np.ndarray,
     ) -> None:
-        misc_struct_format = "<fffffff"  # xyz vector + 4 floats
+        misc_struct_format = "<ffffffffff"  # xyz vector + xyz vector + 4 floats
         raw_header = struct.pack(
             "<BB", SERIAL_MISC_SET_SETTINGS, len(misc_struct_format) - 1
         )
         raw_body = struct.pack(
-            misc_struct_format, *output_offset.flatten(), *ahrs_settings.flatten()
+            misc_struct_format,
+            *output_offset.flatten(),
+            *filter_constant.flatten(),
+            *ahrs_settings.flatten(),
         )
 
         self.send_command(raw_header, raw_body)
@@ -635,9 +644,9 @@ class Nano33SerialComms(QObject):
 
     def get_misc_settings(
         self,
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         raw_header = struct.pack("<BB", SERIAL_MISC_GET_SETTINGS, 0)
-        misc_struct_format = "<fffffff"  # xyz vector + 4 floats
+        misc_struct_format = "<ffffffffff"  # xyz vector + xyz vector + 4 floats
 
         self.send_command(raw_header, b"")
         self.ser.reset_input_buffer()
@@ -645,15 +654,17 @@ class Nano33SerialComms(QObject):
         try:
             params = self.calibration_reply_helper(misc_struct_format)
             output_offset = params[:3]
-            ahrs_settings = params[3:7]
+            filter_constant = params[3:6]
+            ahrs_settings = params[6:10]
 
         except BoardCommsError as err:
             log.info(f"Error receiving calibration values: {err}")
 
             output_offset = np.array([-1, -1, -1])
+            filter_constant = np.array([-1, -1, -1])
             ahrs_settings = np.array([-1, -1, -1, -1])
 
-        return output_offset, ahrs_settings
+        return output_offset, filter_constant, ahrs_settings
 
     def open(self) -> None:
         try:
