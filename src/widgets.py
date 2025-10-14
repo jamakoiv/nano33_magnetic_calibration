@@ -5,10 +5,11 @@ import numpy as np
 
 from collections import OrderedDict
 from serial.tools import list_ports
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Signal, Qt
 from PySide6.QtGui import QDoubleValidator, QAction, QIcon
 from PySide6.QtWidgets import (
     QApplication,
+    QCheckBox,
     QFormLayout,
     QFrame,
     QGridLayout,
@@ -306,6 +307,7 @@ class CalibrationMatrixWidget(QWidget):
         layout.addWidget(self.zx_edit, 3, 1)
         layout.addWidget(self.zy_edit, 3, 2)
         layout.addWidget(self.zz_edit, 3, 3)
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.setLayout(layout)
 
     def get(self) -> np.ndarray:
@@ -480,6 +482,8 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_acc_reject = QLineEdit(parent=self)
         self.ahrs_mag_reject = QLineEdit(parent=self)
         self.ahrs_reject_timeout = QLineEdit(parent=self)
+        self.ahrs_magnetometer_check = QCheckBox("Use magnetometer", parent=self)
+        self.ahrs_magnetometer_check.setChecked(True)
         self.ahrs_gain.setValidator(ahrs_validator)
         self.ahrs_acc_reject.setValidator(ahrs_validator)
         self.ahrs_mag_reject.setValidator(ahrs_validator)
@@ -499,6 +503,7 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_box_layout.addWidget(self.ahrs_mag_reject, 2, 1)
         self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout_label, 3, 0)
         self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout, 3, 1)
+        self.ahrs_box_layout.addWidget(self.ahrs_magnetometer_check, 4, 0, 1, 2)
         self.ahrs_box.setLayout(self.ahrs_box_layout)
 
         self.send_to_board_button = QToolButton(parent=self)
