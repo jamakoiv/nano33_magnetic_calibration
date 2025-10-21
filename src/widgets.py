@@ -142,9 +142,9 @@ class FitWidget(QWidget):
         self.setLayout(layout)
 
     def set_fit_function(self):
-        fn_name = self.select_function.currentText()
-        log.info(f"Function selector combobox changed, currentText: {fn_name}")
-        self.fit_function = fit_functions.register[fn_name]
+        function_name = self.select_function.currentText()
+        log.info(f"Function selector combobox changed, currentText: {function_name}")
+        self.fit_function = fit_functions.register[function_name]
 
 
 class CalibrationVectorWidget(QWidget):
