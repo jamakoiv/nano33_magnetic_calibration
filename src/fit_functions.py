@@ -2,6 +2,9 @@ import numpy as np
 import logging
 import scipy
 
+from functools import wraps
+from typing import Callable
+
 import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
@@ -21,11 +24,27 @@ the DT0059.
 
 """
 
-# TODO: Should add the rotation matrix optimization routine.
-# Currently the fit returns rotation matrices which are not always optimal.
-# e.g. [[0, -1, 0], [-1,0,0], [0,0,1]] which looks ugly.
+
+type fit_function_t = Callable[[np.ndarray, np.ndarray, np.ndarray], tuple]
+register: dict[str, fit_function_t] = {}
 
 
+# INFO: Use the 'register_fit_function' -decorator to add the function automatically
+# to the FitWidget function selector.
+# Code pretty much copied from https://www.youtube.com/watch?v=g7EGMWvJ1fI
+def register_fit_function(name: str) -> Callable[[fit_function_t], fit_function_t]:
+    def decorator(fn: fit_function_t) -> fit_function_t:
+        @wraps(fn)
+        def wrapper(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
+            return fn(x, y, z)
+
+        register[name] = wrapper
+        return wrapper
+
+    return decorator
+
+
+@register_fit_function("Sphere")
 def fit_sphere(
     x: np.ndarray, y: np.ndarray, z: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -55,6 +74,7 @@ def fit_sphere(
     return soft_iron, offset, semi_axes, no_rotation
 
 
+@register_fit_function("Ellipsoid (non-rotated)")
 def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     # INFO: For non-rotated ellipsoid: d = e = f = 0.
     fit_data = np.array([x**2, y**2, z**2, 2 * x, 2 * y, 2 * z])
@@ -95,6 +115,7 @@ def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tup
 # soft_iron = np.matmul(np.diag(gain), R)
 
 
+@register_fit_function("Ellipsoid (rotated)")
 def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     fit_data = np.array(
         [x**2, y**2, z**2, 2 * x * y, 2 * x * z, 2 * y * z, 2 * x, 2 * y, 2 * z]
@@ -155,6 +176,7 @@ def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     return soft_iron, offset, semi_axes, rotation
 
 
+@register_fit_function("Ellipsoid (rotated, alt)")
 def fit_ellipsoid_rotated_alt(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
     """
     The proposed scheme for improving fit-quality for slightly rotated ellipsoid.

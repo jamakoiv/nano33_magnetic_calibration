@@ -126,14 +126,7 @@ class FitWidget(QWidget):
 
         self.select_function = QComboBox(parent=self)
         self.select_function.setToolTip("Select function to fit to the data")
-        self.select_function.addItems(
-            [
-                "Sphere",
-                "Ellipsoid (non-rotated)",
-                "Ellipsoid (rotated)",
-                "Ellipsoid (rotated, alt)",
-            ]
-        )
+        self.select_function.addItems(list(fit_functions.register.keys()))
         self.select_function.currentIndexChanged.connect(self.set_fit_function)
 
         self.action_fit_ellipsoid = QAction(QIcon.fromTheme(""), "&Fit", self)
@@ -149,17 +142,9 @@ class FitWidget(QWidget):
         self.setLayout(layout)
 
     def set_fit_function(self):
-        idx = self.select_function.currentIndex()
-        log.info(f"Function selector combobox index changed, currentIndex {idx}")
-        match idx:
-            case 0:
-                self.fit_function = fit_functions.fit_sphere
-            case 1:
-                self.fit_function = fit_functions.fit_ellipsoid_nonrotated
-            case 2:
-                self.fit_function = fit_functions.fit_ellipsoid_rotated
-            case 3:
-                self.fit_function = fit_functions.fit_ellipsoid_rotated_alt
+        fn_name = self.select_function.currentText()
+        log.info(f"Function selector combobox changed, currentText: {fn_name}")
+        self.fit_function = fit_functions.register[fn_name]
 
 
 class CalibrationVectorWidget(QWidget):
@@ -530,25 +515,25 @@ class CalibrationMiscWidget(QWidget):
         self.setLayout(layout)
 
         self.output_offset.set(np.zeros(3))
-        self.set_ahrs_settings(np.array([0.50, 10.0, 10.0, 500]))
+        self.set_ahrs_settings(np.array([0.50, 10.0, 10.0, 500, True]))
 
     def get_ahrs_settings(self) -> np.ndarray:
-        gain = float(self.ahrs_gain.text())
-        acceleration_rejection = float(self.ahrs_acc_reject.text())
-        magnetic_rejection = float(self.ahrs_mag_reject.text())
-        rejection_timeout = float(self.ahrs_reject_timeout.text())
-
         return np.array(
-            [gain, acceleration_rejection, magnetic_rejection, rejection_timeout]
+            [
+                float(self.ahrs_gain.text()),
+                float(self.ahrs_acc_reject.text()),
+                float(self.ahrs_mag_reject.text()),
+                float(self.ahrs_reject_timeout.text()),
+                self.ahrs_magnetometer_check.isChecked(),
+            ]
         )
 
     def set_ahrs_settings(self, settings: np.ndarray) -> None:
-        gain, acceleration_rejection, magnetic_rejection, rejection_timeout = settings
-
-        self.ahrs_gain.setText(str(gain))
-        self.ahrs_acc_reject.setText(str(acceleration_rejection))
-        self.ahrs_mag_reject.setText(str(magnetic_rejection))
-        self.ahrs_reject_timeout.setText(str(rejection_timeout))
+        self.ahrs_gain.setText(str(settings[0]))
+        self.ahrs_acc_reject.setText(str(settings[1]))
+        self.ahrs_mag_reject.setText(str(settings[2]))
+        self.ahrs_reject_timeout.setText(str(settings[3]))
+        self.ahrs_magnetometer_check.setChecked(bool(settings[4]))
 
 
 class CalibrationWidget(QWidget):
