@@ -148,7 +148,7 @@ class test_SerialPortsModel(unittest.TestCase):
 
         index = self.model.createIndex(0, 0)
         correct_displayrole = "/dev/ttyACM1 - TestBoard ABC123"
-        correct_userrole = "/dev/ttyACM1"
+        correct_userrole = ("/dev/ttyACM1", "TestBoard ABC123")
 
         self.assertEqual(
             self.model.data(index, role=Qt.ItemDataRole.DisplayRole),
