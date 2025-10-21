@@ -1,11 +1,15 @@
+import os
 import sys
 import difflib
-import pygame
+
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QColor, QGuiApplication, QQuaternion, QVector3D
 from PySide6.Qt3DCore import Qt3DCore
 from PySide6.Qt3DExtras import Qt3DExtras
+
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = ""
+import pygame
 
 
 class Joystick:
