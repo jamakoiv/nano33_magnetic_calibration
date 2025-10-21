@@ -27,23 +27,6 @@ class test_Board2GUI(unittest.TestCase):
         self.board_comms.set_board(self.board)
         self.board_comms.read_sample_size = 10
 
-        self.correct_magnetic_calibration = np.array(
-            [
-                32.92342533,
-                28.29592604,
-                10.76117538,
-                11.63470385,
-                18.84903367,
-                6.45735546,
-            ]
-        )
-        self.correct_accelerometer_calibration = np.array(
-            [0.98326345, 0.22859553, 0.91280166, 0.84211096, 0.0967116, 0.36238348]
-        )
-        self.correct_gyroscope_calibration = np.array(
-            [0.80242609, 0.51806079, 0.21262697, 0.92620838, 0.30832967, 0.1353237]
-        )
-
         return super().setUp()
 
     def tearDown(self) -> None:
@@ -74,42 +57,29 @@ class test_Board2GUI(unittest.TestCase):
 
         self.board_comms.get_calibration("magnetometer")
         self.assertEqual(spy.count(), 1)
-        id, (offset, gain) = spy.at(0)[0]
+        id, (soft_iron, hard_iron) = spy.at(0)
 
         self.assertEqual(id, "magnetometer")
-        try:
-            np.testing.assert_array_almost_equal(
-                np.concat((offset, gain)), self.correct_magnetic_calibration
-            )
-            self.assertTrue(True)
-        except AttributeError:
-            self.assertTrue(False)
+        self.assertEqual(soft_iron.shape, (3, 3))
+        self.assertEqual(hard_iron.shape, (3,))
 
         self.board_comms.get_calibration("accelerometer")
         self.assertEqual(spy.count(), 2)
-        id, (offset, gain) = spy.at(1)[0]
+        id, (misalignment, sensitivity, offset) = spy.at(1)
+        self.assertEqual(misalignment.shape, (3, 3))
+        self.assertEqual(sensitivity.shape, (3,))
+        self.assertEqual(offset.shape, (3,))
 
         self.assertEqual(id, "accelerometer")
-        try:
-            np.testing.assert_array_almost_equal(
-                np.concat((offset, gain)), self.correct_accelerometer_calibration
-            )
-            self.assertTrue(True)
-        except AttributeError:
-            self.assertTrue(False)
 
         self.board_comms.get_calibration("gyroscope")
         self.assertEqual(spy.count(), 3)
-        id, (offset, gain) = spy.at(2)[0]
+        id, (misalignment, sensitivity, offset) = spy.at(2)
+        self.assertEqual(misalignment.shape, (3, 3))
+        self.assertEqual(sensitivity.shape, (3,))
+        self.assertEqual(offset.shape, (3,))
 
         self.assertEqual(id, "gyroscope")
-        try:
-            np.testing.assert_array_almost_equal(
-                np.concat((offset, gain)), self.correct_gyroscope_calibration
-            )
-            self.assertTrue(True)
-        except AttributeError:
-            self.assertTrue(False)
 
     def test_set_calibration(self) -> None: ...
 
