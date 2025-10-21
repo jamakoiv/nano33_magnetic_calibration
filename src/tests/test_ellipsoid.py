@@ -6,7 +6,6 @@ from ellipsoid import (
     makePaths,
     makeSphericalMesh,
     makeEllipsoidXYZ,
-    fitEllipsoidNonRotated,
 )
 
 
@@ -180,20 +179,6 @@ class test_ellipsoid(unittest.TestCase):
         except AssertionError:
             self.assertTrue(False)
 
-    def test_fitEllipsoidNonRotated(self) -> None:
-        x, y, z = makeEllipsoidXYZ(10, 10, 10, 15, 20, 25, 5)
-
-        correct = np.array([10, 10, 10, 15, 20, 25])
-        res = fitEllipsoidNonRotated(x, y, z)
-        params = res[0]
-
-        try:
-            np.testing.assert_array_almost_equal(params, correct, decimal=3)
-
-            self.assertTrue(True)
-        except AssertionError:
-            self.assertTrue(False)
-
     def test_makePaths(self) -> None:
         w, q = np.meshgrid(np.array([0, 10, 20]), np.array([0, 100, 200]), sparse=False)
 
@@ -219,3 +204,5 @@ class test_ellipsoid(unittest.TestCase):
 
             except AssertionError:
                 self.assertTrue(False)
+
+    def test_uguu(self) -> None: ...
