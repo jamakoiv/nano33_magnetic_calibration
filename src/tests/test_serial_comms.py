@@ -5,7 +5,7 @@ from PySide6.QtCore import QAbstractItemModel, Qt
 from PySide6.QtTest import QTest, QSignalSpy
 from PySide6.QtWidgets import QApplication
 
-from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
+from serial_comms import Board2GUI, Nano33SerialComms, DebugSerialComms
 
 
 class test_Board2GUI(unittest.TestCase):
@@ -22,7 +22,7 @@ class test_Board2GUI(unittest.TestCase):
         return super().tearDownClass()
 
     def setUp(self) -> None:
-        self.board = TestSerialComms(random_seed=0xABCD)
+        self.board = DebugSerialComms(random_seed=0xABCD)
         self.board_comms = Board2GUI()
         self.board_comms.set_board(self.board)
         self.board_comms.read_sample_size = 10

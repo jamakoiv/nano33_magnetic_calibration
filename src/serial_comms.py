@@ -328,7 +328,7 @@ class Board2GUI(QObject):
             self.stop = True
 
 
-class TestSerialComms(QObject):
+class DebugSerialComms(QObject):
     def __init__(self, random_seed=None):
         super().__init__()
 

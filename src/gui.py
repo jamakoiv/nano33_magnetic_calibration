@@ -21,7 +21,7 @@ from canvas import MatplotlibCanvas
 from models import CalibrationDataModel, CalibrationDataDelegate
 from widgets import DeviceSelectWidget, CalibrationWidget, FitWidget
 from orientation_window import OrientationWindow
-from serial_comms import Board2GUI, Nano33SerialComms, TestSerialComms
+from serial_comms import Board2GUI, Nano33SerialComms, DebugSerialComms
 from ellipsoid import makeEllipsoidXYZ
 
 log = logging.getLogger(__name__)
@@ -352,7 +352,7 @@ class MainWindow(QMainWindow):
         device, name = self.device_select_widget.device_selector.currentData()
 
         if device == "debug":
-            self.board = TestSerialComms()
+            self.board = DebugSerialComms()
         else:
             self.board = Nano33SerialComms(device)
 
