@@ -168,8 +168,8 @@ class CalibrationVectorWidget(QWidget):
 
         # NOTE: Hard coded, but the raw data is in microteslas
         # and should be in the range of 20-100 uT.
-        validator = QDoubleValidator(-999, 999, 5, parent=self)
-        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        self.validator = QDoubleValidator(-999, 999, 5, parent=self)
+        self.validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
         self.x_edit = QLineEdit(parent=self)
         self.y_edit = QLineEdit(parent=self)
@@ -183,7 +183,7 @@ class CalibrationVectorWidget(QWidget):
             self.y_edit,
             self.z_edit,
         ]:
-            edit.setValidator(validator)
+            edit.setValidator(self.validator)
             edit.setText("1.0")
             edit.setMaxLength(6)
             edit.setMinimumWidth(40)
@@ -207,6 +207,8 @@ class CalibrationVectorWidget(QWidget):
         return res
 
     def set(self, gain: np.ndarray) -> None:
+        gain = np.clip(gain, self.validator.bottom(), self.validator.top())
+
         self.x_edit.setText(str(gain[0]))
         self.y_edit.setText(str(gain[1]))
         self.z_edit.setText(str(gain[2]))
@@ -231,8 +233,8 @@ class CalibrationMatrixWidget(QWidget):
 
         # NOTE: Hard coded, but the raw data is in microteslas
         # and should be in the range of 20-100 uT.
-        validator = QDoubleValidator(-999, 999, 5, parent=self)
-        validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        self.validator = QDoubleValidator(-999, 999, 5, parent=self)
+        self.validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
         self.xx_edit = QLineEdit(parent=self)
         self.xy_edit = QLineEdit(parent=self)
@@ -265,7 +267,7 @@ class CalibrationMatrixWidget(QWidget):
             self.zy_edit,
             self.zz_edit,
         ]:
-            edit.setValidator(validator)
+            edit.setValidator(self.validator)
             edit.setText("1.0")
             edit.setMaxLength(6)
             edit.setMinimumWidth(40)
@@ -317,6 +319,8 @@ class CalibrationMatrixWidget(QWidget):
         else:
             # TODO: Create error if input shape is garbage.
             pass
+
+        values = np.clip(values, self.validator.bottom(), self.validator.top())
 
         self.xx_edit.setText(str(values[0]))
         self.xy_edit.setText(str(values[1]))
