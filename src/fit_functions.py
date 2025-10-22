@@ -269,31 +269,51 @@ def fit_ellipsoid_rotated_alt(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tu
 def refine_rotation_matrix(
     gain: np.ndarray, rot: np.ndarray
 ) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Reorder elements to put biggest values to the diagonal of the rotation matrix,
+    i.e. create the minimum necessary rotation to achieve the desired result.
+    """
     assert rot.shape == (3, 3), "Rotation matrix must be 3x3 shaped matrix."
 
+    breakpoint()
+    # INFO: Reorder the columns if the maximum is not on the diagonal.
+    # BUG: Fails if there are more than one max-values.
+    # For quick fix we just pick the first max-value coordinates [0] for now.
     rm, cm = np.where(np.abs(rot) == np.abs(rot).max())
+    rm, cm = rm[0], cm[0]
     if rm != cm:
         rot[:, [cm, rm]] = rot[:, [rm, cm]]
         gain[cm], gain[rm] = gain[rm], gain[cm]
 
-    # NOTE: i must be list, or the aux_gain = gain[i] breaks.
+    # INFO: Create 2x2 matrix from the remaining parts.
     if rm == 0:
-        i = [1, 2]
+        i0, i1 = 1, 2
     elif rm == 1:
-        i = [0, 2]
+        i0, i1 = 0, 2
     else:  # rm == 2
-        i = [0, 1]
-    aux_rot = rot[:, i]
-    aux_gain = gain[i]
+        i0, i1 = 0, 1
 
+    aux_idx = [(i0, i0), (i0, i1), (i1, i0), (i1, i1)]
+    aux_rows, aux_cols = zip(*aux_idx)
+    aux_rot = rot[aux_rows, aux_cols].reshape(2, 2)
+
+    breakpoint()
+    # INFO: Same as before, put maximum on the diagonal and insert
+    # back to the original rotation matrix.
+    # BUG: See the above bug.
     rm, cm = np.where(np.abs(aux_rot) == np.abs(aux_rot).max())
+    rm, cm = rm[0], cm[0]
     if rm != cm:
-        aux_rot[:, [cm, rm]] = aux_rot[:, [rm, cm]]
-        aux_gain[cm], aux_gain[rm] = aux_gain[rm], aux_gain[cm]
+        aux_rot[:, [0, 1]] = aux_rot[:, [1, 0]]
 
-    rot[:, i] = aux_rot
-    gain[i] = aux_gain
+        rot[aux_idx[0]] = aux_rot[(0, 0)]
+        rot[aux_idx[1]] = aux_rot[(0, 1)]
+        rot[aux_idx[2]] = aux_rot[(1, 0)]
+        rot[aux_idx[3]] = aux_rot[(1, 1)]
 
+        gain[i0], gain[i1] = gain[i1], gain[i0]
+
+    # INFO: Flip column sign if the diagonal is negative.
     if rot[0, 0] < 0:
         rot[:, 0] = -rot[:, 0]
     if rot[1, 1] < 0:
