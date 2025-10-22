@@ -472,8 +472,8 @@ class CalibrationMiscWidget(QWidget):
 
         self.ahrs_box = QGroupBox(title="AHRS settings", parent=self)
 
-        ahrs_validator = QDoubleValidator(0, 9999, 2, parent=self)
-        ahrs_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        self.ahrs_validator = QDoubleValidator(0, 9999, 2, parent=self)
+        self.ahrs_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
         self.ahrs_gain = QLineEdit(parent=self)
         self.ahrs_acc_reject = QLineEdit(parent=self)
@@ -481,10 +481,10 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_reject_timeout = QLineEdit(parent=self)
         self.ahrs_magnetometer_check = QCheckBox("Use magnetometer", parent=self)
         self.ahrs_magnetometer_check.setChecked(True)
-        self.ahrs_gain.setValidator(ahrs_validator)
-        self.ahrs_acc_reject.setValidator(ahrs_validator)
-        self.ahrs_mag_reject.setValidator(ahrs_validator)
-        self.ahrs_reject_timeout.setValidator(ahrs_validator)
+        self.ahrs_gain.setValidator(self.ahrs_validator)
+        self.ahrs_acc_reject.setValidator(self.ahrs_validator)
+        self.ahrs_mag_reject.setValidator(self.ahrs_validator)
+        self.ahrs_reject_timeout.setValidator(self.ahrs_validator)
 
         self.ahrs_gain_label = QLabel(text="Gain:", parent=self)
         self.ahrs_acc_reject_label = QLabel(text="Acceleration rejection:", parent=self)
@@ -533,6 +533,10 @@ class CalibrationMiscWidget(QWidget):
         )
 
     def set_ahrs_settings(self, settings: np.ndarray) -> None:
+        settings = np.clip(
+            settings, self.ahrs_validator.bottom(), self.ahrs_validator.top()
+        )
+
         self.ahrs_gain.setText(str(settings[0]))
         self.ahrs_acc_reject.setText(str(settings[1]))
         self.ahrs_mag_reject.setText(str(settings[2]))
