@@ -275,7 +275,6 @@ def refine_rotation_matrix(
     """
     assert rot.shape == (3, 3), "Rotation matrix must be 3x3 shaped matrix."
 
-    breakpoint()
     # INFO: Reorder the columns if the maximum is not on the diagonal.
     # BUG: Fails if there are more than one max-values.
     # For quick fix we just pick the first max-value coordinates [0] for now.
@@ -297,7 +296,6 @@ def refine_rotation_matrix(
     aux_rows, aux_cols = zip(*aux_idx)
     aux_rot = rot[aux_rows, aux_cols].reshape(2, 2)
 
-    breakpoint()
     # INFO: Same as before, put maximum on the diagonal and insert
     # back to the original rotation matrix.
     # BUG: See the above bug.
