@@ -1,14 +1,33 @@
 import unittest
 import numpy as np
 
+import ellipsoid
 import fit_functions
-from ellipsoid import (
-    makeEllipsoidXYZ,
-)
 
 
 class test_fit_functions(unittest.TestCase):
     def setUp(self) -> None:
+        self.correct_offset = (10, -10, 15)
+        self.correct_semi_axes = (35, 35, 35)
+        self.correct_no_rotation = np.eye(3)
+        self.correct_rotation = ellipsoid.rotation(
+            np.deg2rad(30), np.deg2rad(45), np.deg2rad(25)
+        )
+        self.ellipsoid = ellipsoid.makeEllipsoidXYZ(
+            *self.correct_offset, *self.correct_semi_axes
+        )
+
+        self.correct_semi_axes_rotated = (30, 35, 40)
+        self.ellipsoid_rotated = ellipsoid.makeEllipsoidXYZ(
+            *self.correct_offset, *self.correct_semi_axes_rotated
+        )
+        self.ellipsoid_rotated = np.array(
+            [
+                np.matmul(self.correct_rotation, xyz)
+                for xyz in self.ellipsoid_rotated.transpose()
+            ]
+        ).transpose()
+
         return super().setUp()
 
     def tearDown(self) -> None:
@@ -23,37 +42,36 @@ class test_fit_functions(unittest.TestCase):
         self.assertIs(fit_functions.register["__test_function__"], foo)
 
     def test_fit_sphere(self) -> None:
-        ellipsoid_offset = (10, -10, 15)
-        ellipsoid_semi_axes = (35, 35, 35)
-        ellipsoid_rotation = np.eye(3)
-
-        ellipsoid = makeEllipsoidXYZ(*ellipsoid_offset, *ellipsoid_semi_axes)
-        soft_iron, hard_iron, semi_axes, rotation = fit_functions.fit_sphere(*ellipsoid)
+        soft_iron, hard_iron, semi_axes, rotation = fit_functions.fit_sphere(
+            *self.ellipsoid
+        )
 
         # NOTE: Big tolerances since the fit function results are
         # not always identical run to run.
-        np.testing.assert_allclose(ellipsoid_semi_axes, semi_axes, atol=0.1)
+        np.testing.assert_allclose(self.correct_semi_axes, semi_axes, atol=0.1)
         np.testing.assert_allclose(np.diag(soft_iron), 1 / semi_axes, atol=0.1)
-        np.testing.assert_allclose(ellipsoid_offset, hard_iron, atol=0.1)
-        np.testing.assert_allclose(ellipsoid_rotation, rotation, atol=0.1)
+        np.testing.assert_allclose(self.correct_offset, hard_iron, atol=0.1)
+        np.testing.assert_allclose(self.correct_no_rotation, rotation, atol=0.1)
 
     def test_fit_ellipsoid_nonrotated(self) -> None:
-        ellipsoid_offset = (10, -10, 15)
-        ellipsoid_semi_axes = (35, 45, 50)
-        ellipsoid_rotation = np.eye(3)
-
-        ellipsoid = makeEllipsoidXYZ(*ellipsoid_offset, *ellipsoid_semi_axes)
         soft_iron, hard_iron, semi_axes, rotation = (
-            fit_functions.fit_ellipsoid_nonrotated(*ellipsoid)
+            fit_functions.fit_ellipsoid_nonrotated(*self.ellipsoid)
         )
 
-        np.testing.assert_allclose(ellipsoid_semi_axes, semi_axes, atol=0.1)
+        np.testing.assert_allclose(self.correct_semi_axes, semi_axes, atol=0.1)
         np.testing.assert_allclose(np.diag(soft_iron), 1 / semi_axes, atol=0.1)
-        np.testing.assert_allclose(ellipsoid_offset, hard_iron, atol=0.1)
-        np.testing.assert_allclose(ellipsoid_rotation, rotation, atol=0.1)
+        np.testing.assert_allclose(self.correct_offset, hard_iron, atol=0.1)
+        np.testing.assert_allclose(self.correct_no_rotation, rotation, atol=0.1)
 
-    # TODO: Make code to rotate ellipsoid so we can create synthetic data for the tests.
-    def test_fit_ellipsoid_rotated(self) -> None: ...
+    def test_fit_ellipsoid_rotated(self) -> None:
+        soft_iron, hard_iron, semi_axes, rotation = fit_functions.fit_ellipsoid_rotated(
+            *self.ellipsoid_rotated
+        )
+        breakpoint()
+
+        np.testing.assert_allclose(self.correct_semi_axes_rotated, semi_axes, atol=0.1)
+        np.testing.assert_allclose(self.correct_offset, hard_iron, atol=0.1)
+        np.testing.assert_allclose(self.correct_rotation, rotation, atol=0.1)
 
     def test_fit_ellipsoid_rotated_alt(self) -> None: ...
 
