@@ -137,42 +137,7 @@ class test_ellipsoid(unittest.TestCase):
         )
 
         try:
-            res = makeEllipsoidXYZ(*self.test_params, as_mesh=False)
-            np.testing.assert_array_almost_equal(res, correct)
-
-            self.assertTrue(True)
-        except AssertionError:
-            self.assertTrue(False)
-
-    def test_makeEllipsoidXYZ_as_mesh(self) -> None:
-        correct = np.array(
-            [
-                [
-                    [10.0, -0.60660172, -5.0, -0.60660172, 10.0],
-                    [10.0, 10.0, 10.0, 10.0, 10.0],
-                    [10.0, 20.60660172, 25.0, 20.60660172, 10.0],
-                    [10.0, 10.0, 10.0, 10.0, 10.0],
-                    [10.0, -0.60660172, -5.0, -0.60660172, 10.0],
-                ],
-                [
-                    [10.0, 10.0, 10.0, 10.0, 10.0],
-                    [10.0, -4.14213562, -10.0, -4.14213562, 10.0],
-                    [10.0, 10.0, 10.0, 10.0, 10.0],
-                    [10.0, 24.14213562, 30.0, 24.14213562, 10.0],
-                    [10.0, 10.0, 10.0, 10.0, 10.0],
-                ],
-                [
-                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
-                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
-                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
-                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
-                    [35.0, 27.67766953, 10.0, -7.67766953, -15.0],
-                ],
-            ]
-        )
-
-        try:
-            res = makeEllipsoidXYZ(*self.test_params, as_mesh=True)
+            res = makeEllipsoidXYZ(*self.test_params)
             np.testing.assert_array_almost_equal(res, correct)
 
             self.assertTrue(True)
