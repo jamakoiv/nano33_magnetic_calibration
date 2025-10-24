@@ -28,8 +28,8 @@ def makeEllipsoidXYZ(
     b: float,
     c: float,
     N: int = 20,
+    Rotation: np.ndarray | None = None,
     noise_scale: float = 0.0,
-    as_mesh=False,
     generator: np.random.Generator | None = None,
 ) -> np.ndarray:
     """
@@ -47,14 +47,17 @@ def makeEllipsoidXYZ(
 
     theta, phi = makeSphericalMesh(N)
 
-    x = a * np.sin(theta) * np.cos(phi) + x0 + noise
-    y = b * np.sin(theta) * np.sin(phi) + y0 + noise
-    z = c * np.cos(theta) + z0 + noise
+    x = a * np.sin(theta) * np.cos(phi) + noise
+    y = b * np.sin(theta) * np.sin(phi) + noise
+    z = c * np.cos(theta) + noise
 
-    if as_mesh:
-        return np.array([x, y, z])
-    else:
-        return np.array([x.flatten(), y.flatten(), z.flatten()])
+    xyz = np.array([x.flatten(), y.flatten(), z.flatten()])
+    if Rotation is not None:
+        xyz = np.array(
+            [np.matmul(Rotation, row) for row in xyz.transpose()]
+        ).transpose()
+
+    return (xyz.transpose() + np.array([x0, y0, z0])).transpose()
 
 
 def makePaths(w: np.ndarray, q: np.ndarray) -> List[Path]:
