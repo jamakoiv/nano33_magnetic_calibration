@@ -142,7 +142,7 @@ def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
         target = np.ones_like(pred)
         return np.square(pred - target).mean()
 
-    params_guess = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    params_guess = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
     a, b, c, d, e, f, g, h, i = scipy.optimize.fmin_bfgs(loss, params_guess)
 
     # Auxiliary matrices and vectors
