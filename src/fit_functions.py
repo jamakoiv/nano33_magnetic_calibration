@@ -143,7 +143,7 @@ def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
         return np.square(pred - target).mean()
 
     params_guess = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-    a, b, c, d, e, f, g, h, i = scipy.optimize.fmin_bfgs(loss, params_guess)
+    a, b, c, d, e, f, g, h, i = scipy.optimize.fmin_bfgs(loss, params_guess, gtol=1e-7)
 
     # Auxiliary matrices and vectors
     v_ghi = np.array([g, h, i]).transpose()
@@ -320,6 +320,46 @@ def refine_rotation_matrix(
         rot[:, 2] = -rot[:, 2]
 
     return gain, rot
+
+
+def refine_rotation_matrix_mistral(semi_axes, rotation, lambda_reg=0.1):
+    # Define a loss function for the rotation matrix
+    def rotation_loss(R):
+        # Penalize deviation from identity
+        return lambda_reg * np.linalg.norm(R - np.eye(3)) ** 2
+
+    # Use a constrained optimizer to refine R
+    from scipy.optimize import minimize
+
+    # Flatten the rotation matrix for optimization
+    R_flat = rotation.flatten()
+
+    # Constraints: R must be a valid rotation matrix (orthogonal, det(R) = 1)
+    cons = (
+        {
+            "type": "eq",
+            "fun": lambda R: np.dot(R.reshape(3, 3)[0], R.reshape(3, 3)[1]),
+        },  # Orthogonality
+        {"type": "eq", "fun": lambda R: np.dot(R.reshape(3, 3)[0], R.reshape(3, 3)[2])},
+        {"type": "eq", "fun": lambda R: np.dot(R.reshape(3, 3)[1], R.reshape(3, 3)[2])},
+        {
+            "type": "eq",
+            "fun": lambda R: np.linalg.det(R.reshape(3, 3)) - 1,
+        },  # Determinant = 1
+    )
+
+    # Optimize
+    result = minimize(
+        rotation_loss,
+        R_flat,
+        constraints=cons,
+        method="SLSQP",
+    )
+
+    # Reshape the result back to a 3x3 matrix
+    refined_R = result.x.reshape(3, 3)
+
+    return semi_axes, refined_R
 
 
 if __name__ == "__main__":
