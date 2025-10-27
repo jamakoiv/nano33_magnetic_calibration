@@ -26,6 +26,7 @@ def main() -> None:
     # outputs a lot of stuff at debug-level.
     log.info("Program started with arguments: " + str(args))
 
+    QApplication.setStyle("fusion")
     app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
