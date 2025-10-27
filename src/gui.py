@@ -265,7 +265,7 @@ class MainWindow(QMainWindow):
         soft_iron = self.calibration_widget.magnetic.soft_iron.get()
         hard_iron = self.calibration_widget.magnetic.hard_iron.get()
 
-        x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron), as_mesh=True)
+        x, y, z = makeEllipsoidXYZ(*hard_iron, *np.diag(soft_iron))
         self.primary_canvas.update_wireframe(x, y, z)
 
     @Slot(object)  # pyright: ignore
@@ -360,11 +360,9 @@ class MainWindow(QMainWindow):
         self.board_comms.set_board(self.board)
         self.board_comms.set_sample_size(self.device_select_widget.data_points.value())
 
-        joy_id, joy_name, _ = self.orientation_window.joystick.guess_joystick_id(name)
-        self.orientation_window.setJoystick(joy_id)
-
+        self.orientation_window.setJoystick(name)
         log.info(
-            f"Current board set to: {device}, N={self.board_comms.read_sample_size}; Joystick ID: {joy_id}, {joy_name}"
+            f"Current board set to: {device}, N={self.board_comms.read_sample_size}"
         )
 
     def closeEvent(self, event):

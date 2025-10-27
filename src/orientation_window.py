@@ -1,7 +1,7 @@
 import os
 import sys
 import difflib
-
+import logging
 
 from PySide6.QtCore import QTimer
 from PySide6.QtGui import QColor, QGuiApplication, QQuaternion, QVector3D
@@ -10,6 +10,12 @@ from PySide6.Qt3DExtras import Qt3DExtras
 
 os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = ""
 import pygame
+
+log = logging.getLogger(__name__)
+
+
+class JoystickError(Exception):
+    pass
 
 
 class Joystick:
@@ -22,7 +28,7 @@ class Joystick:
 
         joystick_count = pygame.joystick.get_count()
         if joystick_count == 0:
-            raise Exception("No joysticks detected by pygame.")
+            raise JoystickError("No joysticks detected by pygame")
 
         elif id >= joystick_count:
             raise IndexError(
@@ -35,7 +41,7 @@ class Joystick:
             self.joystick.init()
 
         # self.axis_mappings = {"pitch": 1, "yaw": 5, "roll": 0} # VKB Gladiator
-        self.axis_mappings = {"pitch": 1, "yaw": 0, "roll": 2}  # NANO 33 BLE
+        self.axis_mappings = {"pitch": 2, "yaw": 0, "roll": 1}  # NANO 33 BLE
         self.axis_inverts = {"pitch": -1, "yaw": -1, "roll": 1}
 
         # INFO: get_axis() outputs float in range [-1, 1].
@@ -65,14 +71,15 @@ class Joystick:
         return (pitch, roll, yaw)
 
     @staticmethod
-    def guess_joystick_id(serial_name: str) -> tuple:
+    def guess_joystick_id(serial_name: str) -> list:
         # INFO: We match serial-port to joystick only by simple similarity of the joystick device names.
         # This very much less rigorous than e.g. matching USB PID/VID via pyudev.
         # TODO: Probably should change to pyudev...
-        if not pygame.init():
-            pygame.init()
         if not pygame.joystick.get_init():
             pygame.joystick.init()
+
+        if pygame.joystick.get_count() == 0:
+            raise JoystickError("No joysticks detected by pygame")
 
         res = []
         for i in range(pygame.joystick.get_count()):
@@ -84,8 +91,15 @@ class Joystick:
             res.append((i, pygame_name, score))
 
         res = sorted(res, reverse=True, key=lambda item: item[2])
-
         return res[0]
+
+    @staticmethod
+    def reinit() -> None:
+        # INFO: Pygame only looks for joystick when pygame.joystick.init is run.
+        # If we plug in new joystick afterwards, it does not show up
+
+        pygame.joystick.quit()
+        pygame.joystick.init()
 
 
 class Arrow3D(Qt3DCore.QEntity):
@@ -167,8 +181,8 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
 
         self.i = 0
         # TODO: Hardcoded string
-        joy_id, _, _ = Joystick.guess_joystick_id("arduino")
-        self.joystick = Joystick(joy_id)
+        # joy_id, _, _ = Joystick.guess_joystick_id("arduino")
+        # self.joystick = Joystick(joy_id)
 
         self.updateTimer = QTimer()
         self.updateTimer.timeout.connect(self.update)
@@ -192,15 +206,36 @@ class OrientationWindow(Qt3DExtras.Qt3DWindow):
         self.axes = AxisArrows(self.boardEntity)
         self.axes.transform.setScale(0.5)
 
-    def setJoystick(self, id: int) -> None:
-        self.joystick = Joystick(id)
+    def setJoystick(self, id: int | str | None) -> None:
+        Joystick.reinit()
+        log.debug(id)
+        try:
+            match id:
+                case int():
+                    self.joystick = Joystick(id)
+                    log.info(f"Set joystick, id{id}")
+
+                case str():
+                    joy_id, joy_name, _ = Joystick.guess_joystick_id(id)
+                    self.joystick = Joystick(joy_id)
+                    log.info(f"Set joystick, id: {joy_id}, name: {joy_name}")
+
+                case None:
+                    self.joystick = None
+
+        except (IndexError, JoystickError) as er:
+            log.error(f"Error setting joystick: {er}")
+            self.joystick = None
 
     def update(self):
-        pitch, roll, yaw = self.joystick.get_euler()
-        print(f"update {self.i}: pitch {pitch}, yaw {yaw}, roll {roll}")
-        self.boardTransform.setRotation(QQuaternion.fromEulerAngles(pitch, yaw, roll))
+        if self.joystick is not None:
+            pitch, roll, yaw = self.joystick.get_euler()
+            print(f"update {self.i}: pitch {pitch}, yaw {yaw}, roll {roll}")
+            self.boardTransform.setRotation(
+                QQuaternion.fromEulerAngles(pitch, yaw, roll)
+            )
 
-        self.i += 1
+            self.i += 1
 
     def setUpdateTimerRunning(self, run: bool) -> None:
         if run:
