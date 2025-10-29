@@ -434,6 +434,70 @@ class InertialCalibrationWidget(QWidget):
         self.offset.set(np.zeros(3))
 
 
+class AHRSSettingsWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None, *args, **kwargs):
+        super().__init__(parent=parent, *args, **kwargs)
+
+        self.ahrs_validator = QDoubleValidator(0, 9999, 2, parent=self)
+        self.ahrs_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+
+        self.ahrs_gain = QLineEdit(parent=self)
+        self.ahrs_acc_reject = QLineEdit(parent=self)
+        self.ahrs_mag_reject = QLineEdit(parent=self)
+        self.ahrs_reject_timeout = QLineEdit(parent=self)
+        self.ahrs_magnetometer_check = QCheckBox("Use magnetometer", parent=self)
+        self.ahrs_magnetometer_check.setChecked(True)
+
+        for edit in [
+            self.ahrs_gain,
+            self.ahrs_acc_reject,
+            self.ahrs_mag_reject,
+            self.ahrs_reject_timeout,
+        ]:
+            edit.setValidator(self.ahrs_validator)
+            edit.setMaxLength(6)
+            edit.setMinimumWidth(40)
+
+        self.ahrs_gain_label = QLabel(text="Gain:", parent=self)
+        self.ahrs_acc_reject_label = QLabel(text="Acceleration rejection:", parent=self)
+        self.ahrs_mag_reject_label = QLabel(text="Magnetic rejection:", parent=self)
+        self.ahrs_reject_timeout_label = QLabel(text="Rejection timeout:", parent=self)
+
+        layout = QGridLayout()
+        layout.addWidget(self.ahrs_gain_label, 0, 0)
+        layout.addWidget(self.ahrs_gain, 0, 1)
+        layout.addWidget(self.ahrs_acc_reject_label, 1, 0)
+        layout.addWidget(self.ahrs_acc_reject, 1, 1)
+        layout.addWidget(self.ahrs_mag_reject_label, 2, 0)
+        layout.addWidget(self.ahrs_mag_reject, 2, 1)
+        layout.addWidget(self.ahrs_reject_timeout_label, 3, 0)
+        layout.addWidget(self.ahrs_reject_timeout, 3, 1)
+        layout.addWidget(self.ahrs_magnetometer_check, 4, 0, 1, 2)
+        self.setLayout(layout)
+
+    def get(self) -> np.ndarray:
+        return np.array(
+            [
+                float(self.ahrs_gain.text()),
+                float(self.ahrs_acc_reject.text()),
+                float(self.ahrs_mag_reject.text()),
+                float(self.ahrs_reject_timeout.text()),
+                self.ahrs_magnetometer_check.isChecked(),
+            ]
+        )
+
+    def set(self, settings: np.ndarray) -> None:
+        settings = np.clip(
+            settings, self.ahrs_validator.bottom(), self.ahrs_validator.top()
+        )
+
+        self.ahrs_gain.setText(str(settings[0]))
+        self.ahrs_acc_reject.setText(str(settings[1]))
+        self.ahrs_mag_reject.setText(str(settings[2]))
+        self.ahrs_reject_timeout.setText(str(settings[3]))
+        self.ahrs_magnetometer_check.setChecked(bool(settings[4]))
+
+
 class CalibrationMiscWidget(QWidget):
     """
     Calibration widget for displaying and setting output offsets and AHRS settings.
@@ -463,42 +527,9 @@ class CalibrationMiscWidget(QWidget):
         self.filter_box.setLayout(self.filter_box_layout)
 
         self.ahrs_box = QGroupBox(title="AHRS settings", parent=self)
-
-        self.ahrs_validator = QDoubleValidator(0, 9999, 2, parent=self)
-        self.ahrs_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
-
-        self.ahrs_gain = QLineEdit(parent=self)
-        self.ahrs_acc_reject = QLineEdit(parent=self)
-        self.ahrs_mag_reject = QLineEdit(parent=self)
-        self.ahrs_reject_timeout = QLineEdit(parent=self)
-        self.ahrs_magnetometer_check = QCheckBox("Use magnetometer", parent=self)
-        self.ahrs_magnetometer_check.setChecked(True)
-
-        for edit in [
-            self.ahrs_gain,
-            self.ahrs_acc_reject,
-            self.ahrs_mag_reject,
-            self.ahrs_reject_timeout,
-        ]:
-            edit.setValidator(self.ahrs_validator)
-            edit.setMaxLength(6)
-            edit.setMinimumWidth(40)
-
-        self.ahrs_gain_label = QLabel(text="Gain:", parent=self)
-        self.ahrs_acc_reject_label = QLabel(text="Acceleration rejection:", parent=self)
-        self.ahrs_mag_reject_label = QLabel(text="Magnetic rejection:", parent=self)
-        self.ahrs_reject_timeout_label = QLabel(text="Rejection timeout:", parent=self)
-
-        self.ahrs_box_layout = QGridLayout()
-        self.ahrs_box_layout.addWidget(self.ahrs_gain_label, 0, 0)
-        self.ahrs_box_layout.addWidget(self.ahrs_gain, 0, 1)
-        self.ahrs_box_layout.addWidget(self.ahrs_acc_reject_label, 1, 0)
-        self.ahrs_box_layout.addWidget(self.ahrs_acc_reject, 1, 1)
-        self.ahrs_box_layout.addWidget(self.ahrs_mag_reject_label, 2, 0)
-        self.ahrs_box_layout.addWidget(self.ahrs_mag_reject, 2, 1)
-        self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout_label, 3, 0)
-        self.ahrs_box_layout.addWidget(self.ahrs_reject_timeout, 3, 1)
-        self.ahrs_box_layout.addWidget(self.ahrs_magnetometer_check, 4, 0, 1, 2)
+        self.ahrs_settings = AHRSSettingsWidget(parent=self)
+        self.ahrs_box_layout = QVBoxLayout()
+        self.ahrs_box_layout.addWidget(self.ahrs_settings)
         self.ahrs_box.setLayout(self.ahrs_box_layout)
 
         self.send_to_board_button = QToolButton(parent=self)
@@ -517,29 +548,7 @@ class CalibrationMiscWidget(QWidget):
         self.setLayout(layout)
 
         self.output_offset.set(np.zeros(3))
-        self.set_ahrs_settings(np.array([0.50, 10.0, 10.0, 500, True]))
-
-    def get_ahrs_settings(self) -> np.ndarray:
-        return np.array(
-            [
-                float(self.ahrs_gain.text()),
-                float(self.ahrs_acc_reject.text()),
-                float(self.ahrs_mag_reject.text()),
-                float(self.ahrs_reject_timeout.text()),
-                self.ahrs_magnetometer_check.isChecked(),
-            ]
-        )
-
-    def set_ahrs_settings(self, settings: np.ndarray) -> None:
-        settings = np.clip(
-            settings, self.ahrs_validator.bottom(), self.ahrs_validator.top()
-        )
-
-        self.ahrs_gain.setText(str(settings[0]))
-        self.ahrs_acc_reject.setText(str(settings[1]))
-        self.ahrs_mag_reject.setText(str(settings[2]))
-        self.ahrs_reject_timeout.setText(str(settings[3]))
-        self.ahrs_magnetometer_check.setChecked(bool(settings[4]))
+        self.ahrs_settings.set(np.array([0.50, 10.0, 10.0, 500, True]))
 
 
 class CalibrationWidget(QWidget):
