@@ -217,7 +217,7 @@ class MainWindow(QMainWindow):
         data = (
             self.calibration_widget.misc.output_offset.get(),
             self.calibration_widget.misc.filter_time_constant.get(),
-            self.calibration_widget.misc.get_ahrs_settings(),
+            self.calibration_widget.misc.ahrs_settings.get(),
         )
         log.info(f"Offset and AHRS settings to send: {data}")
 
@@ -294,7 +294,7 @@ class MainWindow(QMainWindow):
                 output_offset, filter_constant, ahrs_settings = data
                 self.calibration_widget.misc.output_offset.set(output_offset)
                 self.calibration_widget.misc.filter_time_constant.set(filter_constant)
-                self.calibration_widget.misc.set_ahrs_settings(ahrs_settings)
+                self.calibration_widget.misc.ahrs_settings.set(ahrs_settings)
 
             case _:
                 log.error(f"Wrong calibration id: {id}")

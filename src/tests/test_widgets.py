@@ -202,30 +202,34 @@ class test_CalibrationMiscWidget(unittest.TestCase):
         return super().tearDown()
 
     def test_set_ahrs_settings(self) -> None:
-        self.widget.set_ahrs_settings(np.array([1.1, 2.2, 3.3, 4.4, 1.0]))
+        self.widget.ahrs_settings.set(np.array([1.1, 2.2, 3.3, 4.4, 1.0]))
 
-        self.assertEqual(self.widget.ahrs_gain.text(), "1.1")
-        self.assertEqual(self.widget.ahrs_acc_reject.text(), "2.2")
-        self.assertEqual(self.widget.ahrs_mag_reject.text(), "3.3")
-        self.assertEqual(self.widget.ahrs_reject_timeout.text(), "4.4")
-        self.assertEqual(self.widget.ahrs_magnetometer_check.isChecked(), True)
+        self.assertEqual(self.widget.ahrs_settings.ahrs_gain.text(), "1.1")
+        self.assertEqual(self.widget.ahrs_settings.ahrs_acc_reject.text(), "2.2")
+        self.assertEqual(self.widget.ahrs_settings.ahrs_mag_reject.text(), "3.3")
+        self.assertEqual(self.widget.ahrs_settings.ahrs_reject_timeout.text(), "4.4")
+        self.assertEqual(
+            self.widget.ahrs_settings.ahrs_magnetometer_check.isChecked(), True
+        )
 
     def test_get_ahrs_settings(self) -> None:
         correct = np.array([1.1, 2.2, 3.3, 4.4, 1.0])
 
-        self.widget.ahrs_gain.setText("1.1")
-        self.widget.ahrs_acc_reject.setText("2.2")
-        self.widget.ahrs_mag_reject.setText("3.3")
-        self.widget.ahrs_reject_timeout.setText("4.4")
-        self.widget.ahrs_magnetometer_check.setChecked(True)
+        self.widget.ahrs_settings.ahrs_gain.setText("1.1")
+        self.widget.ahrs_settings.ahrs_acc_reject.setText("2.2")
+        self.widget.ahrs_settings.ahrs_mag_reject.setText("3.3")
+        self.widget.ahrs_settings.ahrs_reject_timeout.setText("4.4")
+        self.widget.ahrs_settings.ahrs_magnetometer_check.setChecked(True)
 
-        np.testing.assert_allclose(self.widget.get_ahrs_settings(), correct)
+        np.testing.assert_allclose(self.widget.ahrs_settings.get(), correct)
 
     def test_ahrs_validator(self) -> None:
-        self.widget.set_ahrs_settings(np.array([-1, -1, 10000, 100000, 1.0]))
+        self.widget.ahrs_settings.set(np.array([-1, -1, 10000, 100000, 1.0]))
 
-        self.assertEqual(self.widget.ahrs_gain.text(), "0.0")
-        self.assertEqual(self.widget.ahrs_acc_reject.text(), "0.0")
-        self.assertEqual(self.widget.ahrs_mag_reject.text(), "9999.0")
-        self.assertEqual(self.widget.ahrs_reject_timeout.text(), "9999.0")
-        self.assertEqual(self.widget.ahrs_magnetometer_check.isChecked(), True)
+        self.assertEqual(self.widget.ahrs_settings.ahrs_gain.text(), "0.0")
+        self.assertEqual(self.widget.ahrs_settings.ahrs_acc_reject.text(), "0.0")
+        self.assertEqual(self.widget.ahrs_settings.ahrs_mag_reject.text(), "9999.0")
+        self.assertEqual(self.widget.ahrs_settings.ahrs_reject_timeout.text(), "9999.0")
+        self.assertEqual(
+            self.widget.ahrs_settings.ahrs_magnetometer_check.isChecked(), True
+        )
