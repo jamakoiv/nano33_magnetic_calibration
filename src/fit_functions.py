@@ -61,7 +61,9 @@ def fit_sphere(
         return np.square(pred - target).mean()
 
     params_guess = np.array([1.0, 0.0, 0.0, 0.0])
-    a, g, h, i = scipy.optimize.fmin_bfgs(loss, params_guess)
+    params_opt = scipy.optimize.fmin_bfgs(loss, params_guess)
+    a, g, h, i = params_opt
+    log.debug(params_opt)
 
     offset = -1 * np.array([g / a, h / a, i / a])
     G = 1 + g**2 / a + h**2 / a + i**2 / a
@@ -98,14 +100,16 @@ def fit_ellipsoid_nonrotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tup
         return np.square(pred - target).mean()
 
     params_guess = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])
-    a, b, c, g, h, i = scipy.optimize.fmin_bfgs(loss, params_guess)
+    params_opt = scipy.optimize.fmin_bfgs(loss, params_guess)
+    a, b, c, g, h, i = params_opt
+    log.debug(params_opt.reshape(2, 3))
 
     offset = -1 * np.array([g / a, h / b, i / c])
     G = 1 + g**2 / a + h**2 / b + i**2 / c
     gain = np.array([np.sqrt(a / G), np.sqrt(b / G), np.sqrt(c / G)])
 
     soft_iron = np.diag(gain)
-    semi_axes = 1 / gain
+    semi_axes = 2 / gain
     no_rotation = np.diag(np.ones(3))
 
     return soft_iron, offset, semi_axes, no_rotation
@@ -143,7 +147,9 @@ def fit_ellipsoid_rotated(x: np.ndarray, y: np.ndarray, z: np.ndarray) -> tuple:
         return np.square(pred - target).mean()
 
     params_guess = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-    a, b, c, d, e, f, g, h, i = scipy.optimize.fmin_bfgs(loss, params_guess, gtol=1e-7)
+    params_opt = scipy.optimize.fmin_bfgs(loss, params_guess, gtol=1e-7)
+    a, b, c, d, e, f, g, h, i = params_opt
+    log.debug(params_opt.reshape(3, 3))
 
     # Auxiliary matrices and vectors
     v_ghi = np.array([g, h, i]).transpose()
