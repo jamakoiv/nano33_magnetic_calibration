@@ -481,10 +481,16 @@ class CalibrationMiscWidget(QWidget):
         self.ahrs_reject_timeout = QLineEdit(parent=self)
         self.ahrs_magnetometer_check = QCheckBox("Use magnetometer", parent=self)
         self.ahrs_magnetometer_check.setChecked(True)
-        self.ahrs_gain.setValidator(self.ahrs_validator)
-        self.ahrs_acc_reject.setValidator(self.ahrs_validator)
-        self.ahrs_mag_reject.setValidator(self.ahrs_validator)
-        self.ahrs_reject_timeout.setValidator(self.ahrs_validator)
+
+        for edit in [
+            self.ahrs_gain,
+            self.ahrs_acc_reject,
+            self.ahrs_mag_reject,
+            self.ahrs_reject_timeout,
+        ]:
+            edit.setValidator(self.ahrs_validator)
+            edit.setMaxLength(6)
+            edit.setMinimumWidth(40)
 
         self.ahrs_gain_label = QLabel(text="Gain:", parent=self)
         self.ahrs_acc_reject_label = QLabel(text="Acceleration rejection:", parent=self)
