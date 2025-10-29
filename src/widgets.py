@@ -372,18 +372,10 @@ class MagneticCalibrationWidget(QWidget):
         button_layout = QVBoxLayout()
         button_layout.addWidget(self.send_to_board_button)
 
-        self.filter_label = QLabel("Filter time constant: ", parent=self)
-        self.filter_edit = QLineEdit(parent=self)
-        filter_layout = QHBoxLayout()
-        filter_layout.addWidget(self.filter_label)
-        filter_layout.addWidget(self.filter_edit)
-
-        layout = QGridLayout()
-        layout.addWidget(self.soft_iron_box, 0, 0, 2, 1)
-        layout.addWidget(self.hard_iron_box, 0, 1)
-        layout.addLayout(button_layout, 0, 2)
-        layout.addLayout(filter_layout, 1, 1, 1, 1)
-
+        layout = QHBoxLayout()
+        layout.addWidget(self.soft_iron_box, stretch=3)
+        layout.addWidget(self.hard_iron_box, stretch=2)
+        layout.addLayout(button_layout)
         self.setLayout(layout)
 
         self.soft_iron.set(np.eye(3))
@@ -430,9 +422,9 @@ class InertialCalibrationWidget(QWidget):
         button_layout.addWidget(self.send_to_board_button)
 
         layout = QHBoxLayout()
-        layout.addWidget(self.misalignment_box)
-        layout.addWidget(self.sensitivity_box)
-        layout.addWidget(self.offset_box)
+        layout.addWidget(self.misalignment_box, stretch=3)
+        layout.addWidget(self.sensitivity_box, stretch=2)
+        layout.addWidget(self.offset_box, stretch=2)
         layout.addLayout(button_layout)
 
         self.setLayout(layout)
